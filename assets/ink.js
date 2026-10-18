@@ -6,7 +6,10 @@ const j=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
 const img=id=>`<img loading="lazy" src="${O}/content/${esc(id)}" alt="" data-id="${esc(id)}">`;
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const shuffle=a=>{const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b};
-const mkFrame=id=>{const f=document.createElement('iframe');f.src=`${O}/preview/${id}`;f.loading='eager';f.sandbox='allow-scripts';f.title='';f.style.cssText='width:100%;height:100%;border:0;pointer-events:none';f.dataset.id=id;return f};
+// allow-same-origin needed so canvas ordies can run body onload / start()
+const SB='allow-scripts allow-same-origin';
+const frameHtml=id=>`<iframe src="${O}/preview/${esc(id)}" loading="eager" sandbox="${SB}" style="width:100%;height:100%;border:0;pointer-events:none" title="" data-id="${esc(id)}"></iframe>`;
+const mkFrame=id=>{const f=document.createElement('iframe');f.src=`${O}/preview/${id}`;f.loading='eager';f.sandbox=SB;f.title='';f.style.cssText='width:100%;height:100%;border:0;pointer-events:none';f.dataset.id=id;return f};
 const livePv=pv=>pv.querySelector('iframe[src*="preview/"]');
 const stopPv=pv=>{pv.querySelectorAll('iframe').forEach(f=>{f.src='about:blank';f.remove()})};
 const playPv=(pv,id)=>{stopPv(pv);pv.appendChild(mkFrame(id))};
@@ -17,25 +20,14 @@ document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.d
 const creditX=c=>c.creatorX&&!c.creatorX.startsWith("{{")?` · <a href="https://x.com/${esc(c.creatorX)}">@${esc(c.creatorX)}</a>`:"";
 const who=c=>String(c.creator).startsWith("{{")?"ITS CREATOR (CREDIT PENDING)":c.creator;
 
-function bindHomeOrdie(card,id){
- // Keep the home thumb mounted once shown — blanking caused a black card while still on-screen.
- const pv=card.querySelector('.pv');if(!pv||!id)return;
- pv.dataset.ordie='1';pv.innerHTML='';
- ensurePv(pv,id);
- const io=new IntersectionObserver(([e])=>{if(e.isIntersecting)ensurePv(pv,id)},{threshold:.05,rootMargin:'100px 0px'});
- io.observe(card);
- card.addEventListener('mouseenter',()=>{if(!livePv(pv))ensurePv(pv,id)});
-}
-
 async function home(){
  const cols=await j('data/collections.json'),el=$('#home');
  const firsts=await Promise.all(cols.map(c=>j(`data/${c.slug}.json`).then(a=>c.thumb||a[0].id)));
  const grp=g=>cols.map((c,i)=>[c,i]).filter(([c])=>c.group===g).map(([c,i])=>{
   const live=c.slug==='ordies';
-  return`<a class="card${c.slug==='orphanz'?' light':''}${live?' ordie-card':''}" href="c.html?c=${c.slug}"${live?` data-ordie-home="${esc(firsts[i])}"`:''}><div class="pv"${live?' data-ordie="1"':''}>${live?'':img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${esc(who(c))}</div></div></a>`;
+  return`<a class="card${c.slug==='orphanz'?' light':''}${live?' ordie-card':''}" href="c.html?c=${c.slug}"><div class="pv"${live?' data-ordie="1"':''}>${live?frameHtml(firsts[i]):img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${esc(who(c))}</div></div></a>`;
  }).join('');
  el.innerHTML=`<h2>Featured</h2><div class="cards">${grp('Featured')}</div><h2>Hidden Lotus Tech</h2><div class="cards">${grp('HLT')}</div>`;
- const card=$('a.ordie-card');if(card)bindHomeOrdie(card,card.dataset.ordieHome);
 }
 
 async function col(){
@@ -53,16 +45,17 @@ async function col(){
  const rare=i=>i.rank!=null?i.rank:-(i.score||0);
  function list(){let r=items.filter(i=>(!q||i.name.toLowerCase().includes(q)||String(i.n)===q||String(i.num)===q)&&Object.entries(sel).every(([k,s])=>!s.size||s.has((i.t||{})[k])));
   r.sort(sort==='num'?(a,b)=>a.num-b.num:sort==='rare'?(a,b)=>rare(a)-rare(b):(a,b)=>a.n-b.n);return r}
+ function fillAll(ids){ids.forEach(id=>{const pv=$(`#g .item[data-id="${CSS.escape(id)}"] .pv`);if(pv)ensurePv(pv,id)})}
  async function tour(ids,gen){
-  if(reduce()){ids.forEach(id=>{const pv=$(`#g .item[data-id="${CSS.escape(id)}"] .pv`);if(pv)ensurePv(pv,id)});return}
   touring=true;
-  for(const id of shuffle(ids)){
+  const order=reduce()?ids:shuffle(ids);
+  for(const id of order){
    if(gen!==tourGen)break;
    const pv=$(`#g .item[data-id="${CSS.escape(id)}"] .pv`);if(!pv)continue;
    ensurePv(pv,id);
-   await new Promise(r=>setTimeout(r,ORDIE_MS));
+   if(!reduce())await new Promise(r=>setTimeout(r,ORDIE_MS));
   }
-  if(gen===tourGen)touring=false;
+  if(gen===tourGen){fillAll(ids);touring=false}
  }
  function bindOrdieHover(g){
   g.querySelectorAll('.item').forEach(item=>{
@@ -74,9 +67,11 @@ async function col(){
  }
  function draw(){const r=list();$('#cnt').textContent=`${r.length} / ${items.length}`;
   const g=$('#g');g.classList.toggle('orphanz',orph);touring=false;
+  const ids=r.slice(0,shown).map(i=>i.id);
+  // Gallery: empty slots first, tour mounts one-by-one and leaves them (no blanking).
   g.innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}"><div class="pv"${ordie?' data-ordie="1"':''}>${ordie?'':img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
   $('#more').hidden=r.length<=shown;
-  if(ordie){const gen=++tourGen;bindOrdieHover(g);tour(r.slice(0,shown).map(i=>i.id),gen)}
+  if(ordie){const gen=++tourGen;bindOrdieHover(g);tour(ids,gen)}
  }
  $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase().replace(/^#/,'');shown=PAGE;draw()};
  $('#s').onchange=e=>{sort=e.target.value;draw()};
@@ -84,7 +79,7 @@ async function col(){
  m.querySelector('.filters').onchange=e=>{const t=e.target;(sel[t.dataset.k]??=new Set())[t.checked?'add':'delete'](t.value);shown=PAGE;draw()};
  $('#g').onclick=e=>{const b=e.target.closest('.item');if(!b)return;const i=items.find(x=>x.id===b.dataset.id);const d=$('#dlg');
   const rows=Object.entries(i.t||{}).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}${cats[k]&&catKeys.includes(k)?` <span class="meta">${(cats[k][v]/items.length*100).toFixed(1)}%</span>`:''}</td></tr>`).join('');
-  d.innerHTML=`<div class="dlg"><iframe src="${O}/preview/${esc(i.id)}" sandbox="allow-scripts" title="${esc(i.name)}"></iframe><div class="info"><h3 style="margin:0">${esc(i.name)}</h3>${i.num!=null?`<p class="meta">Inscription #${i.num.toLocaleString()}</p>`:''}<table>${rows||'<tr><td>traits</td><td>—</td></tr>'}</table><a class="btn" href="${O}/inscription/${esc(i.id)}" target="_blank" rel="noopener">ordinals.com ↗</a><button class="btn" id="x">Close</button></div></div>`;
+  d.innerHTML=`<div class="dlg"><iframe src="${O}/preview/${esc(i.id)}" sandbox="${SB}" title="${esc(i.name)}"></iframe><div class="info"><h3 style="margin:0">${esc(i.name)}</h3>${i.num!=null?`<p class="meta">Inscription #${i.num.toLocaleString()}</p>`:''}<table>${rows||'<tr><td>traits</td><td>—</td></tr>'}</table><a class="btn" href="${O}/inscription/${esc(i.id)}" target="_blank" rel="noopener">ordinals.com ↗</a><button class="btn" id="x">Close</button></div></div>`;
   d.showModal();$('#x').onclick=()=>d.close()};
  $('#dlg').onclick=e=>{if(e.target.id==='dlg')e.target.close()};
  if(orph){
