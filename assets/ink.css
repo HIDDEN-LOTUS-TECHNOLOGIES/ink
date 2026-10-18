@@ -39,3 +39,4 @@ footer{border-top:1px solid var(--line);margin-top:5rem;padding:2rem 0;color:var
 .cur{color:var(--acc)}.cards,.grid{border-top:2px solid var(--blue);padding-top:1rem}input,select{text-transform:uppercase}
 
 .item,button{text-transform:uppercase}
+/* orphanz = black line art on transparent: show on white */.light .pv,.card.light .pv{background:#fff}

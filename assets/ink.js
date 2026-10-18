@@ -11,7 +11,7 @@ const who=c=>String(c.creator).startsWith("{{")?"ITS CREATOR (CREDIT PENDING)":c
 async function home(){
  const cols=await j('data/collections.json'),el=$('#home');
  const firsts=await Promise.all(cols.map(c=>j(`data/${c.slug}.json`).then(a=>c.thumb||a[0].id)));
- const grp=g=>cols.map((c,i)=>[c,i]).filter(([c])=>c.group===g).map(([c,i])=>`<a class="card" href="c.html?c=${c.slug}"><div class="pv">${img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${esc(who(c))}</div></div></a>`).join('');
+ const grp=g=>cols.map((c,i)=>[c,i]).filter(([c])=>c.group===g).map(([c,i])=>`<a class="card${c.slug==='orphanz'?' light':''}" href="c.html?c=${c.slug}"><div class="pv">${img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${esc(who(c))}</div></div></a>`).join('');
  el.innerHTML=`<h2>Featured</h2><div class="cards">${grp('Featured')}</div><h2>Hidden Lotus Tech</h2><div class="cards">${grp('HLT')}</div>`;
 }
 async function col(){
@@ -29,7 +29,7 @@ async function col(){
  function list(){let r=items.filter(i=>(!q||i.name.toLowerCase().includes(q)||String(i.n)===q||String(i.num)===q)&&Object.entries(sel).every(([k,s])=>!s.size||s.has((i.t||{})[k])));
   r.sort(sort==='num'?(a,b)=>a.num-b.num:sort==='rare'?(a,b)=>rare(a)-rare(b):(a,b)=>a.n-b.n);return r}
  function draw(){const r=list();$('#cnt').textContent=`${r.length} / ${items.length}`;
-  $('#g').innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}"><div class="pv">${img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
+  $('#g').classList.toggle('light',slug==='orphanz');$('#g').innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}"><div class="pv">${img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
   $('#more').hidden=r.length<=shown}
  $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase().replace(/^#/,'');shown=PAGE;draw()};
  $('#s').onchange=e=>{sort=e.target.value;draw()};
