@@ -39,8 +39,9 @@ footer{border-top:1px solid var(--line);margin-top:5rem;padding:2rem 0;color:var
 .cur{color:var(--acc)}.cards,.grid{border-top:2px solid var(--blue);padding-top:1rem}input,select{text-transform:uppercase}
 
 .item,button{text-transform:uppercase}
-/* orphanz home cards: black line art on white */
-.light .pv,.card.light .pv{background:#fff}
+/* orphanz: same #000/#fff as fosterz, art inverted → white lines on black */
+.card.orph .pv{background:#000}
+.card.orph .pv img{filter:invert(1)}
 /* orphanz collection browser: custom tile bg + optional glitch */
 .ctrl{display:inline-flex;align-items:center;gap:.45rem;font:700 .75rem var(--mono);letter-spacing:.1em;color:var(--mut);text-transform:uppercase}
 .ctrl input[type=checkbox]{accent-color:var(--acc);width:1rem;height:1rem}

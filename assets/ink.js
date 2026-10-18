@@ -34,7 +34,7 @@ async function home(){
  const grp=g=>cols.map((c,i)=>[c,i]).filter(([c])=>c.group===g).map(([c,i])=>{
   const live=c.slug==='ordies';
   // Plain-text credit only — nested <a> inside the card link breaks browser layout
-  return`<a class="card${c.slug==='orphanz'?' light':''}${live?' ordie-card':''}" href="c.html?c=${c.slug}"><div class="pv"${live?' data-ordie="1"':''}>${live?frameHtml(firsts[i]):img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${esc(who(c))}</div></div></a>`;
+  return`<a class="card${c.slug==='orphanz'?' orph':''}${live?' ordie-card':''}" href="c.html?c=${c.slug}"><div class="pv"${live?' data-ordie="1"':''}>${live?frameHtml(firsts[i]):img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${esc(who(c))}</div></div></a>`;
  }).join('');
  el.innerHTML=`<h2>Featured</h2><div class="cards">${grp('Featured')}</div><h2>Hidden Lotus Tech</h2><div class="cards">${grp('HLT')}</div>`;
 }
