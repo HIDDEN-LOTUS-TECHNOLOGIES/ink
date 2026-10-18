@@ -44,7 +44,8 @@ footer{border-top:1px solid var(--line);margin-top:5rem;padding:2rem 0;color:var
 /* orphanz collection browser: custom tile bg + optional glitch */
 .ctrl{display:inline-flex;align-items:center;gap:.4rem;font:700 .75rem var(--mono);letter-spacing:.1em;color:var(--mut);text-transform:uppercase}
 .ctrl input[type=checkbox]{accent-color:var(--acc);width:1rem;height:1rem}
-.ctrl input[type=range]{width:7rem;accent-color:var(--acc);vertical-align:middle}
+.ctrl input[type=color]{width:2rem;height:1.5rem;padding:0;border:1px solid var(--line);background:none;cursor:pointer;vertical-align:middle}
+.ctrl input[type=color]::-webkit-color-swatch-wrapper{padding:1px}.ctrl input[type=color]::-webkit-color-swatch{border:none;border-radius:2px}
 #g.orphanz .item .pv{background:var(--tile-bg,#111)}
 #g.orphanz.dark-tiles .item .pv img{filter:invert(1)}
 @keyframes orphglitch{0%,86%,100%{filter:none;transform:none}88%{filter:invert(1);transform:translateX(1px)}90%,95%{filter:invert(1);transform:none}97%{filter:none;transform:translateX(-1px)}}

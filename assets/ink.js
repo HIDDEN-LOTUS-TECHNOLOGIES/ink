@@ -24,7 +24,7 @@ async function col(){
  const sel={};let q='',sort='n',shown=PAGE;
  const orph=slug==='orphanz';
  m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${esc(who(c))}${creditX(c)}</p></section>
- <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">BG <input type="range" id="tilebg" min="0" max="255" value="17" aria-label="Tile background"></label>':''}</div>
+ <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">BG <input type="color" id="tilebg" value="#111111" aria-label="Tile background"></label>':''}</div>
  <div class="layout"><aside class="filters">${catKeys.map(k=>`<details><summary>${esc(k)}</summary>${Object.entries(cats[k]).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`<label><input type="checkbox" data-k="${esc(k)}" value="${esc(v)}"> ${esc(v)} <span>${n}</span></label>`).join('')}</details>`).join('')||'<p class="meta">No trait metadata for this collection.</p>'}</aside><div><div class="grid" id="g"></div><button class="btn more" id="more">Load more</button></div></div>`;
  const rare=i=>i.rank!=null?i.rank:-(i.score||0);
  function list(){let r=items.filter(i=>(!q||i.name.toLowerCase().includes(q)||String(i.n)===q||String(i.num)===q)&&Object.entries(sel).every(([k,s])=>!s.size||s.has((i.t||{})[k])));
@@ -44,7 +44,7 @@ async function col(){
  $('#dlg').onclick=e=>{if(e.target.id==='dlg')e.target.close()};
  if(orph){
   const g=$('#g');
-  const applyBg=()=>{const v=+$('#tilebg').value;const hx=v.toString(16).padStart(2,'0');g.style.setProperty('--tile-bg','#'+hx+hx+hx);g.classList.toggle('dark-tiles',v<140);g.classList.remove('light')};
+  const applyBg=()=>{const hex=$('#tilebg').value;g.style.setProperty('--tile-bg',hex);const n=parseInt(hex.slice(1),16),r=n>>16&255,gv=n>>8&255,b=n&255;const lum=.2126*r+.7152*gv+.0722*b;g.classList.toggle('dark-tiles',lum<140);g.classList.remove('light')};
   $('#tilebg').oninput=applyBg;
   $('#glitch').onchange=e=>g.classList.toggle('glitch-on',e.target.checked);
   applyBg();
