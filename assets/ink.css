@@ -44,16 +44,16 @@ footer{border-top:1px solid var(--line);margin-top:5rem;padding:2rem 0;color:var
 /* orphanz collection browser: custom tile bg + optional glitch */
 .ctrl{display:inline-flex;align-items:center;gap:.45rem;font:700 .75rem var(--mono);letter-spacing:.1em;color:var(--mut);text-transform:uppercase}
 .ctrl input[type=checkbox]{accent-color:var(--acc);width:1rem;height:1rem}
-/* HSL kit-style sliders: rainbow hue + lightness (sat locked at 100%) */
-.ctrl input[type=range].hue,.ctrl input[type=range].lit{-webkit-appearance:none;appearance:none;width:8.5rem;height:8px;border-radius:999px;border:1px solid var(--line);outline:none;vertical-align:middle;cursor:pointer;background:#222}
+.btn.reset{margin:0;padding:.45rem .7rem;font-size:.7rem;letter-spacing:.12em}
+/* HSL sliders — same hard edges / #111 / --line as page inputs */
+.ctrl input[type=range].hue,.ctrl input[type=range].lit{-webkit-appearance:none;appearance:none;width:8.5rem;height:10px;border-radius:0;border:1px solid var(--line);outline:none;vertical-align:middle;cursor:pointer;background:#111}
 .ctrl input[type=range].hue{background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
 .ctrl input[type=range].lit{background:linear-gradient(90deg,#000,var(--mid,#808080),#fff)}
-.ctrl input[type=range].hue::-webkit-slider-thumb,.ctrl input[type=range].lit::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;border:2px solid #fff;background:var(--thumb,#888);box-shadow:0 0 0 1px #000a;cursor:pointer}
-.ctrl input[type=range].lit::-webkit-slider-thumb{background:var(--mid,#888)}
-.ctrl input[type=range].hue::-moz-range-thumb,.ctrl input[type=range].lit::-moz-range-thumb{width:16px;height:16px;border-radius:50%;border:2px solid #fff;background:var(--thumb,#888);box-shadow:0 0 0 1px #000a;cursor:pointer}
-.ctrl input[type=range].lit::-moz-range-thumb{background:var(--mid,#888)}
-.ctrl input[type=range].hue::-moz-range-track{height:8px;border-radius:999px;background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
-.ctrl input[type=range].lit::-moz-range-track{height:8px;border-radius:999px;background:linear-gradient(90deg,#000,var(--mid,#808080),#fff)}
+.ctrl input[type=range].hue::-webkit-slider-thumb,.ctrl input[type=range].lit::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:11px;height:18px;border-radius:0;border:1px solid var(--acc);background:var(--bg);cursor:pointer}
+.ctrl input[type=range].lit::-webkit-slider-thumb{background:var(--mid,#888);border-color:var(--fg)}
+.ctrl input[type=range].hue::-moz-range-thumb,.ctrl input[type=range].lit::-moz-range-thumb{width:11px;height:18px;border-radius:0;border:1px solid var(--acc);background:var(--bg);cursor:pointer}
+.ctrl input[type=range].lit::-moz-range-thumb{background:var(--mid,#888);border-color:var(--fg)}
+.ctrl input[type=range].hue::-moz-range-track,.ctrl input[type=range].lit::-moz-range-track{height:10px;border-radius:0;border:0;background:transparent}
 #g.orphanz .item .pv{background:var(--tile-bg,#111)}
 #g.orphanz.dark-tiles .item .pv img{filter:invert(1)}
 @keyframes orphglitch{0%,86%,100%{filter:none;transform:none}88%{filter:invert(1);transform:translateX(1px)}90%,95%{filter:invert(1);transform:none}97%{filter:none;transform:translateX(-1px)}}
