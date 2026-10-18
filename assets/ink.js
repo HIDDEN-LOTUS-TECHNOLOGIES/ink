@@ -49,7 +49,7 @@ async function col(){
  const sel={};let q='',sort='n',shown=PAGE,tourGen=0,touring=false;
  const orph=slug==='orphanz',ordie=slug==='ordies';
  m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${byline(c)}</p></section>
- <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">Hue <input class="hue" id="hue" type="range" min="0" max="360" value="0" aria-label="Tile hue"></label><label class="ctrl">Lit <input class="lit" id="lit" type="range" min="0" max="100" value="0" aria-label="Tile lightness"></label><button type="button" class="btn reset" id="bgreset">Reset</button>':''}</div>
+ <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">Hue <input class="hue" id="hue" type="range" min="0" max="360" value="0" aria-label="Tile hue"></label><label class="ctrl">Lit <input class="lit" id="lit" type="range" min="0" max="100" value="100" aria-label="Tile lightness"></label><button type="button" class="btn reset" id="bgreset">Reset</button>':''}</div>
 
  <div class="layout"><aside class="filters">${catKeys.map(k=>`<details><summary>${esc(k)}</summary>${Object.entries(cats[k]).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`<label><input type="checkbox" data-k="${esc(k)}" value="${esc(v)}"> ${esc(v)} <span>${n}</span></label>`).join('')}</details>`).join('')||'<p class="meta">No trait metadata for this collection.</p>'}</aside><div><div class="grid" id="g"></div><button class="btn more" id="more">Load more</button></div></div>`;
  const rare=i=>i.rank!=null?i.rank:-(i.score||0);
@@ -93,12 +93,14 @@ async function col(){
   d.showModal();$('#x').onclick=()=>d.close()};
  $('#dlg').onclick=e=>{if(e.target.id==='dlg')e.target.close()};
  if(orph){
-  const g=$('#g'),H0=0,L0=0;
-  const applyBg=()=>{const h=+$('#hue').value,l=+$('#lit').value,s=l<=8||l>=92?0:100;const col=`hsl(${h} ${s}% ${l}%)`;g.style.setProperty('--tile-bg',col);g.style.setProperty('--hue',String(h));$('#hue').style.setProperty('--thumb',`hsl(${h} 100% 50%)`);$('#lit').style.setProperty('--mid',`hsl(${h} 100% 50%)`);g.classList.toggle('dark-tiles',l<55);g.classList.remove('light')};
+  // Default opposite fosterz: white ground + black ink (no invert). Lit slider still flips dark-tiles.
+  const g=$('#g'),H0=0,L0=100;
+  const applyBg=()=>{const h=+$('#hue').value,l=+$('#lit').value,s=l<=8||l>=92?0:100;const col=`hsl(${h} ${s}% ${l}%)`;g.style.setProperty('--tile-bg',col);g.style.setProperty('--hue',String(h));$('#hue').style.setProperty('--thumb',`hsl(${h} 100% 50%)`);$('#lit').style.setProperty('--mid',`hsl(${h} 100% 50%)`);g.classList.toggle('dark-tiles',l<55)};
   const setGlitch=on=>{ $('#glitch').checked=on;g.classList.toggle('glitch-on',on) };
   $('#hue').oninput=applyBg;$('#lit').oninput=applyBg;
   $('#glitch').onchange=e=>g.classList.toggle('glitch-on',e.target.checked);
   $('#bgreset').onclick=()=>{ $('#hue').value=H0;$('#lit').value=L0;applyBg() };
+  $('#hue').value=H0;$('#lit').value=L0;
   setGlitch(!reduce());
   applyBg();
  }
