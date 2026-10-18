@@ -22,14 +22,16 @@ async function col(){
  const cats={};items.forEach(it=>Object.entries(it.t||{}).forEach(([k,v])=>{(cats[k]??={})[v]=(cats[k][v]||0)+1}));
  const catKeys=Object.keys(cats).filter(k=>Object.keys(cats[k]).length>1&&Object.keys(cats[k]).length<items.length);
  const sel={};let q='',sort='n',shown=PAGE;
+ const orph=slug==='orphanz';
  m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${esc(who(c))}${creditX(c)}</p></section>
- <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span></div>
+ <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">BG <input type="range" id="tilebg" min="0" max="255" value="17" aria-label="Tile background"></label>':''}</div>
  <div class="layout"><aside class="filters">${catKeys.map(k=>`<details><summary>${esc(k)}</summary>${Object.entries(cats[k]).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`<label><input type="checkbox" data-k="${esc(k)}" value="${esc(v)}"> ${esc(v)} <span>${n}</span></label>`).join('')}</details>`).join('')||'<p class="meta">No trait metadata for this collection.</p>'}</aside><div><div class="grid" id="g"></div><button class="btn more" id="more">Load more</button></div></div>`;
  const rare=i=>i.rank!=null?i.rank:-(i.score||0);
  function list(){let r=items.filter(i=>(!q||i.name.toLowerCase().includes(q)||String(i.n)===q||String(i.num)===q)&&Object.entries(sel).every(([k,s])=>!s.size||s.has((i.t||{})[k])));
   r.sort(sort==='num'?(a,b)=>a.num-b.num:sort==='rare'?(a,b)=>rare(a)-rare(b):(a,b)=>a.n-b.n);return r}
  function draw(){const r=list();$('#cnt').textContent=`${r.length} / ${items.length}`;
-  $('#g').classList.toggle('light',slug==='orphanz');$('#g').innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}"><div class="pv">${img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
+  const g=$('#g');g.classList.toggle('orphanz',orph);
+  g.innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}"><div class="pv">${img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
   $('#more').hidden=r.length<=shown}
  $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase().replace(/^#/,'');shown=PAGE;draw()};
  $('#s').onchange=e=>{sort=e.target.value;draw()};
@@ -40,6 +42,13 @@ async function col(){
   d.innerHTML=`<div class="dlg"><iframe src="${O}/preview/${esc(i.id)}" sandbox="allow-scripts" title="${esc(i.name)}"></iframe><div class="info"><h3 style="margin:0">${esc(i.name)}</h3>${i.num!=null?`<p class="meta">Inscription #${i.num.toLocaleString()}</p>`:''}<table>${rows||'<tr><td>traits</td><td>—</td></tr>'}</table><a class="btn" href="${O}/inscription/${esc(i.id)}" target="_blank" rel="noopener">ordinals.com ↗</a><button class="btn" id="x">Close</button></div></div>`;
   d.showModal();$('#x').onclick=()=>d.close()};
  $('#dlg').onclick=e=>{if(e.target.id==='dlg')e.target.close()};
+ if(orph){
+  const g=$('#g');
+  const applyBg=()=>{const v=+$('#tilebg').value;const hx=v.toString(16).padStart(2,'0');g.style.setProperty('--tile-bg','#'+hx+hx+hx);g.classList.toggle('dark-tiles',v<140);g.classList.remove('light')};
+  $('#tilebg').oninput=applyBg;
+  $('#glitch').onchange=e=>g.classList.toggle('glitch-on',e.target.checked);
+  applyBg();
+ }
  draw();
 }
 ($('#home')?home:col)().catch(e=>{console.error(e);document.querySelector('main').insertAdjacentHTML('beforeend','<p class="meta">Could not load data.</p>')});

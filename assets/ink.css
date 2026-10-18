@@ -39,4 +39,18 @@ footer{border-top:1px solid var(--line);margin-top:5rem;padding:2rem 0;color:var
 .cur{color:var(--acc)}.cards,.grid{border-top:2px solid var(--blue);padding-top:1rem}input,select{text-transform:uppercase}
 
 .item,button{text-transform:uppercase}
-/* orphanz = black line art on transparent: show on white */.light .pv,.card.light .pv{background:#fff}
+/* orphanz home cards: black line art on white */
+.light .pv,.card.light .pv{background:#fff}
+/* orphanz collection browser: custom tile bg + optional glitch */
+.ctrl{display:inline-flex;align-items:center;gap:.4rem;font:700 .75rem var(--mono);letter-spacing:.1em;color:var(--mut);text-transform:uppercase}
+.ctrl input[type=checkbox]{accent-color:var(--acc);width:1rem;height:1rem}
+.ctrl input[type=range]{width:7rem;accent-color:var(--acc);vertical-align:middle}
+#g.orphanz .item .pv{background:var(--tile-bg,#111)}
+#g.orphanz.dark-tiles .item .pv img{filter:invert(1)}
+@keyframes orphglitch{0%,86%,100%{filter:none;transform:none}88%{filter:invert(1);transform:translateX(1px)}90%,95%{filter:invert(1);transform:none}97%{filter:none;transform:translateX(-1px)}}
+#g.orphanz.glitch-on .item{animation:orphglitch 12s steps(1) infinite}
+#g.orphanz.glitch-on .item:nth-child(3n+1){animation-delay:-2.5s}
+#g.orphanz.glitch-on .item:nth-child(3n+2){animation-delay:-6s}
+#g.orphanz.glitch-on .item:nth-child(4n){animation-duration:15s}
+#g.orphanz.glitch-on .item:hover{animation:none;filter:invert(1)}
+@media (prefers-reduced-motion:reduce){#g.orphanz.glitch-on .item{animation:none}}
