@@ -1,0 +1,54 @@
+[
+ {
+  "slug": "opium",
+  "name": "O.P.I.U.M.",
+  "full": "Ord Puppet Inu Undoxxed Millionaire",
+  "group": "Featured",
+  "supply": 777,
+  "creator": "fou (@faberfoufou)",
+  "blurb": "777 hand-crafted puppet inscriptions. Trait metadata curated by HLT.",
+  "thumb": "2e899672fc1dc2cf7f57de4b234597eec200e0f1c338eda939ae2f7f4a67790ci0",
+  "creatorX": "faberfoufou"
+ },
+ {
+  "slug": "fun",
+  "name": "FUN!",
+  "group": "Featured",
+  "supply": 101,
+  "creator": "Casey Rodarmor \u00b7 photos by Parker Day",
+  "blurb": "Parent inscription plus 100 film portraits.",
+  "thumb": "b1ef66c2d1a047cbaa6260b74daac43813924378fe08ef8545da4cb79e8fcf00i0"
+ },
+ {
+  "slug": "orphanz",
+  "name": "orphanz",
+  "group": "HLT",
+  "supply": 399,
+  "creator": "Hidden Lotus Technologies",
+  "blurb": "One of the last cursed collections. Community minted leading up to the Jubilee."
+ },
+ {
+  "slug": "fosterz",
+  "name": "fosterz",
+  "group": "HLT",
+  "supply": 69,
+  "creator": "Hidden Lotus Technologies",
+  "blurb": "First HLT collection. 69 hand-drawn SVGs with built-in traits."
+ },
+ {
+  "slug": "boardinals",
+  "name": "Boardinals",
+  "group": "HLT",
+  "supply": 158,
+  "creator": "Hidden Lotus Technologies",
+  "blurb": "Early HLT collection."
+ },
+ {
+  "slug": "ordies",
+  "name": "0rD13s",
+  "group": "HLT",
+  "supply": 8,
+  "creator": "Hidden Lotus Technologies",
+  "blurb": "8 legendary ordies with ever-changing code."
+ }
+]
