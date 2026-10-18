@@ -24,31 +24,35 @@
   "name": "orphanz",
   "group": "HLT",
   "supply": 399,
-  "creator": "Hidden Lotus Technologies",
-  "blurb": "One of the last cursed collections. Community minted leading up to the Jubilee."
+  "creator": "@HIDDENL0TUS",
+  "blurb": "One of the last cursed collections. Community minted leading up to the Jubilee.",
+  "creatorX": "HIDDENL0TUS"
  },
  {
   "slug": "fosterz",
   "name": "fosterz",
   "group": "HLT",
   "supply": 69,
-  "creator": "Hidden Lotus Technologies",
-  "blurb": "First HLT collection. 69 hand-drawn SVGs with built-in traits."
+  "creator": "@HIDDENL0TUS",
+  "blurb": "First HLT collection. 69 hand-drawn SVGs with built-in traits.",
+  "creatorX": "HIDDENL0TUS"
  },
  {
   "slug": "boardinals",
   "name": "Boardinals",
   "group": "HLT",
   "supply": 158,
-  "creator": "Hidden Lotus Technologies",
-  "blurb": "Early HLT collection."
+  "creator": "@HIDDENL0TUS",
+  "blurb": "Early HLT collection.",
+  "creatorX": "HIDDENL0TUS"
  },
  {
   "slug": "ordies",
   "name": "0rD13s",
   "group": "HLT",
   "supply": 8,
-  "creator": "Hidden Lotus Technologies",
-  "blurb": "8 legendary ordies with ever-changing code."
+  "creator": "@HIDDENL0TUS",
+  "blurb": "8 legendary ordies with ever-changing code.",
+  "creatorX": "HIDDENL0TUS"
  }
 ]

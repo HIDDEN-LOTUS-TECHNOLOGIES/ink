@@ -17,16 +17,24 @@ const ensurePv=(pv,id)=>{if(!livePv(pv))pv.appendChild(mkFrame(id))};
 const replayPv=(pv,id)=>{if(reduce())ensurePv(pv,id);else playPv(pv,id)};
 // HTML/SVG-with-scripts inscriptions don't render in <img>; swap to sandboxed preview iframe (skip managed ordie slots)
 document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.dataset.id&&!t.dataset.f&&!t.closest('[data-ordie]')){t.dataset.f=1;const f=mkFrame(t.dataset.id);f.loading='lazy';t.replaceWith(f)}},true);
-const creditX=c=>c.creatorX&&!c.creatorX.startsWith("{{")?` · <a href="https://x.com/${esc(c.creatorX)}">@${esc(c.creatorX)}</a>`:"";
 const who=c=>String(c.creator).startsWith("{{")?"ITS CREATOR (CREDIT PENDING)":c.creator;
+// Linked X credit; avoid duplicating @handle when creator already is the handle
+const byline=c=>{
+ const x=c.creatorX&&!String(c.creatorX).startsWith("{{")?c.creatorX:"";
+ const cre=c.creator&&!String(c.creator).startsWith("{{")?String(c.creator):"";
+ const link=x?`<a href="https://x.com/${esc(x)}">@${esc(x)}</a>`:"";
+ if(x&&(!cre||cre===x||cre==="@"+x))return link;
+ if(x&&cre)return `${esc(cre)} · ${link}`;
+ return esc(who(c));
+};
 
 async function home(){
  const cols=await j('data/collections.json'),el=$('#home');
  const firsts=await Promise.all(cols.map(c=>j(`data/${c.slug}.json`).then(a=>c.thumb||a[0].id)));
  const grp=g=>cols.map((c,i)=>[c,i]).filter(([c])=>c.group===g).map(([c,i])=>{
   const live=c.slug==='ordies';
-  return`<a class="card${c.slug==='orphanz'?' light':''}${live?' ordie-card':''}" href="c.html?c=${c.slug}"><div class="pv"${live?' data-ordie="1"':''}>${live?frameHtml(firsts[i]):img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${esc(who(c))}</div></div></a>`;
- }).join('');
+  return`<a class="card${c.slug==='orphanz'?' light':''}${live?' ordie-card':''}" href="c.html?c=${c.slug}"><div class="pv"${live?' data-ordie="1"':''}>${live?frameHtml(firsts[i]):img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${byline(c)}</div></div></a>`;
+}).join('');
  el.innerHTML=`<h2>Featured</h2><div class="cards">${grp('Featured')}</div><h2>Hidden Lotus Tech</h2><div class="cards">${grp('HLT')}</div>`;
 }
 
@@ -39,8 +47,9 @@ async function col(){
  const catKeys=Object.keys(cats).filter(k=>Object.keys(cats[k]).length>1&&Object.keys(cats[k]).length<items.length);
  const sel={};let q='',sort='n',shown=PAGE,tourGen=0,touring=false;
  const orph=slug==='orphanz',ordie=slug==='ordies';
- m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${esc(who(c))}${creditX(c)}</p></section>
+ m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${byline(c)}</p></section>
  <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">Hue <input class="hue" id="hue" type="range" min="0" max="360" value="0" aria-label="Tile hue"></label><label class="ctrl">Lit <input class="lit" id="lit" type="range" min="0" max="100" value="0" aria-label="Tile lightness"></label><button type="button" class="btn reset" id="bgreset">Reset</button>':''}</div>
+
  <div class="layout"><aside class="filters">${catKeys.map(k=>`<details><summary>${esc(k)}</summary>${Object.entries(cats[k]).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`<label><input type="checkbox" data-k="${esc(k)}" value="${esc(v)}"> ${esc(v)} <span>${n}</span></label>`).join('')}</details>`).join('')||'<p class="meta">No trait metadata for this collection.</p>'}</aside><div><div class="grid" id="g"></div><button class="btn more" id="more">Load more</button></div></div>`;
  const rare=i=>i.rank!=null?i.rank:-(i.score||0);
  function list(){let r=items.filter(i=>(!q||i.name.toLowerCase().includes(q)||String(i.n)===q||String(i.num)===q)&&Object.entries(sel).every(([k,s])=>!s.size||s.has((i.t||{})[k])));
