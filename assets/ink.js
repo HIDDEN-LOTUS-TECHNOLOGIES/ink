@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000,HOME_PAUSE_MS=5000;
+const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000;
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const j=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
@@ -10,28 +10,21 @@ const mkFrame=id=>{const f=document.createElement('iframe');f.src=`${O}/preview/
 const livePv=pv=>pv.querySelector('iframe[src*="preview/"]');
 const stopPv=pv=>{pv.querySelectorAll('iframe').forEach(f=>{f.src='about:blank';f.remove()})};
 const playPv=(pv,id)=>{stopPv(pv);pv.appendChild(mkFrame(id))};
-const ensurePv=(pv,id)=>{if(!reduce()&&!livePv(pv))pv.appendChild(mkFrame(id))};
-const replayPv=(pv,id)=>{if(!reduce())playPv(pv,id)};
+const ensurePv=(pv,id)=>{if(!livePv(pv))pv.appendChild(mkFrame(id))};
+const replayPv=(pv,id)=>{if(reduce())ensurePv(pv,id);else playPv(pv,id)};
 // HTML/SVG-with-scripts inscriptions don't render in <img>; swap to sandboxed preview iframe (skip managed ordie slots)
 document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.dataset.id&&!t.dataset.f&&!t.closest('[data-ordie]')){t.dataset.f=1;const f=mkFrame(t.dataset.id);f.loading='lazy';t.replaceWith(f)}},true);
 const creditX=c=>c.creatorX&&!c.creatorX.startsWith("{{")?` · <a href="https://x.com/${esc(c.creatorX)}">@${esc(c.creatorX)}</a>`:"";
 const who=c=>String(c.creator).startsWith("{{")?"ITS CREATOR (CREDIT PENDING)":c.creator;
 
 function bindHomeOrdie(card,id){
- const pv=card.querySelector('.pv');if(!pv)return;
+ // Keep the home thumb mounted once shown — blanking caused a black card while still on-screen.
+ const pv=card.querySelector('.pv');if(!pv||!id)return;
  pv.dataset.ordie='1';pv.innerHTML='';
- let tPause=0,visible=false,warm=false;
- const start=()=>{clearTimeout(tPause);ensurePv(pv,id);warm=!!livePv(pv)};
- const chill=()=>{clearTimeout(tPause);tPause=setTimeout(()=>{if(!visible||card.matches(':hover'))return;stopPv(pv);warm=false},HOME_PAUSE_MS)};
- const io=new IntersectionObserver(([e])=>{
-  visible=e.isIntersecting;clearTimeout(tPause);
-  if(visible)start();
-  else{stopPv(pv);warm=false}
- },{threshold:.15,rootMargin:'80px 0px'});
+ ensurePv(pv,id);
+ const io=new IntersectionObserver(([e])=>{if(e.isIntersecting)ensurePv(pv,id)},{threshold:.05,rootMargin:'100px 0px'});
  io.observe(card);
- addEventListener('scroll',()=>{if(visible&&warm&&!card.matches(':hover'))chill()},{passive:true});
- card.addEventListener('mouseenter',()=>{clearTimeout(tPause);if(visible){if(warm&&livePv(pv))return;start()}});
- card.addEventListener('mouseleave',()=>{if(visible&&warm)chill()});
+ card.addEventListener('mouseenter',()=>{if(!livePv(pv))ensurePv(pv,id)});
 }
 
 async function home(){
