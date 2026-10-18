@@ -1,19 +1,45 @@
 (()=>{'use strict';
-const O='https://ordinals.com',PAGE=60;
+const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000,HOME_PAUSE_MS=5000;
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const j=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
 const img=id=>`<img loading="lazy" src="${O}/content/${esc(id)}" alt="" data-id="${esc(id)}">`;
-// HTML/SVG-with-scripts inscriptions don't render in <img>; swap to sandboxed preview iframe
-document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.dataset.id&&!t.dataset.f){t.dataset.f=1;const f=document.createElement('iframe');f.src=`${O}/preview/${t.dataset.id}`;f.loading='lazy';f.sandbox='allow-scripts';f.style.cssText='width:100%;height:100%;border:0;pointer-events:none';t.replaceWith(f)}},true);
+const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+const shuffle=a=>{const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b};
+const mkFrame=id=>{const f=document.createElement('iframe');f.src=`${O}/preview/${id}`;f.loading='eager';f.sandbox='allow-scripts';f.title='';f.style.cssText='width:100%;height:100%;border:0;pointer-events:none';f.dataset.id=id;return f};
+const stopPv=pv=>{pv.querySelectorAll('iframe').forEach(f=>{f.src='about:blank';f.remove()})};
+const playPv=(pv,id)=>{stopPv(pv);pv.appendChild(mkFrame(id))};
+// HTML/SVG-with-scripts inscriptions don't render in <img>; swap to sandboxed preview iframe (skip managed ordie slots)
+document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.dataset.id&&!t.dataset.f&&!t.closest('[data-ordie]')){t.dataset.f=1;const f=mkFrame(t.dataset.id);f.loading='lazy';t.replaceWith(f)}},true);
 const creditX=c=>c.creatorX&&!c.creatorX.startsWith("{{")?` · <a href="https://x.com/${esc(c.creatorX)}">@${esc(c.creatorX)}</a>`:"";
 const who=c=>String(c.creator).startsWith("{{")?"ITS CREATOR (CREDIT PENDING)":c.creator;
+
+function bindHomeOrdie(card,id){
+ const pv=card.querySelector('.pv');if(!pv)return;
+ pv.dataset.ordie='1';pv.innerHTML='';
+ let tPause=0;
+ const play=()=>{if(!reduce())playPv(pv,id)};
+ const pause=()=>stopPv(pv);
+ const armPause=()=>{clearTimeout(tPause);tPause=setTimeout(()=>{if(!card.matches(':hover'))pause()},HOME_PAUSE_MS)};
+ play();
+ const io=new IntersectionObserver(([e])=>{if(e.isIntersecting){if(card.matches(':hover')||!document.hidden)play()}else{clearTimeout(tPause);pause()}},{threshold:.35});
+ io.observe(card);
+ addEventListener('scroll',()=>{if(!card.matches(':hover'))armPause()},{passive:true});
+ card.addEventListener('mouseenter',()=>{clearTimeout(tPause);play()});
+ card.addEventListener('mouseleave',()=>armPause());
+}
+
 async function home(){
  const cols=await j('data/collections.json'),el=$('#home');
  const firsts=await Promise.all(cols.map(c=>j(`data/${c.slug}.json`).then(a=>c.thumb||a[0].id)));
- const grp=g=>cols.map((c,i)=>[c,i]).filter(([c])=>c.group===g).map(([c,i])=>`<a class="card${c.slug==='orphanz'?' light':''}" href="c.html?c=${c.slug}"><div class="pv">${img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${esc(who(c))}</div></div></a>`).join('');
+ const grp=g=>cols.map((c,i)=>[c,i]).filter(([c])=>c.group===g).map(([c,i])=>{
+  const live=c.slug==='ordies';
+  return`<a class="card${c.slug==='orphanz'?' light':''}${live?' ordie-card':''}" href="c.html?c=${c.slug}"${live?` data-ordie-home="${esc(firsts[i])}"`:''}><div class="pv"${live?' data-ordie="1"':''}>${live?'':img(firsts[i])}</div><div class="tx"><h3>${esc(c.name)}</h3><p>${esc(c.blurb)}</p><div class="meta">${c.supply} · ${esc(who(c))}</div></div></a>`;
+ }).join('');
  el.innerHTML=`<h2>Featured</h2><div class="cards">${grp('Featured')}</div><h2>Hidden Lotus Tech</h2><div class="cards">${grp('HLT')}</div>`;
+ const card=$('a.ordie-card');if(card)bindHomeOrdie(card,card.dataset.ordieHome);
 }
+
 async function col(){
  const slug=new URLSearchParams(location.search).get('c');const cols=await j('data/collections.json');const c=cols.find(x=>x.slug===slug);
  const m=$('#col');if(!c){m.innerHTML='<p class="hero">Collection not found. <a href="./">Back</a></p>';return}
@@ -21,18 +47,33 @@ async function col(){
  const items=await j(`data/${slug}.json`);
  const cats={};items.forEach(it=>Object.entries(it.t||{}).forEach(([k,v])=>{(cats[k]??={})[v]=(cats[k][v]||0)+1}));
  const catKeys=Object.keys(cats).filter(k=>Object.keys(cats[k]).length>1&&Object.keys(cats[k]).length<items.length);
- const sel={};let q='',sort='n',shown=PAGE;
- const orph=slug==='orphanz';
+ const sel={};let q='',sort='n',shown=PAGE,tourGen=0;
+ const orph=slug==='orphanz',ordie=slug==='ordies';
  m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${esc(who(c))}${creditX(c)}</p></section>
  <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">Hue <input class="hue" id="hue" type="range" min="0" max="360" value="0" aria-label="Tile hue"></label><label class="ctrl">Lit <input class="lit" id="lit" type="range" min="0" max="100" value="0" aria-label="Tile lightness"></label><button type="button" class="btn reset" id="bgreset">Reset</button>':''}</div>
  <div class="layout"><aside class="filters">${catKeys.map(k=>`<details><summary>${esc(k)}</summary>${Object.entries(cats[k]).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`<label><input type="checkbox" data-k="${esc(k)}" value="${esc(v)}"> ${esc(v)} <span>${n}</span></label>`).join('')}</details>`).join('')||'<p class="meta">No trait metadata for this collection.</p>'}</aside><div><div class="grid" id="g"></div><button class="btn more" id="more">Load more</button></div></div>`;
  const rare=i=>i.rank!=null?i.rank:-(i.score||0);
  function list(){let r=items.filter(i=>(!q||i.name.toLowerCase().includes(q)||String(i.n)===q||String(i.num)===q)&&Object.entries(sel).every(([k,s])=>!s.size||s.has((i.t||{})[k])));
   r.sort(sort==='num'?(a,b)=>a.num-b.num:sort==='rare'?(a,b)=>rare(a)-rare(b):(a,b)=>a.n-b.n);return r}
+ async function tour(ids,gen){
+  if(reduce())return;
+  for(const id of shuffle(ids)){
+   if(gen!==tourGen)return;
+   const item=$(`#g .item[data-id="${CSS.escape(id)}"]`);if(!item)continue;
+   const pv=item.querySelector('.pv');
+   $('#g').querySelectorAll('.pv').forEach(stopPv);
+   playPv(pv,id);
+   await new Promise(r=>setTimeout(r,ORDIE_MS));
+   if(gen!==tourGen)return;
+   stopPv(pv);
+  }
+ }
  function draw(){const r=list();$('#cnt').textContent=`${r.length} / ${items.length}`;
   const g=$('#g');g.classList.toggle('orphanz',orph);
-  g.innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}"><div class="pv">${img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
-  $('#more').hidden=r.length<=shown}
+  g.innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}"><div class="pv"${ordie?' data-ordie="1"':''}>${ordie?'':img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
+  $('#more').hidden=r.length<=shown;
+  if(ordie){const gen=++tourGen;tour(r.slice(0,shown).map(i=>i.id),gen)}
+ }
  $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase().replace(/^#/,'');shown=PAGE;draw()};
  $('#s').onchange=e=>{sort=e.target.value;draw()};
  $('#more').onclick=()=>{shown+=PAGE;draw()};
@@ -43,15 +84,15 @@ async function col(){
   d.showModal();$('#x').onclick=()=>d.close()};
  $('#dlg').onclick=e=>{if(e.target.id==='dlg')e.target.close()};
  if(orph){
-  const g=$('#g'),reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,H0=0,L0=0;
+  const g=$('#g'),H0=0,L0=0;
   const applyBg=()=>{const h=+$('#hue').value,l=+$('#lit').value,s=l<=8||l>=92?0:100;const col=`hsl(${h} ${s}% ${l}%)`;g.style.setProperty('--tile-bg',col);g.style.setProperty('--hue',String(h));$('#hue').style.setProperty('--thumb',`hsl(${h} 100% 50%)`);$('#lit').style.setProperty('--mid',`hsl(${h} 100% 50%)`);g.classList.toggle('dark-tiles',l<55);g.classList.remove('light')};
   const setGlitch=on=>{ $('#glitch').checked=on;g.classList.toggle('glitch-on',on) };
   $('#hue').oninput=applyBg;$('#lit').oninput=applyBg;
   $('#glitch').onchange=e=>g.classList.toggle('glitch-on',e.target.checked);
   $('#bgreset').onclick=()=>{ $('#hue').value=H0;$('#lit').value=L0;applyBg() };
-  setGlitch(!reduce);
+  setGlitch(!reduce());
   applyBg();
-}
+ }
  draw();
 }
 ($('#home')?home:col)().catch(e=>{console.error(e);document.querySelector('main').insertAdjacentHTML('beforeend','<p class="meta">Could not load data.</p>')});
