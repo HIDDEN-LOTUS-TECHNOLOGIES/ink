@@ -7,8 +7,11 @@ const img=id=>`<img loading="lazy" src="${O}/content/${esc(id)}" alt="" data-id=
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const shuffle=a=>{const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b};
 const mkFrame=id=>{const f=document.createElement('iframe');f.src=`${O}/preview/${id}`;f.loading='eager';f.sandbox='allow-scripts';f.title='';f.style.cssText='width:100%;height:100%;border:0;pointer-events:none';f.dataset.id=id;return f};
+const livePv=pv=>pv.querySelector('iframe[src*="preview/"]');
 const stopPv=pv=>{pv.querySelectorAll('iframe').forEach(f=>{f.src='about:blank';f.remove()})};
 const playPv=(pv,id)=>{stopPv(pv);pv.appendChild(mkFrame(id))};
+const ensurePv=(pv,id)=>{if(!reduce()&&!livePv(pv))pv.appendChild(mkFrame(id))};
+const replayPv=(pv,id)=>{if(!reduce())playPv(pv,id)};
 // HTML/SVG-with-scripts inscriptions don't render in <img>; swap to sandboxed preview iframe (skip managed ordie slots)
 document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.dataset.id&&!t.dataset.f&&!t.closest('[data-ordie]')){t.dataset.f=1;const f=mkFrame(t.dataset.id);f.loading='lazy';t.replaceWith(f)}},true);
 const creditX=c=>c.creatorX&&!c.creatorX.startsWith("{{")?` · <a href="https://x.com/${esc(c.creatorX)}">@${esc(c.creatorX)}</a>`:"";
@@ -17,16 +20,18 @@ const who=c=>String(c.creator).startsWith("{{")?"ITS CREATOR (CREDIT PENDING)":c
 function bindHomeOrdie(card,id){
  const pv=card.querySelector('.pv');if(!pv)return;
  pv.dataset.ordie='1';pv.innerHTML='';
- let tPause=0;
- const play=()=>{if(!reduce())playPv(pv,id)};
- const pause=()=>stopPv(pv);
- const armPause=()=>{clearTimeout(tPause);tPause=setTimeout(()=>{if(!card.matches(':hover'))pause()},HOME_PAUSE_MS)};
- play();
- const io=new IntersectionObserver(([e])=>{if(e.isIntersecting){if(card.matches(':hover')||!document.hidden)play()}else{clearTimeout(tPause);pause()}},{threshold:.35});
+ let tPause=0,visible=false,warm=false;
+ const start=()=>{clearTimeout(tPause);ensurePv(pv,id);warm=!!livePv(pv)};
+ const chill=()=>{clearTimeout(tPause);tPause=setTimeout(()=>{if(!visible||card.matches(':hover'))return;stopPv(pv);warm=false},HOME_PAUSE_MS)};
+ const io=new IntersectionObserver(([e])=>{
+  visible=e.isIntersecting;clearTimeout(tPause);
+  if(visible)start();
+  else{stopPv(pv);warm=false}
+ },{threshold:.15,rootMargin:'80px 0px'});
  io.observe(card);
- addEventListener('scroll',()=>{if(!card.matches(':hover'))armPause()},{passive:true});
- card.addEventListener('mouseenter',()=>{clearTimeout(tPause);play()});
- card.addEventListener('mouseleave',()=>armPause());
+ addEventListener('scroll',()=>{if(visible&&warm&&!card.matches(':hover'))chill()},{passive:true});
+ card.addEventListener('mouseenter',()=>{clearTimeout(tPause);if(visible){if(warm&&livePv(pv))return;start()}});
+ card.addEventListener('mouseleave',()=>{if(visible&&warm)chill()});
 }
 
 async function home(){
@@ -47,7 +52,7 @@ async function col(){
  const items=await j(`data/${slug}.json`);
  const cats={};items.forEach(it=>Object.entries(it.t||{}).forEach(([k,v])=>{(cats[k]??={})[v]=(cats[k][v]||0)+1}));
  const catKeys=Object.keys(cats).filter(k=>Object.keys(cats[k]).length>1&&Object.keys(cats[k]).length<items.length);
- const sel={};let q='',sort='n',shown=PAGE,tourGen=0;
+ const sel={};let q='',sort='n',shown=PAGE,tourGen=0,touring=false;
  const orph=slug==='orphanz',ordie=slug==='ordies';
  m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${esc(who(c))}${creditX(c)}</p></section>
  <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">Hue <input class="hue" id="hue" type="range" min="0" max="360" value="0" aria-label="Tile hue"></label><label class="ctrl">Lit <input class="lit" id="lit" type="range" min="0" max="100" value="0" aria-label="Tile lightness"></label><button type="button" class="btn reset" id="bgreset">Reset</button>':''}</div>
@@ -56,23 +61,29 @@ async function col(){
  function list(){let r=items.filter(i=>(!q||i.name.toLowerCase().includes(q)||String(i.n)===q||String(i.num)===q)&&Object.entries(sel).every(([k,s])=>!s.size||s.has((i.t||{})[k])));
   r.sort(sort==='num'?(a,b)=>a.num-b.num:sort==='rare'?(a,b)=>rare(a)-rare(b):(a,b)=>a.n-b.n);return r}
  async function tour(ids,gen){
-  if(reduce())return;
+  if(reduce()){ids.forEach(id=>{const pv=$(`#g .item[data-id="${CSS.escape(id)}"] .pv`);if(pv)ensurePv(pv,id)});return}
+  touring=true;
   for(const id of shuffle(ids)){
-   if(gen!==tourGen)return;
-   const item=$(`#g .item[data-id="${CSS.escape(id)}"]`);if(!item)continue;
-   const pv=item.querySelector('.pv');
-   $('#g').querySelectorAll('.pv').forEach(stopPv);
-   playPv(pv,id);
+   if(gen!==tourGen)break;
+   const pv=$(`#g .item[data-id="${CSS.escape(id)}"] .pv`);if(!pv)continue;
+   ensurePv(pv,id);
    await new Promise(r=>setTimeout(r,ORDIE_MS));
-   if(gen!==tourGen)return;
-   stopPv(pv);
   }
+  if(gen===tourGen)touring=false;
+ }
+ function bindOrdieHover(g){
+  g.querySelectorAll('.item').forEach(item=>{
+   item.addEventListener('mouseenter',()=>{
+    if(touring)return;
+    const pv=item.querySelector('.pv');if(pv)replayPv(pv,item.dataset.id);
+   });
+  });
  }
  function draw(){const r=list();$('#cnt').textContent=`${r.length} / ${items.length}`;
-  const g=$('#g');g.classList.toggle('orphanz',orph);
+  const g=$('#g');g.classList.toggle('orphanz',orph);touring=false;
   g.innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}"><div class="pv"${ordie?' data-ordie="1"':''}>${ordie?'':img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
   $('#more').hidden=r.length<=shown;
-  if(ordie){const gen=++tourGen;tour(r.slice(0,shown).map(i=>i.id),gen)}
+  if(ordie){const gen=++tourGen;bindOrdieHover(g);tour(r.slice(0,shown).map(i=>i.id),gen)}
  }
  $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase().replace(/^#/,'');shown=PAGE;draw()};
  $('#s').onchange=e=>{sort=e.target.value;draw()};
