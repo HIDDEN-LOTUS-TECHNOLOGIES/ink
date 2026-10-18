@@ -54,7 +54,7 @@ footer{border-top:1px solid var(--line);margin-top:5rem;padding:2rem 0;color:var
 .ctrl input[type=range].hue::-moz-range-thumb,.ctrl input[type=range].lit::-moz-range-thumb{width:11px;height:18px;border-radius:0;border:1px solid var(--acc);background:var(--bg);cursor:pointer}
 .ctrl input[type=range].lit::-moz-range-thumb{background:var(--mid,#888);border-color:var(--fg)}
 .ctrl input[type=range].hue::-moz-range-track,.ctrl input[type=range].lit::-moz-range-track{height:10px;border-radius:0;border:0;background:transparent}
-#g.orphanz .item .pv{background:var(--tile-bg,#111)}
+#g.orphanz .item .pv{background:var(--tile-bg,#000)}
 #g.orphanz.dark-tiles .item .pv img{filter:invert(1)}
 @keyframes orphglitch{0%,86%,100%{filter:none;transform:none}88%{filter:invert(1);transform:translateX(1px)}90%,95%{filter:invert(1);transform:none}97%{filter:none;transform:translateX(-1px)}}
 #g.orphanz.glitch-on .item{animation:orphglitch 12s steps(1) infinite}
