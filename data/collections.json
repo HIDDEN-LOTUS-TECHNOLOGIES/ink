@@ -1,6 +1,8 @@
 [
  {
   "slug": "opium",
+  "satflow": "opium",
+  "arkaid": "opium",
   "name": "O.P.I.U.M.",
   "full": "Ord Puppet Inu Undoxxed Millionaire",
   "group": "Featured",
@@ -12,6 +14,7 @@
  },
  {
   "slug": "fun",
+  "satflow": "fun",
   "name": "FUN!",
   "group": "Featured",
   "supply": 101,
@@ -21,6 +24,7 @@
  },
  {
   "slug": "orphanz",
+  "satflow": "orphanz",
   "name": "orphanz",
   "group": "HLT",
   "supply": 399,
@@ -30,6 +34,7 @@
  },
  {
   "slug": "fosterz",
+  "satflow": "fosterz",
   "name": "fosterz",
   "group": "HLT",
   "supply": 69,
@@ -39,6 +44,7 @@
  },
  {
   "slug": "boardinals",
+  "satflow": "boardinals",
   "name": "Boardinals",
   "group": "HLT",
   "supply": 158,
@@ -48,6 +54,7 @@
  },
  {
   "slug": "ordies",
+  "satflow": "ordies",
   "name": "0rD13s",
   "group": "HLT",
   "supply": 8,

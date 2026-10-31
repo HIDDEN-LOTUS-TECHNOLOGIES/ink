@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000;
+const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000,VER='modal-fit1';
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const j=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
@@ -16,7 +16,7 @@ const playPv=(pv,id)=>{stopPv(pv);pv.appendChild(mkFrame(id))};
 const ensurePv=(pv,id)=>{if(!livePv(pv))pv.appendChild(mkFrame(id))};
 const replayPv=(pv,id)=>{if(reduce())ensurePv(pv,id);else playPv(pv,id)};
 // HTML/SVG-with-scripts inscriptions don't render in <img>; swap to sandboxed preview iframe (skip managed ordie slots)
-document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.dataset.id&&!t.dataset.f&&!t.closest('[data-ordie]')){t.dataset.f=1;const f=mkFrame(t.dataset.id);f.loading='lazy';t.replaceWith(f)}},true);
+document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.dataset.id&&!t.dataset.f&&!t.closest('[data-ordie]')){t.dataset.f=1;const f=mkFrame(t.dataset.id);if(t.closest('.art'))f.removeAttribute('style');else f.loading='lazy';t.replaceWith(f)}},true);
 const who=c=>String(c.creator).startsWith("{{")?"ITS CREATOR (CREDIT PENDING)":c.creator;
 // Linked X credit; avoid duplicating @handle when creator already is the handle
 const byline=c=>{
@@ -29,8 +29,8 @@ const byline=c=>{
 };
 
 async function home(){
- const cols=await j('data/collections.json'),el=$('#home');
- const firsts=await Promise.all(cols.map(c=>j(`data/${c.slug}.json`).then(a=>c.thumb||a[0].id)));
+ const cols=await j(`data/collections.json?v=${VER}`),el=$('#home');
+ const firsts=await Promise.all(cols.map(c=>j(`data/${c.slug}.json?v=${VER}`).then(a=>c.thumb||a[0].id)));
  const grp=g=>cols.map((c,i)=>[c,i]).filter(([c])=>c.group===g).map(([c,i])=>{
   const live=c.slug==='ordies';
   // Plain-text credit only — nested <a> inside the card link breaks browser layout
@@ -40,15 +40,15 @@ async function home(){
 }
 
 async function col(){
- const slug=new URLSearchParams(location.search).get('c');const cols=await j('data/collections.json');const c=cols.find(x=>x.slug===slug);
+ const slug=new URLSearchParams(location.search).get('c');const cols=await j(`data/collections.json?v=${VER}`);const c=cols.find(x=>x.slug===slug);
  const m=$('#col');if(!c){m.innerHTML='<p class="hero">Collection not found. <a href="./">Back</a></p>';return}
  document.title=`${c.name} · INK by HLT`;
- const items=await j(`data/${slug}.json`);
+ const items=await j(`data/${slug}.json?v=${VER}`);
  const cats={};items.forEach(it=>Object.entries(it.t||{}).forEach(([k,v])=>{(cats[k]??={})[v]=(cats[k][v]||0)+1}));
  const catKeys=Object.keys(cats).filter(k=>Object.keys(cats[k]).length>1&&Object.keys(cats[k]).length<items.length);
  const sel={};let q='',sort='n',shown=PAGE,tourGen=0,touring=false;
  const orph=slug==='orphanz',ordie=slug==='ordies';
- m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${byline(c)}</p></section>
+ m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${byline(c)}${c.satflow?` · <a href="https://www.satflow.com/ordinals/${esc(c.satflow)}" target="_blank" rel="noopener">Satflow ↗</a>`:''}${c.arkaid?` · <a href="https://arkaid.io/collections/${esc(c.arkaid)}" target="_blank" rel="noopener">Arkaid ↗</a>`:''}</p></section>
  <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${items.some(i=>i.score!=null)?'<span class="meta">Rarity: each trait scores 777 ÷ the number of pieces that share it; a piece\'s score is the sum across its 8 traits. Higher = rarer.</span>':''}${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">Hue <input class="hue" id="hue" type="range" min="0" max="360" value="0" aria-label="Tile hue"></label><label class="ctrl">Lit <input class="lit" id="lit" type="range" min="0" max="100" value="72" aria-label="Tile lightness"></label><button type="button" class="btn reset" id="bgreset">Reset</button>':''}</div>
 
  <div class="layout"><aside class="filters">${catKeys.map(k=>`<details><summary>${esc(k)}</summary>${Object.entries(cats[k]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]),undefined,{numeric:true,sensitivity:'base'})).map(([v,n])=>`<label><input type="checkbox" data-k="${esc(k)}" value="${esc(v)}"> ${esc(v)} <span>${n}</span></label>`).join('')}</details>`).join('')||'<p class="meta">No trait metadata for this collection.</p>'}</aside><div><div class="grid" id="g"></div><button class="btn more" id="more">Load more</button></div></div>`;
@@ -89,7 +89,8 @@ async function col(){
  m.querySelector('.filters').onchange=e=>{const t=e.target;(sel[t.dataset.k]??=new Set())[t.checked?'add':'delete'](t.value);shown=PAGE;draw()};
  $('#g').onclick=e=>{const b=e.target.closest('.item');if(!b)return;const i=items.find(x=>x.id===b.dataset.id);const d=$('#dlg');
   const rows=Object.entries(i.t||{}).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}${cats[k]&&catKeys.includes(k)?` <span class="meta">${(cats[k][v]/items.length*100).toFixed(1)}%</span>`:''}</td></tr>`).join('');
-  d.innerHTML=`<div class="dlg"><iframe src="${O}/preview/${esc(i.id)}" sandbox="${SB}" title="${esc(i.name)}"></iframe><div class="info"><h3 style="margin:0">${esc(i.name)}</h3>${i.num!=null?`<p class="meta">Inscription #${i.num.toLocaleString()}</p>`:''}<table>${rows||'<tr><td>traits</td><td>—</td></tr>'}</table><a class="btn" href="${O}/inscription/${esc(i.id)}" target="_blank" rel="noopener">ordinals.com ↗</a><button class="btn" id="x">Close</button></div></div>`;
+  const art=ordie?`<iframe src="${O}/preview/${esc(i.id)}" sandbox="${SB}" title="${esc(i.name)}"></iframe>`:`<img src="${O}/content/${esc(i.id)}" alt="${esc(i.name)}" data-id="${esc(i.id)}">`;
+  d.innerHTML=`<div class="dlg"><div class="art">${art}</div><div class="info"><h3 style="margin:0">${esc(i.name)}</h3>${i.num!=null?`<p class="meta">Inscription #${i.num.toLocaleString()}</p>`:''}<table>${rows||'<tr><td>traits</td><td>—</td></tr>'}</table><a class="btn" href="${O}/inscription/${esc(i.id)}" target="_blank" rel="noopener">ordinals.com ↗</a>${c.satflow?`<a class="btn" href="https://www.satflow.com/ordinal/${esc(i.id)}" target="_blank" rel="noopener">Satflow ↗</a>`:''}<button class="btn" id="x">Close</button></div></div>`;
   d.showModal();$('#x').onclick=()=>d.close()};
  $('#dlg').onclick=e=>{if(e.target.id==='dlg')e.target.close()};
  if(orph){
