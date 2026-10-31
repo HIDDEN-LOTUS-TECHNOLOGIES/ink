@@ -1,17 +1,9 @@
+import { standardScores, rankByScore, TIER_CUT, tierFor as tierForSupply, tierTip as tierTipSupply } from './rarity.js';
 (()=>{'use strict';
-const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000,VER='badge-row1';
+const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000,VER='kit1';
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const j=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
-// Standard rarity: supply ÷ pieces sharing each trait value. Missing and "none" are values. 4 d.p.
-function standardScores(items){
- if(!items.length||items.some(i=>i.score!=null))return;
- const keys=[];const seen=new Set();
- for(const i of items)for(const k of Object.keys(i.t||{}))if(!seen.has(k)){seen.add(k);keys.push(k)}
- if(!keys.length)return;
- const supply=items.length,counts=keys.map(k=>{const c=new Map();for(const i of items){const t=i.t||{};const v=k in t&&t[k]!=null?t[k]:'\0';c.set(v,(c.get(v)||0)+1)}return c});
- for(const i of items){const t=i.t||{};let s=0;keys.forEach((k,ki)=>{const v=k in t&&t[k]!=null?t[k]:'\0';s+=supply/counts[ki].get(v)});i.score=Math.round((s+Number.EPSILON)*10000)/10000}
-}
 const img=id=>`<img loading="lazy" src="${O}/content/${esc(id)}" alt="" data-id="${esc(id)}">`;
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const shuffle=a=>{const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b};
@@ -57,12 +49,9 @@ async function col(){
  const cats={};items.forEach(it=>Object.entries(it.t||{}).forEach(([k,v])=>{(cats[k]??={})[v]=(cats[k][v]||0)+1}));
  const catKeys=Object.keys(cats).filter(k=>Object.keys(cats[k]).length>1&&Object.keys(cats[k]).length<items.length);
  const sel={};let q='',sort='n',shown=PAGE,tourGen=0,touring=false;
- const rankOf=new Map();
- if(items.some(i=>i.score!=null)){const scored=items.filter(i=>i.score!=null).slice().sort((a,b)=>b.score-a.score||a.n-b.n);scored.forEach((i,idx)=>rankOf.set(i.id,idx+1))}
- else if(items.some(i=>i.rank!=null))items.forEach(i=>{if(i.rank!=null)rankOf.set(i.id,i.rank)});
- const TIER_CUT=[['legendary',.01,'Legendary','top 1%','≤1%'],['epic',.05,'Epic','top 5%','≤5%'],['rare',.15,'Rare','top 15%','≤15%'],['uncommon',.4,'Uncommon','top 40%','≤40%'],['common',Infinity,'Common','the rest','']];
- const tierFor=rank=>TIER_CUT.find(t=>rank/c.supply<=t[1]);
- const tierTip=(rank,score)=>{const t=tierFor(rank);let tip=`${t[2]} · ${t[3]}`;if(score!=null)tip+=` · score ${Number(score).toFixed(2)}`;return {id:t[0],tip}};
+ const rankOf=rankByScore(items);
+ const tierFor=rank=>tierForSupply(rank,c.supply);
+ const tierTip=(rank,score)=>tierTipSupply(rank,score,c.supply);
  const legend=rankOf.size?`<span class="tiers">${TIER_CUT.map(t=>`<span title="${esc(t[2]+' · '+t[3])}"><i class="${t[0]}"></i>${esc(t[2])}${t[4]?' '+t[4]:''}</span>`).join('')}</span>`:'';
  const rareNote=items.some(i=>i.score!=null)?`<span class="meta">Rarity: each trait scores ${c.supply} ÷ the number of pieces that share it; a piece's score is the sum across its traits. Higher = rarer.</span>`:'';
  const orph=slug==='orphanz',ordie=slug==='ordies';

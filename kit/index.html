@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>INK Metadata Kit</title>
+<link rel="stylesheet" href="/assets/ink.css">
+<link rel="stylesheet" href="kit.css">
+</head>
+<body>
+<main class="wrap kit">
+  <p class="sys"><a href="/">INK</a> / Metadata Kit</p>
+  <h1>Metadata Kit</h1>
+  <p class="lede">Check a collection file, turn it between JSON and CSV, preview ink rarity, and encode Tag 5 CBOR or a Tag 3 parent. Everything stays in this browser.</p>
+
+  <h2>Collection</h2>
+  <label for="file">Drop or choose Magic Eden JSON, ink JSON, or a trait CSV</label>
+  <input id="file" type="file" accept="application/json,text/csv,.json,.csv">
+  <label for="raw">Or paste</label>
+  <textarea id="raw" placeholder='[{"id":"...i0","meta":{"name":"1","attributes":[{"trait_type":"Hat","value":"cap"}]}}]'></textarea>
+  <p class="row">
+    <button type="button" id="paste">Validate paste</button>
+    <button type="button" id="opium">Try with OPIUM</button>
+    <button type="button" id="toCsv">Download CSV</button>
+    <button type="button" id="toJson">Download JSON</button>
+    <button type="button" id="round">JSON to CSV to JSON</button>
+  </p>
+  <p id="status"></p>
+  <p id="roundOut"></p>
+  <h2>Validation</h2>
+  <div id="summary">Nothing loaded yet.</div>
+  <ul id="issues"></ul>
+
+  <h2>Rarity</h2>
+  <div id="tiers"></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th data-k="rank">Rank</th><th data-k="score">Score</th><th data-k="tier">Tier</th><th data-k="n">#</th><th data-k="name">Name</th><th>Traits</th></tr></thead>
+      <tbody id="table"></tbody>
+    </table>
+  </div>
+  <div id="dist"></div>
+
+  <h2>Tag 5 CBOR</h2>
+  <label for="cborPick">Item</label>
+  <select id="cborPick"></select>
+  <p class="row">
+    <button type="button" id="cborShow">Show metadata hex</button>
+    <button type="button" id="cborAll">Download id to hex</button>
+  </p>
+  <div id="cborOut"></div>
+
+  <h2>Tag 3 parent</h2>
+  <label for="parentId">Inscription id</label>
+  <input id="parentId" spellcheck="false" autocomplete="off">
+  <p><button type="button" id="parentEncode">Encode</button></p>
+  <label for="parentHex">Tag 3 hex</label>
+  <input id="parentHex" spellcheck="false" autocomplete="off">
+  <p><button type="button" id="parentDecode">Decode</button></p>
+  <div id="parentOut"></div>
+
+  <p class="meta">Ported from HLT's packz-framework.</p>
+</main>
+<script type="module" src="./kit.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+body{text-transform:none}
+.kit h1{font:700 clamp(1.8rem,5vw,3rem)/1 var(--mono);margin:0 0 .4rem}
+.kit h2{color:var(--fg);margin:1.6rem 0 .4rem}
+.kit p,.kit li,.kit label,.kit td,.kit th{text-transform:none}
+.kit label{display:block;margin:.7rem 0 .2rem;color:var(--mut);font-size:.85rem}
+.kit input,.kit textarea,.kit select,.kit button{width:100%;max-width:42rem;background:#111;color:var(--fg);border:1px solid var(--line);font:400 .9rem var(--mono);padding:.5rem .6rem}
+.kit textarea{min-height:7rem}
+.kit button,.kit a.btn{width:auto;background:none;color:var(--acc);border:1px solid var(--acc);font:700 .78rem var(--mono);letter-spacing:.05em;padding:.55rem .8rem;cursor:pointer;text-decoration:none}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}
+#summary,#cborOut,#parentOut,#roundOut{white-space:pre-wrap;background:#111;border:1px solid var(--line);padding:.7rem;overflow:auto}
+.tablewrap{overflow:auto;max-height:28rem;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th,td{border-bottom:1px solid var(--line);padding:.35rem .4rem;text-align:left;vertical-align:top}
+th{cursor:pointer;color:var(--mut)}
+.chip{display:inline-block;border:1px solid var(--tier-common);color:var(--tier-common);padding:.05rem .35rem;font:700 .72rem var(--mono)}
+.chip[data-tier="legendary"]{color:var(--tier-legendary);border-color:var(--tier-legendary)}
+.chip[data-tier="epic"]{color:var(--tier-epic);border-color:var(--tier-epic)}
+.chip[data-tier="rare"]{color:var(--tier-rare);border-color:var(--tier-rare)}
+.chip[data-tier="uncommon"]{color:var(--tier-uncommon);border-color:var(--tier-uncommon)}
+#tiers{display:flex;flex-wrap:wrap;gap:.7rem;margin:.4rem 0 .8rem}
+#tiers span{display:inline-flex;align-items:center;gap:.35rem;color:var(--mut);font-size:.8rem}
+#tiers i{width:.55rem;height:.55rem;border-radius:50%;display:block;background:currentColor}
+#tiers .legendary{color:var(--tier-legendary)}
+#tiers .epic{color:var(--tier-epic)}
+#tiers .rare{color:var(--tier-rare)}
+#tiers .uncommon{color:var(--tier-uncommon)}
+#tiers .common{color:var(--tier-common)}
+#dist details{border-bottom:1px solid var(--line);padding:.3rem 0}
+#issues .critical,#issues .error{color:#ffb4a8}
+#issues .warn{color:#e7d38a}
+@media(max-width:480px){
+  .row button,.row a.btn{width:100%}
+  .tablewrap{max-height:20rem}
+}
