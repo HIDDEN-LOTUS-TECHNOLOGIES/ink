@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>INK signet lab</title>
+<link rel="stylesheet" href="/assets/ink.css">
+<link rel="stylesheet" href="lab.css">
+</head>
+<body>
+<main class="wrap lab">
+  <p class="banner">Signet test only, coins have no value.</p>
+  <h1>Signet inscribe</h1>
+  <p class="lede">A proof that an inscription can be built, signed, and broadcast with no ord node. The browser talks only to the public mempool.space signet API. No wallet extension. No mainnet.</p>
+
+  <h2>1. Throwaway key</h2>
+  <p>This address is generated in the browser and kept in localStorage. Send signet coins to it from a faucet, then come back.</p>
+  <p class="addr" id="addr"></p>
+  <p class="row">
+    <a class="btn" data-faucet="https://signetfaucet.com/" href="https://signetfaucet.com/" target="_blank" rel="noopener">Signet faucet</a>
+    <a class="btn" data-faucet="https://alt.signetfaucet.com/" href="https://alt.signetfaucet.com/" target="_blank" rel="noopener">Alt faucet</a>
+    <button type="button" id="newKey">New key</button>
+  </p>
+
+  <h2>2. Content</h2>
+  <label for="file">Text or image file, up to 50 KB</label>
+  <input id="file" type="file" accept="text/plain,image/png,image/jpeg,image/gif,image/webp,.txt,.png,.jpg,.jpeg,.gif,.webp">
+  <label for="text">Or type text</label>
+  <textarea id="text" placeholder="Hello from signet"></textarea>
+  <label for="dest">Destination signet address</label>
+  <input id="dest" autocomplete="off" spellcheck="false" placeholder="tb1...">
+  <label for="fee">Fee rate, sat/vB</label>
+  <input id="fee" type="number" min="0.1" max="1000" step="0.1" value="1">
+  <p id="feeNote" class="meta"></p>
+  <p><button type="button" id="prepare">Prepare inscription</button></p>
+
+  <div id="prepareBox" hidden>
+    <h2>3. Recovery file</h2>
+    <p>Download this before the commit is built. It holds the reveal key (WIF and hex), the reveal script, the commit address, and the network. Anyone with the file can move the coins.</p>
+    <p>Commit address</p>
+    <p class="addr" id="commitAddr"></p>
+    <p id="need"></p>
+    <p class="row">
+      <button type="button" id="download">Download recovery file</button>
+      <button type="button" id="buildBtn" disabled>Build and sign</button>
+    </p>
+  </div>
+
+  <div id="buildBox" hidden>
+    <h2>4. Signed transactions</h2>
+    <pre id="feeLine"></pre>
+    <label for="commitHex">Commit hex</label>
+    <textarea id="commitHex" readonly></textarea>
+    <label for="revealHex">Reveal hex</label>
+    <textarea id="revealHex" readonly></textarea>
+    <p><button type="button" id="broadcast">Broadcast commit, then reveal</button></p>
+  </div>
+
+  <div id="broadcastBox" hidden>
+    <h2>5. Broadcast</h2>
+    <p>Commit</p>
+    <p><a id="commitLink" target="_blank" rel="noopener"></a></p>
+    <p>Reveal</p>
+    <p><a id="revealLink" target="_blank" rel="noopener"></a></p>
+    <p>Inscription ID</p>
+    <p class="addr" id="insc"></p>
+    <p id="confirm"></p>
+  </div>
+
+  <h2>Recover stuck reveal</h2>
+  <p>Load a recovery file. The page finds the commit UTXO, rebuilds the reveal, and can broadcast it again. It does not build a new commit.</p>
+  <input id="recoverFile" type="file" accept="application/json,.json">
+  <div id="recoverBox" hidden>
+    <p id="recoverMeta"></p>
+    <label for="recoverHex">Reveal hex</label>
+    <textarea id="recoverHex" readonly></textarea>
+    <p><button type="button" id="rebroadcast">Rebroadcast reveal</button></p>
+    <p><a id="recoverLink" hidden target="_blank" rel="noopener"></a></p>
+  </div>
+
+  <p id="log" hidden></p>
+  <p class="meta"><a href="./README.md">How this works without a node</a></p>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

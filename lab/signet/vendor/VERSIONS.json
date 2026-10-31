@@ -1,0 +1,26 @@
+{
+  "micro-ordinals": {
+    "version": "0.4.0",
+    "license": "MIT"
+  },
+  "@scure/btc-signer": {
+    "version": "2.2.0",
+    "license": "MIT"
+  },
+  "@scure/base": {
+    "version": "2.4.0",
+    "license": "MIT"
+  },
+  "micro-packed": {
+    "version": "0.9.0",
+    "license": "MIT"
+  },
+  "@noble/curves": {
+    "version": "2.2.0",
+    "license": "MIT"
+  },
+  "@noble/hashes": {
+    "version": "2.2.0",
+    "license": "MIT"
+  }
+}

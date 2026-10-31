@@ -1,0 +1,16 @@
+{
+  "name": "ink-signet-lab",
+  "version": "1.0.0",
+  "description": "Signet-only inscription proof. No ord node.",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@scure/base": "2.4.0",
+    "@scure/btc-signer": "2.2.0",
+    "micro-ordinals": "0.4.0"
+  },
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,21 @@
+body{text-transform:none}
+.banner{background:#3a2508;color:var(--acc);border:1px solid var(--acc);padding:1rem 1.1rem;margin:1.25rem 0;font:700 1.15rem/1.4 var(--mono);letter-spacing:.04em}
+.lab h1{font:700 clamp(1.8rem,6vw,3rem)/1 var(--mono);margin:0 0 .5rem}
+.lab h2{margin:2rem 0 .6rem;color:var(--fg)}
+.lab p,.lab li,.lab label{text-transform:none}
+.lab ol{padding-left:1.2rem}
+.lab label{display:block;margin:.8rem 0 .25rem;color:var(--mut);font-size:.85rem}
+.lab input,.lab textarea,.lab button{width:100%;max-width:40rem}
+.lab textarea,pre,.mono{font:400 .8rem/1.45 var(--mono);text-transform:none;word-break:break-all}
+.lab textarea{min-height:6rem;background:#111;color:var(--fg);border:1px solid var(--line);padding:.6rem}
+pre{background:#111;border:1px solid var(--line);padding:.7rem;overflow:auto;max-width:100%}
+.row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.row button,.row a.btn{width:auto}
+button,.btn{background:none;color:var(--acc);border:1px solid var(--acc);font:700 .8rem var(--mono);letter-spacing:.06em;padding:.6rem .9rem;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+#log{color:#f0c674}
+.addr{color:var(--fg);font:700 .95rem/1.4 var(--mono);text-transform:none}
+@media(max-width:480px){
+  .row button,.row a.btn{width:100%}
+  .banner{font-size:1rem}
+}
