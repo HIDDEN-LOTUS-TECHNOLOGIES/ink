@@ -1,6 +1,6 @@
 @font-face{font-family:"Ubuntu Mono";src:url(fonts/ubuntu-mono.woff2) format("woff2");font-weight:400;font-display:swap}
 @font-face{font-family:"Ubuntu Mono";src:url(fonts/ubuntu-mono-bold.woff2) format("woff2");font-weight:700;font-display:swap}
-:root{--bg:#000;--fg:#fff;--txt:#E7E9EA;--mut:#9aa0a6;--line:#6E747A;--acc:#F7931A;--blue:rgba(43,108,255,.55);--max:76rem;--sans:"Ubuntu Mono",ui-monospace,monospace;--mono:"Ubuntu Mono",ui-monospace,monospace}
+:root{--bg:#000;--fg:#fff;--txt:#E7E9EA;--mut:#9aa0a6;--line:#6E747A;--acc:#F7931A;--blue:rgba(43,108,255,.55);--max:76rem;--sans:"Ubuntu Mono",ui-monospace,monospace;--mono:"Ubuntu Mono",ui-monospace,monospace;--tier-legendary:#ffb000;--tier-epic:#c77dff;--tier-rare:#4cc9f0;--tier-uncommon:#7ae582;--tier-common:#8a8f98}
 *{box-sizing:border-box}html{color-scheme:dark}
 body{margin:0;background:var(--bg);color:var(--txt);font:400 1rem/1.6 var(--mono);text-transform:uppercase;-webkit-font-smoothing:antialiased}
 a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}h1,h2,h3{color:var(--fg)}
@@ -29,8 +29,18 @@ input,select{background:#111;border:1px solid var(--line);color:var(--fg);font:4
 .item{position:relative;border:1px solid var(--line);cursor:pointer;background:none;color:inherit;padding:0;text-align:left;font:inherit}
 .item:hover{border-color:var(--acc)}.item .pv{aspect-ratio:1;background:#111}.item .pv img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
 .item .tx{padding:.5rem;font-size:.85rem}.item .tx small{display:block;color:var(--mut);font-family:var(--mono)}
-.item .badge{position:absolute;z-index:1;top:.35rem;left:.35rem;background:var(--bg);color:var(--acc);border:1px solid var(--acc);font:700 .68rem/1 var(--mono);letter-spacing:.04em;padding:.22rem .32rem;pointer-events:none}
-.dlg .rk{margin:.45rem 0 0;font:700 1.25rem/1.15 var(--mono);letter-spacing:.04em;color:var(--fg)}
+.item .badge,.dlg .chip{background:var(--bg);color:var(--tier-common);border:1px solid var(--tier-common);font:700 .68rem/1.3 var(--mono);letter-spacing:.04em}
+.item .badge{position:absolute;z-index:1;top:.35rem;left:.35rem;padding:.22rem .32rem;pointer-events:none}
+.dlg .chip{display:inline-block;margin:.65rem 0 .2rem;padding:.16rem .42rem}
+.badge[data-tier="legendary"],.chip[data-tier="legendary"]{color:var(--tier-legendary);border-color:var(--tier-legendary)}
+.badge[data-tier="epic"],.chip[data-tier="epic"]{color:var(--tier-epic);border-color:var(--tier-epic)}
+.badge[data-tier="rare"],.chip[data-tier="rare"]{color:var(--tier-rare);border-color:var(--tier-rare)}
+.badge[data-tier="uncommon"],.chip[data-tier="uncommon"]{color:var(--tier-uncommon);border-color:var(--tier-uncommon)}
+.badge[data-tier="common"],.chip[data-tier="common"]{color:var(--tier-common);border-color:var(--tier-common)}
+.tiers{flex-basis:100%;display:flex;flex-wrap:wrap;gap:.3rem .85rem;align-items:center;font:400 .7rem var(--mono);letter-spacing:.06em;color:var(--mut)}
+.tiers span{display:inline-flex;align-items:center;gap:.35rem}
+.tiers i{width:.5rem;height:.5rem;border-radius:50%;display:block;background:var(--tier-common)}
+.tiers i.legendary{background:var(--tier-legendary)}.tiers i.epic{background:var(--tier-epic)}.tiers i.rare{background:var(--tier-rare)}.tiers i.uncommon{background:var(--tier-uncommon)}
 dialog{background:var(--bg);color:var(--fg);border:1px solid var(--line);padding:0;margin:auto;width:min(1100px,92vw);max-width:min(1100px,92vw);max-height:88vh;overflow:auto}
 dialog::backdrop{background:#000c}
 .dlg{display:grid;grid-template-columns:minmax(0,1fr) minmax(17rem,22rem);align-items:stretch;min-width:0}
