@@ -26,9 +26,11 @@ input,select{background:#111;border:1px solid var(--line);color:var(--fg);font:4
 .filters label{display:flex;justify-content:space-between;gap:.5rem;font-size:.85rem;color:#cfcfcf;padding:.1rem 0;cursor:pointer}
 .filters label span{color:var(--mut);font-family:var(--mono)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr));gap:.75rem}
-.item{border:1px solid var(--line);cursor:pointer;background:none;color:inherit;padding:0;text-align:left;font:inherit}
+.item{position:relative;border:1px solid var(--line);cursor:pointer;background:none;color:inherit;padding:0;text-align:left;font:inherit}
 .item:hover{border-color:var(--acc)}.item .pv{aspect-ratio:1;background:#111}.item .pv img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
 .item .tx{padding:.5rem;font-size:.85rem}.item .tx small{display:block;color:var(--mut);font-family:var(--mono)}
+.item .badge{position:absolute;z-index:1;top:.35rem;left:.35rem;background:var(--bg);color:var(--acc);border:1px solid var(--acc);font:700 .68rem/1 var(--mono);letter-spacing:.04em;padding:.22rem .32rem;pointer-events:none}
+.dlg .rk{margin:.45rem 0 0;font:700 1.25rem/1.15 var(--mono);letter-spacing:.04em;color:var(--fg)}
 dialog{background:var(--bg);color:var(--fg);border:1px solid var(--line);padding:0;margin:auto;width:min(1100px,92vw);max-width:min(1100px,92vw);max-height:88vh;overflow:auto}
 dialog::backdrop{background:#000c}
 .dlg{display:grid;grid-template-columns:minmax(0,1fr) minmax(17rem,22rem);align-items:stretch;min-width:0}
@@ -37,7 +39,7 @@ dialog::backdrop{background:#000c}
 .dlg .info{padding:1.35rem 1.4rem 1.5rem;min-width:0}
 @media(max-width:800px){
  .dlg{grid-template-columns:1fr}
- .dlg .art img,.dlg .art iframe{width:min(100%,calc(88vh - 32rem));max-height:calc(88vh - 32rem)}
+ .dlg .art img,.dlg .art iframe{width:min(100%,calc(88vh - 36rem));max-height:calc(88vh - 36rem)}
 }
 .dlg table{width:100%;border-collapse:collapse;font-size:.9rem}.dlg td{border-bottom:1px solid var(--line);padding:.35rem 0;overflow-wrap:anywhere}.dlg td:first-child{color:var(--mut);font-family:var(--mono);font-size:.75rem;text-transform:uppercase}
 .btn{color:var(--acc)!important;border-color:var(--acc)!important;display:inline-block;font:700 .8rem var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:.6rem .9rem;border:1px solid var(--fg);margin:.75rem .5rem 0 0;background:none;color:var(--fg);cursor:pointer}

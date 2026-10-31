@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000,VER='modal-fit1';
+const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000,VER='rank1';
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const j=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
@@ -51,10 +51,17 @@ async function col(){
  m.innerHTML=`<section class="hero" style="padding:6vh 0 2vh"><p class="sys"><a href="./">INK</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1>${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${byline(c)}${c.satflow?` · <a href="https://www.satflow.com/ordinals/${esc(c.satflow)}" target="_blank" rel="noopener">Satflow ↗</a>`:''}${c.arkaid?` · <a href="https://arkaid.io/collections/${esc(c.arkaid)}" target="_blank" rel="noopener">Arkaid ↗</a>`:''}</p></section>
  <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${items.some(i=>i.score!=null)?'<span class="meta">Rarity: each trait scores 777 ÷ the number of pieces that share it; a piece\'s score is the sum across its 8 traits. Higher = rarer.</span>':''}${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">Hue <input class="hue" id="hue" type="range" min="0" max="360" value="0" aria-label="Tile hue"></label><label class="ctrl">Lit <input class="lit" id="lit" type="range" min="0" max="100" value="72" aria-label="Tile lightness"></label><button type="button" class="btn reset" id="bgreset">Reset</button>':''}</div>
 
- <div class="layout"><aside class="filters">${catKeys.map(k=>`<details><summary>${esc(k)}</summary>${Object.entries(cats[k]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]),undefined,{numeric:true,sensitivity:'base'})).map(([v,n])=>`<label><input type="checkbox" data-k="${esc(k)}" value="${esc(v)}"> ${esc(v)} <span>${n}</span></label>`).join('')}</details>`).join('')||'<p class="meta">No trait metadata for this collection.</p>'}</aside><div><div class="grid" id="g"></div><button class="btn more" id="more">Load more</button></div></div>`;
- const rare=i=>i.rank!=null?i.rank:-(i.score||0);
+ <div class="layout"><aside class="filters"></aside><div><div class="grid" id="g"></div><button class="btn more" id="more">Load more</button></div></div>`;
+ const rankOf=new Map();
+ if(items.some(i=>i.rank!=null))items.forEach(i=>{if(i.rank!=null)rankOf.set(i.id,i.rank)});
+ else if(items.some(i=>i.score!=null)){const scored=items.filter(i=>i.score!=null).slice().sort((a,b)=>b.score-a.score||a.n-b.n);let place=0;scored.forEach((i,idx)=>{if(idx===0||i.score!==scored[idx-1].score)place=idx+1;rankOf.set(i.id,place)})}
+ const az=(a,b)=>String(a[0]).localeCompare(String(b[0]),undefined,{numeric:true,sensitivity:'base'});
+ function traitEntries(k){const rows=Object.entries(cats[k]);if(sort==='rare')rows.sort((a,b)=>a[1]-b[1]||az(a,b));else rows.sort(az);return rows}
+ function renderFilters(){const box=m.querySelector('.filters');if(!catKeys.length){box.innerHTML='<p class="meta">No trait metadata for this collection.</p>';return}
+  const open=new Set([...box.querySelectorAll('details[open]')].map(d=>d.dataset.k));
+  box.innerHTML=catKeys.map(k=>`<details data-k="${esc(k)}"${open.has(k)?' open':''}><summary>${esc(k)}</summary>${traitEntries(k).map(([v,n])=>`<label><input type="checkbox" data-k="${esc(k)}" value="${esc(v)}"${sel[k]?.has(v)?' checked':''}> ${esc(v)} <span>${n}</span></label>`).join('')}</details>`).join('')}
  function list(){let r=items.filter(i=>(!q||i.name.toLowerCase().includes(q)||String(i.n)===q||String(i.num)===q)&&Object.entries(sel).every(([k,s])=>!s.size||s.has((i.t||{})[k])));
-  r.sort(sort==='num'?(a,b)=>a.num-b.num:sort==='rare'?(a,b)=>rare(a)-rare(b):(a,b)=>a.n-b.n);return r}
+  r.sort(sort==='num'?(a,b)=>a.num-b.num:sort==='rare'?(a,b)=>(rankOf.get(a.id)??1e9)-(rankOf.get(b.id)??1e9)||a.n-b.n:(a,b)=>a.n-b.n);return r}
  function fillAll(ids){ids.forEach(id=>{const pv=$(`#g .item[data-id="${CSS.escape(id)}"] .pv`);if(pv)ensurePv(pv,id)})}
  async function tour(ids,gen){
   touring=true;
@@ -79,18 +86,19 @@ async function col(){
   const g=$('#g');g.classList.toggle('orphanz',orph);touring=false;
   const ids=r.slice(0,shown).map(i=>i.id);
   // Gallery: empty slots first, tour mounts one-by-one and leaves them (no blanking).
-  g.innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}"><div class="pv"${ordie?' data-ordie="1"':''}>${ordie?'':img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
+  g.innerHTML=r.slice(0,shown).map(i=>`<button class="item" data-id="${esc(i.id)}">${sort==='rare'&&rankOf.has(i.id)?`<span class="badge">#${rankOf.get(i.id)}</span>`:''}<div class="pv"${ordie?' data-ordie="1"':''}>${ordie?'':img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`).join('');
   $('#more').hidden=r.length<=shown;
   if(ordie){const gen=++tourGen;bindOrdieHover(g);tour(ids,gen)}
  }
  $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase().replace(/^#/,'');shown=PAGE;draw()};
- $('#s').onchange=e=>{sort=e.target.value;draw()};
+ $('#s').onchange=e=>{sort=e.target.value;renderFilters();draw()};
  $('#more').onclick=()=>{shown+=PAGE;draw()};
  m.querySelector('.filters').onchange=e=>{const t=e.target;(sel[t.dataset.k]??=new Set())[t.checked?'add':'delete'](t.value);shown=PAGE;draw()};
  $('#g').onclick=e=>{const b=e.target.closest('.item');if(!b)return;const i=items.find(x=>x.id===b.dataset.id);const d=$('#dlg');
   const rows=Object.entries(i.t||{}).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}${cats[k]&&catKeys.includes(k)?` <span class="meta">${(cats[k][v]/items.length*100).toFixed(1)}%</span>`:''}</td></tr>`).join('');
   const art=ordie?`<iframe src="${O}/preview/${esc(i.id)}" sandbox="${SB}" title="${esc(i.name)}"></iframe>`:`<img src="${O}/content/${esc(i.id)}" alt="${esc(i.name)}" data-id="${esc(i.id)}">`;
-  d.innerHTML=`<div class="dlg"><div class="art">${art}</div><div class="info"><h3 style="margin:0">${esc(i.name)}</h3>${i.num!=null?`<p class="meta">Inscription #${i.num.toLocaleString()}</p>`:''}<table>${rows||'<tr><td>traits</td><td>—</td></tr>'}</table><a class="btn" href="${O}/inscription/${esc(i.id)}" target="_blank" rel="noopener">ordinals.com ↗</a>${c.satflow?`<a class="btn" href="https://www.satflow.com/ordinal/${esc(i.id)}" target="_blank" rel="noopener">Satflow ↗</a>`:''}<button class="btn" id="x">Close</button></div></div>`;
+  const rk=rankOf.get(i.id);
+  d.innerHTML=`<div class="dlg"><div class="art">${art}</div><div class="info"><h3 style="margin:0">${esc(i.name)}</h3>${rk!=null?`<p class="rk">Rank ${rk} / ${c.supply}</p>`:''}${i.score!=null?`<p class="meta">score ${Number(i.score).toFixed(2)}</p>`:''}${i.num!=null?`<p class="meta">Inscription #${i.num.toLocaleString()}</p>`:''}<table>${rows||'<tr><td>traits</td><td>—</td></tr>'}</table><a class="btn" href="${O}/inscription/${esc(i.id)}" target="_blank" rel="noopener">ordinals.com ↗</a>${c.satflow?`<a class="btn" href="https://www.satflow.com/ordinal/${esc(i.id)}" target="_blank" rel="noopener">Satflow ↗</a>`:''}<button class="btn" id="x">Close</button></div></div>`;
   d.showModal();$('#x').onclick=()=>d.close()};
  $('#dlg').onclick=e=>{if(e.target.id==='dlg')e.target.close()};
  if(orph){
@@ -105,6 +113,7 @@ async function col(){
   setGlitch(!reduce());
   applyBg();
  }
+ renderFilters();
  draw();
 }
 ($('#home')?home:col)().catch(e=>{console.error(e);document.querySelector('main').insertAdjacentHTML('beforeend','<p class="meta">Could not load data.</p>')});
