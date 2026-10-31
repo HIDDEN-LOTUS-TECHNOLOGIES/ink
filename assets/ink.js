@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000,VER='std-score1';
+const O='https://ordinals.com',PAGE=60,ORDIE_MS=3000,VER='badge-row1';
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const j=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
@@ -101,7 +101,7 @@ async function col(){
   const g=$('#g');g.classList.toggle('orphanz',orph);touring=false;
   const ids=r.slice(0,shown).map(i=>i.id);
   // Gallery: empty slots first, tour mounts one-by-one and leaves them (no blanking).
-  g.innerHTML=r.slice(0,shown).map(i=>{const rk=rankOf.get(i.id);const tg=rk==null?null:tierTip(rk,i.score);return `<button class="item" data-id="${esc(i.id)}">${tg?`<span class="badge" data-tier="${tg.id}" title="${esc(tg.tip)}">#${rk}</span>`:''}<div class="pv"${ordie?' data-ordie="1"':''}>${ordie?'':img(i.id)}</div><div class="tx">${esc(i.name)}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`}).join('');
+  g.innerHTML=r.slice(0,shown).map(i=>{const rk=rankOf.get(i.id);const tg=rk==null?null:tierTip(rk,i.score);return `<button class="item" data-id="${esc(i.id)}"><div class="pv"${ordie?' data-ordie="1"':''}>${ordie?'':img(i.id)}</div><div class="tx"><span class="nm">${esc(i.name)}</span>${tg?`<span class="badge" data-tier="${tg.id}" title="${esc(tg.tip)}">#${rk}</span>`:''}${i.num!=null?`<small class="${i.num<0?'cur':''}">#${i.num.toLocaleString()}</small>`:''}</div></button>`}).join('');
   $('#more').hidden=r.length<=shown;
   if(ordie){const gen=++tourGen;bindOrdieHover(g);tour(ids,gen)}
  }

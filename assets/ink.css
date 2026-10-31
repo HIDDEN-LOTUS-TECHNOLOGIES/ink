@@ -28,9 +28,11 @@ input,select{background:#111;border:1px solid var(--line);color:var(--fg);font:4
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr));gap:.75rem}
 .item{position:relative;border:1px solid var(--line);cursor:pointer;background:none;color:inherit;padding:0;text-align:left;font:inherit}
 .item:hover{border-color:var(--acc)}.item .pv{aspect-ratio:1;background:#111}.item .pv img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
-.item .tx{padding:.5rem;font-size:.85rem}.item .tx small{display:block;color:var(--mut);font-family:var(--mono)}
+.item .tx{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;padding:.45rem .5rem;font-size:.85rem;min-width:0}
+.item .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .tx small{flex:1 0 100%;color:var(--mut);font-family:var(--mono)}
 .item .badge,.dlg .chip{background:var(--bg);color:var(--tier-common);border:1px solid var(--tier-common);font:700 .68rem/1.3 var(--mono);letter-spacing:.04em}
-.item .badge{position:absolute;z-index:1;top:.35rem;left:.35rem;padding:.22rem .32rem;pointer-events:none}
+.item .badge{flex:0 0 auto;margin-left:auto;padding:.12rem .28rem}
 .dlg .chip{display:inline-block;margin:.65rem 0 .2rem;padding:.16rem .42rem}
 .badge[data-tier="legendary"],.chip[data-tier="legendary"]{color:var(--tier-legendary);border-color:var(--tier-legendary)}
 .badge[data-tier="epic"],.chip[data-tier="epic"]{color:var(--tier-epic);border-color:var(--tier-epic)}
