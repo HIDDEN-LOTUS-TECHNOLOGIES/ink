@@ -13,6 +13,9 @@ pre{background:#111;border:1px solid var(--line);padding:.7rem;overflow:auto;max
 .row button,.row a.btn{width:auto}
 button,.btn{background:none;color:var(--acc);border:1px solid var(--acc);font:700 .8rem var(--mono);letter-spacing:.06em;padding:.6rem .9rem;cursor:pointer}
 button:disabled{opacity:.4;cursor:not-allowed}
+button[aria-pressed="true"]{background:var(--acc);color:#111}
+.wallet-list{display:flex;flex-direction:column;gap:.5rem;max-width:40rem;margin:.6rem 0}
+.wallet-list button{text-align:left}
 #log{color:#f0c674}
 .addr{color:var(--fg);font:700 .95rem/1.4 var(--mono);text-transform:none}
 @media(max-width:480px){

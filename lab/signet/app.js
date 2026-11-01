@@ -1,10 +1,5216 @@
-/* Signet only. Bundled micro-ordinals@0.4.0 and @scure/btc-signer@2.2.0 (paulmillr). */
+/* Signet only. Bundled micro-ordinals@0.4.0, @scure/btc-signer@2.2.0 (paulmillr), and @sats-connect/core@0.19.0. */
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __commonJS = (cb, mod2) => function __require() {
+  try {
+    return mod2 || (0, cb[__getOwnPropNames(cb)[0]])((mod2 = { exports: {} }).exports, mod2), mod2.exports;
+  } catch (e) {
+    throw mod2 = 0, e;
+  }
+};
+var __export = (target, all3) => {
+  for (var name in all3)
+    __defProp(target, name, { get: all3[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod2, isNodeMode, target) => (target = mod2 != null ? __create(__getProtoOf(mod2)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod2 || !mod2.__esModule ? __defProp(target, "default", { value: mod2, enumerable: true }) : target,
+  mod2
+));
 
-// node_modules/@noble/hashes/utils.js
+// node_modules/bech32/dist/index.js
+var require_dist = __commonJS({
+  "node_modules/bech32/dist/index.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.bech32m = exports.bech32 = void 0;
+    var ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+    var ALPHABET_MAP = {};
+    for (let z = 0; z < ALPHABET.length; z++) {
+      const x = ALPHABET.charAt(z);
+      ALPHABET_MAP[x] = z;
+    }
+    function polymodStep(pre) {
+      const b = pre >> 25;
+      return (pre & 33554431) << 5 ^ -(b >> 0 & 1) & 996825010 ^ -(b >> 1 & 1) & 642813549 ^ -(b >> 2 & 1) & 513874426 ^ -(b >> 3 & 1) & 1027748829 ^ -(b >> 4 & 1) & 705979059;
+    }
+    function prefixChk(prefix2) {
+      let chk = 1;
+      for (let i = 0; i < prefix2.length; ++i) {
+        const c = prefix2.charCodeAt(i);
+        if (c < 33 || c > 126)
+          return "Invalid prefix (" + prefix2 + ")";
+        chk = polymodStep(chk) ^ c >> 5;
+      }
+      chk = polymodStep(chk);
+      for (let i = 0; i < prefix2.length; ++i) {
+        const v = prefix2.charCodeAt(i);
+        chk = polymodStep(chk) ^ v & 31;
+      }
+      return chk;
+    }
+    function convert(data, inBits, outBits, pad) {
+      let value = 0;
+      let bits2 = 0;
+      const maxV = (1 << outBits) - 1;
+      const result = [];
+      for (let i = 0; i < data.length; ++i) {
+        value = value << inBits | data[i];
+        bits2 += inBits;
+        while (bits2 >= outBits) {
+          bits2 -= outBits;
+          result.push(value >> bits2 & maxV);
+        }
+      }
+      if (pad) {
+        if (bits2 > 0) {
+          result.push(value << outBits - bits2 & maxV);
+        }
+      } else {
+        if (bits2 >= inBits)
+          return "Excess padding";
+        if (value << outBits - bits2 & maxV)
+          return "Non-zero padding";
+      }
+      return result;
+    }
+    function toWords(bytes) {
+      return convert(bytes, 8, 5, true);
+    }
+    function fromWordsUnsafe(words) {
+      const res = convert(words, 5, 8, false);
+      if (Array.isArray(res))
+        return res;
+    }
+    function fromWords(words) {
+      const res = convert(words, 5, 8, false);
+      if (Array.isArray(res))
+        return res;
+      throw new Error(res);
+    }
+    function getLibraryFromEncoding(encoding) {
+      let ENCODING_CONST;
+      if (encoding === "bech32") {
+        ENCODING_CONST = 1;
+      } else {
+        ENCODING_CONST = 734539939;
+      }
+      function encode3(prefix2, words, LIMIT) {
+        LIMIT = LIMIT || 90;
+        if (prefix2.length + 7 + words.length > LIMIT)
+          throw new TypeError("Exceeds length limit");
+        prefix2 = prefix2.toLowerCase();
+        let chk = prefixChk(prefix2);
+        if (typeof chk === "string")
+          throw new Error(chk);
+        let result = prefix2 + "1";
+        for (let i = 0; i < words.length; ++i) {
+          const x = words[i];
+          if (x >> 5 !== 0)
+            throw new Error("Non 5-bit word");
+          chk = polymodStep(chk) ^ x;
+          result += ALPHABET.charAt(x);
+        }
+        for (let i = 0; i < 6; ++i) {
+          chk = polymodStep(chk);
+        }
+        chk ^= ENCODING_CONST;
+        for (let i = 0; i < 6; ++i) {
+          const v = chk >> (5 - i) * 5 & 31;
+          result += ALPHABET.charAt(v);
+        }
+        return result;
+      }
+      function __decode(str, LIMIT) {
+        LIMIT = LIMIT || 90;
+        if (str.length < 8)
+          return str + " too short";
+        if (str.length > LIMIT)
+          return "Exceeds length limit";
+        const lowered = str.toLowerCase();
+        const uppered = str.toUpperCase();
+        if (str !== lowered && str !== uppered)
+          return "Mixed-case string " + str;
+        str = lowered;
+        const split = str.lastIndexOf("1");
+        if (split === -1)
+          return "No separator character for " + str;
+        if (split === 0)
+          return "Missing prefix for " + str;
+        const prefix2 = str.slice(0, split);
+        const wordChars = str.slice(split + 1);
+        if (wordChars.length < 6)
+          return "Data too short";
+        let chk = prefixChk(prefix2);
+        if (typeof chk === "string")
+          return chk;
+        const words = [];
+        for (let i = 0; i < wordChars.length; ++i) {
+          const c = wordChars.charAt(i);
+          const v = ALPHABET_MAP[c];
+          if (v === void 0)
+            return "Unknown character " + c;
+          chk = polymodStep(chk) ^ v;
+          if (i + 6 >= wordChars.length)
+            continue;
+          words.push(v);
+        }
+        if (chk !== ENCODING_CONST)
+          return "Invalid checksum for " + str;
+        return { prefix: prefix2, words };
+      }
+      function decodeUnsafe(str, LIMIT) {
+        const res = __decode(str, LIMIT);
+        if (typeof res === "object")
+          return res;
+      }
+      function decode(str, LIMIT) {
+        const res = __decode(str, LIMIT);
+        if (typeof res === "object")
+          return res;
+        throw new Error(res);
+      }
+      return {
+        decodeUnsafe,
+        decode,
+        encode: encode3,
+        toWords,
+        fromWordsUnsafe,
+        fromWords
+      };
+    }
+    exports.bech32 = getLibraryFromEncoding("bech32");
+    exports.bech32m = getLibraryFromEncoding("bech32m");
+  }
+});
+
+// node_modules/base64-js/index.js
+var require_base64_js = __commonJS({
+  "node_modules/base64-js/index.js"(exports) {
+    "use strict";
+    exports.byteLength = byteLength;
+    exports.toByteArray = toByteArray;
+    exports.fromByteArray = fromByteArray;
+    var lookup = [];
+    var revLookup = [];
+    var Arr = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
+    var code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    for (i = 0, len = code.length; i < len; ++i) {
+      lookup[i] = code[i];
+      revLookup[code.charCodeAt(i)] = i;
+    }
+    var i;
+    var len;
+    revLookup["-".charCodeAt(0)] = 62;
+    revLookup["_".charCodeAt(0)] = 63;
+    function getLens(b64) {
+      var len2 = b64.length;
+      if (len2 % 4 > 0) {
+        throw new Error("Invalid string. Length must be a multiple of 4");
+      }
+      var validLen = b64.indexOf("=");
+      if (validLen === -1) validLen = len2;
+      var placeHoldersLen = validLen === len2 ? 0 : 4 - validLen % 4;
+      return [validLen, placeHoldersLen];
+    }
+    function byteLength(b64) {
+      var lens = getLens(b64);
+      var validLen = lens[0];
+      var placeHoldersLen = lens[1];
+      return (validLen + placeHoldersLen) * 3 / 4 - placeHoldersLen;
+    }
+    function _byteLength(b64, validLen, placeHoldersLen) {
+      return (validLen + placeHoldersLen) * 3 / 4 - placeHoldersLen;
+    }
+    function toByteArray(b64) {
+      var tmp;
+      var lens = getLens(b64);
+      var validLen = lens[0];
+      var placeHoldersLen = lens[1];
+      var arr = new Arr(_byteLength(b64, validLen, placeHoldersLen));
+      var curByte = 0;
+      var len2 = placeHoldersLen > 0 ? validLen - 4 : validLen;
+      var i2;
+      for (i2 = 0; i2 < len2; i2 += 4) {
+        tmp = revLookup[b64.charCodeAt(i2)] << 18 | revLookup[b64.charCodeAt(i2 + 1)] << 12 | revLookup[b64.charCodeAt(i2 + 2)] << 6 | revLookup[b64.charCodeAt(i2 + 3)];
+        arr[curByte++] = tmp >> 16 & 255;
+        arr[curByte++] = tmp >> 8 & 255;
+        arr[curByte++] = tmp & 255;
+      }
+      if (placeHoldersLen === 2) {
+        tmp = revLookup[b64.charCodeAt(i2)] << 2 | revLookup[b64.charCodeAt(i2 + 1)] >> 4;
+        arr[curByte++] = tmp & 255;
+      }
+      if (placeHoldersLen === 1) {
+        tmp = revLookup[b64.charCodeAt(i2)] << 10 | revLookup[b64.charCodeAt(i2 + 1)] << 4 | revLookup[b64.charCodeAt(i2 + 2)] >> 2;
+        arr[curByte++] = tmp >> 8 & 255;
+        arr[curByte++] = tmp & 255;
+      }
+      return arr;
+    }
+    function tripletToBase64(num2) {
+      return lookup[num2 >> 18 & 63] + lookup[num2 >> 12 & 63] + lookup[num2 >> 6 & 63] + lookup[num2 & 63];
+    }
+    function encodeChunk(uint8, start, end) {
+      var tmp;
+      var output = [];
+      for (var i2 = start; i2 < end; i2 += 3) {
+        tmp = (uint8[i2] << 16 & 16711680) + (uint8[i2 + 1] << 8 & 65280) + (uint8[i2 + 2] & 255);
+        output.push(tripletToBase64(tmp));
+      }
+      return output.join("");
+    }
+    function fromByteArray(uint8) {
+      var tmp;
+      var len2 = uint8.length;
+      var extraBytes = len2 % 3;
+      var parts = [];
+      var maxChunkLength = 16383;
+      for (var i2 = 0, len22 = len2 - extraBytes; i2 < len22; i2 += maxChunkLength) {
+        parts.push(encodeChunk(uint8, i2, i2 + maxChunkLength > len22 ? len22 : i2 + maxChunkLength));
+      }
+      if (extraBytes === 1) {
+        tmp = uint8[len2 - 1];
+        parts.push(
+          lookup[tmp >> 2] + lookup[tmp << 4 & 63] + "=="
+        );
+      } else if (extraBytes === 2) {
+        tmp = (uint8[len2 - 2] << 8) + uint8[len2 - 1];
+        parts.push(
+          lookup[tmp >> 10] + lookup[tmp >> 4 & 63] + lookup[tmp << 2 & 63] + "="
+        );
+      }
+      return parts.join("");
+    }
+  }
+});
+
+// node_modules/ieee754/index.js
+var require_ieee754 = __commonJS({
+  "node_modules/ieee754/index.js"(exports) {
+    exports.read = function(buffer, offset, isLE, mLen, nBytes) {
+      var e, m;
+      var eLen = nBytes * 8 - mLen - 1;
+      var eMax = (1 << eLen) - 1;
+      var eBias = eMax >> 1;
+      var nBits = -7;
+      var i = isLE ? nBytes - 1 : 0;
+      var d = isLE ? -1 : 1;
+      var s = buffer[offset + i];
+      i += d;
+      e = s & (1 << -nBits) - 1;
+      s >>= -nBits;
+      nBits += eLen;
+      for (; nBits > 0; e = e * 256 + buffer[offset + i], i += d, nBits -= 8) {
+      }
+      m = e & (1 << -nBits) - 1;
+      e >>= -nBits;
+      nBits += mLen;
+      for (; nBits > 0; m = m * 256 + buffer[offset + i], i += d, nBits -= 8) {
+      }
+      if (e === 0) {
+        e = 1 - eBias;
+      } else if (e === eMax) {
+        return m ? NaN : (s ? -1 : 1) * Infinity;
+      } else {
+        m = m + Math.pow(2, mLen);
+        e = e - eBias;
+      }
+      return (s ? -1 : 1) * m * Math.pow(2, e - mLen);
+    };
+    exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
+      var e, m, c;
+      var eLen = nBytes * 8 - mLen - 1;
+      var eMax = (1 << eLen) - 1;
+      var eBias = eMax >> 1;
+      var rt = mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0;
+      var i = isLE ? 0 : nBytes - 1;
+      var d = isLE ? 1 : -1;
+      var s = value < 0 || value === 0 && 1 / value < 0 ? 1 : 0;
+      value = Math.abs(value);
+      if (isNaN(value) || value === Infinity) {
+        m = isNaN(value) ? 1 : 0;
+        e = eMax;
+      } else {
+        e = Math.floor(Math.log(value) / Math.LN2);
+        if (value * (c = Math.pow(2, -e)) < 1) {
+          e--;
+          c *= 2;
+        }
+        if (e + eBias >= 1) {
+          value += rt / c;
+        } else {
+          value += rt * Math.pow(2, 1 - eBias);
+        }
+        if (value * c >= 2) {
+          e++;
+          c /= 2;
+        }
+        if (e + eBias >= eMax) {
+          m = 0;
+          e = eMax;
+        } else if (e + eBias >= 1) {
+          m = (value * c - 1) * Math.pow(2, mLen);
+          e = e + eBias;
+        } else {
+          m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
+          e = 0;
+        }
+      }
+      for (; mLen >= 8; buffer[offset + i] = m & 255, i += d, m /= 256, mLen -= 8) {
+      }
+      e = e << mLen | m;
+      eLen += mLen;
+      for (; eLen > 0; buffer[offset + i] = e & 255, i += d, e /= 256, eLen -= 8) {
+      }
+      buffer[offset + i - d] |= s * 128;
+    };
+  }
+});
+
+// node_modules/buffer/index.js
+var require_buffer = __commonJS({
+  "node_modules/buffer/index.js"(exports) {
+    "use strict";
+    var base64 = require_base64_js();
+    var ieee754 = require_ieee754();
+    var customInspectSymbol = typeof Symbol === "function" && typeof Symbol["for"] === "function" ? Symbol["for"]("nodejs.util.inspect.custom") : null;
+    exports.Buffer = Buffer3;
+    exports.SlowBuffer = SlowBuffer;
+    exports.INSPECT_MAX_BYTES = 50;
+    var K_MAX_LENGTH = 2147483647;
+    exports.kMaxLength = K_MAX_LENGTH;
+    Buffer3.TYPED_ARRAY_SUPPORT = typedArraySupport();
+    if (!Buffer3.TYPED_ARRAY_SUPPORT && typeof console !== "undefined" && typeof console.error === "function") {
+      console.error(
+        "This browser lacks typed array (Uint8Array) support which is required by `buffer` v5.x. Use `buffer` v4.x if you require old browser support."
+      );
+    }
+    function typedArraySupport() {
+      try {
+        const arr = new Uint8Array(1);
+        const proto = { foo: function() {
+          return 42;
+        } };
+        Object.setPrototypeOf(proto, Uint8Array.prototype);
+        Object.setPrototypeOf(arr, proto);
+        return arr.foo() === 42;
+      } catch (e) {
+        return false;
+      }
+    }
+    Object.defineProperty(Buffer3.prototype, "parent", {
+      enumerable: true,
+      get: function() {
+        if (!Buffer3.isBuffer(this)) return void 0;
+        return this.buffer;
+      }
+    });
+    Object.defineProperty(Buffer3.prototype, "offset", {
+      enumerable: true,
+      get: function() {
+        if (!Buffer3.isBuffer(this)) return void 0;
+        return this.byteOffset;
+      }
+    });
+    function createBuffer(length2) {
+      if (length2 > K_MAX_LENGTH) {
+        throw new RangeError('The value "' + length2 + '" is invalid for option "size"');
+      }
+      const buf = new Uint8Array(length2);
+      Object.setPrototypeOf(buf, Buffer3.prototype);
+      return buf;
+    }
+    function Buffer3(arg, encodingOrOffset, length2) {
+      if (typeof arg === "number") {
+        if (typeof encodingOrOffset === "string") {
+          throw new TypeError(
+            'The "string" argument must be of type string. Received type number'
+          );
+        }
+        return allocUnsafe(arg);
+      }
+      return from(arg, encodingOrOffset, length2);
+    }
+    Buffer3.poolSize = 8192;
+    function from(value, encodingOrOffset, length2) {
+      if (typeof value === "string") {
+        return fromString(value, encodingOrOffset);
+      }
+      if (ArrayBuffer.isView(value)) {
+        return fromArrayView(value);
+      }
+      if (value == null) {
+        throw new TypeError(
+          "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value
+        );
+      }
+      if (isInstance(value, ArrayBuffer) || value && isInstance(value.buffer, ArrayBuffer)) {
+        return fromArrayBuffer(value, encodingOrOffset, length2);
+      }
+      if (typeof SharedArrayBuffer !== "undefined" && (isInstance(value, SharedArrayBuffer) || value && isInstance(value.buffer, SharedArrayBuffer))) {
+        return fromArrayBuffer(value, encodingOrOffset, length2);
+      }
+      if (typeof value === "number") {
+        throw new TypeError(
+          'The "value" argument must not be of type number. Received type number'
+        );
+      }
+      const valueOf = value.valueOf && value.valueOf();
+      if (valueOf != null && valueOf !== value) {
+        return Buffer3.from(valueOf, encodingOrOffset, length2);
+      }
+      const b = fromObject(value);
+      if (b) return b;
+      if (typeof Symbol !== "undefined" && Symbol.toPrimitive != null && typeof value[Symbol.toPrimitive] === "function") {
+        return Buffer3.from(value[Symbol.toPrimitive]("string"), encodingOrOffset, length2);
+      }
+      throw new TypeError(
+        "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value
+      );
+    }
+    Buffer3.from = function(value, encodingOrOffset, length2) {
+      return from(value, encodingOrOffset, length2);
+    };
+    Object.setPrototypeOf(Buffer3.prototype, Uint8Array.prototype);
+    Object.setPrototypeOf(Buffer3, Uint8Array);
+    function assertSize(size) {
+      if (typeof size !== "number") {
+        throw new TypeError('"size" argument must be of type number');
+      } else if (size < 0) {
+        throw new RangeError('The value "' + size + '" is invalid for option "size"');
+      }
+    }
+    function alloc(size, fill, encoding) {
+      assertSize(size);
+      if (size <= 0) {
+        return createBuffer(size);
+      }
+      if (fill !== void 0) {
+        return typeof encoding === "string" ? createBuffer(size).fill(fill, encoding) : createBuffer(size).fill(fill);
+      }
+      return createBuffer(size);
+    }
+    Buffer3.alloc = function(size, fill, encoding) {
+      return alloc(size, fill, encoding);
+    };
+    function allocUnsafe(size) {
+      assertSize(size);
+      return createBuffer(size < 0 ? 0 : checked(size) | 0);
+    }
+    Buffer3.allocUnsafe = function(size) {
+      return allocUnsafe(size);
+    };
+    Buffer3.allocUnsafeSlow = function(size) {
+      return allocUnsafe(size);
+    };
+    function fromString(string3, encoding) {
+      if (typeof encoding !== "string" || encoding === "") {
+        encoding = "utf8";
+      }
+      if (!Buffer3.isEncoding(encoding)) {
+        throw new TypeError("Unknown encoding: " + encoding);
+      }
+      const length2 = byteLength(string3, encoding) | 0;
+      let buf = createBuffer(length2);
+      const actual = buf.write(string3, encoding);
+      if (actual !== length2) {
+        buf = buf.slice(0, actual);
+      }
+      return buf;
+    }
+    function fromArrayLike(array3) {
+      const length2 = array3.length < 0 ? 0 : checked(array3.length) | 0;
+      const buf = createBuffer(length2);
+      for (let i = 0; i < length2; i += 1) {
+        buf[i] = array3[i] & 255;
+      }
+      return buf;
+    }
+    function fromArrayView(arrayView) {
+      if (isInstance(arrayView, Uint8Array)) {
+        const copy = new Uint8Array(arrayView);
+        return fromArrayBuffer(copy.buffer, copy.byteOffset, copy.byteLength);
+      }
+      return fromArrayLike(arrayView);
+    }
+    function fromArrayBuffer(array3, byteOffset, length2) {
+      if (byteOffset < 0 || array3.byteLength < byteOffset) {
+        throw new RangeError('"offset" is outside of buffer bounds');
+      }
+      if (array3.byteLength < byteOffset + (length2 || 0)) {
+        throw new RangeError('"length" is outside of buffer bounds');
+      }
+      let buf;
+      if (byteOffset === void 0 && length2 === void 0) {
+        buf = new Uint8Array(array3);
+      } else if (length2 === void 0) {
+        buf = new Uint8Array(array3, byteOffset);
+      } else {
+        buf = new Uint8Array(array3, byteOffset, length2);
+      }
+      Object.setPrototypeOf(buf, Buffer3.prototype);
+      return buf;
+    }
+    function fromObject(obj) {
+      if (Buffer3.isBuffer(obj)) {
+        const len = checked(obj.length) | 0;
+        const buf = createBuffer(len);
+        if (buf.length === 0) {
+          return buf;
+        }
+        obj.copy(buf, 0, 0, len);
+        return buf;
+      }
+      if (obj.length !== void 0) {
+        if (typeof obj.length !== "number" || numberIsNaN(obj.length)) {
+          return createBuffer(0);
+        }
+        return fromArrayLike(obj);
+      }
+      if (obj.type === "Buffer" && Array.isArray(obj.data)) {
+        return fromArrayLike(obj.data);
+      }
+    }
+    function checked(length2) {
+      if (length2 >= K_MAX_LENGTH) {
+        throw new RangeError("Attempt to allocate Buffer larger than maximum size: 0x" + K_MAX_LENGTH.toString(16) + " bytes");
+      }
+      return length2 | 0;
+    }
+    function SlowBuffer(length2) {
+      if (+length2 != length2) {
+        length2 = 0;
+      }
+      return Buffer3.alloc(+length2);
+    }
+    Buffer3.isBuffer = function isBuffer2(b) {
+      return b != null && b._isBuffer === true && b !== Buffer3.prototype;
+    };
+    Buffer3.compare = function compare(a, b) {
+      if (isInstance(a, Uint8Array)) a = Buffer3.from(a, a.offset, a.byteLength);
+      if (isInstance(b, Uint8Array)) b = Buffer3.from(b, b.offset, b.byteLength);
+      if (!Buffer3.isBuffer(a) || !Buffer3.isBuffer(b)) {
+        throw new TypeError(
+          'The "buf1", "buf2" arguments must be one of type Buffer or Uint8Array'
+        );
+      }
+      if (a === b) return 0;
+      let x = a.length;
+      let y = b.length;
+      for (let i = 0, len = Math.min(x, y); i < len; ++i) {
+        if (a[i] !== b[i]) {
+          x = a[i];
+          y = b[i];
+          break;
+        }
+      }
+      if (x < y) return -1;
+      if (y < x) return 1;
+      return 0;
+    };
+    Buffer3.isEncoding = function isEncoding(encoding) {
+      switch (String(encoding).toLowerCase()) {
+        case "hex":
+        case "utf8":
+        case "utf-8":
+        case "ascii":
+        case "latin1":
+        case "binary":
+        case "base64":
+        case "ucs2":
+        case "ucs-2":
+        case "utf16le":
+        case "utf-16le":
+          return true;
+        default:
+          return false;
+      }
+    };
+    Buffer3.concat = function concat(list, length2) {
+      if (!Array.isArray(list)) {
+        throw new TypeError('"list" argument must be an Array of Buffers');
+      }
+      if (list.length === 0) {
+        return Buffer3.alloc(0);
+      }
+      let i;
+      if (length2 === void 0) {
+        length2 = 0;
+        for (i = 0; i < list.length; ++i) {
+          length2 += list[i].length;
+        }
+      }
+      const buffer = Buffer3.allocUnsafe(length2);
+      let pos = 0;
+      for (i = 0; i < list.length; ++i) {
+        let buf = list[i];
+        if (isInstance(buf, Uint8Array)) {
+          if (pos + buf.length > buffer.length) {
+            if (!Buffer3.isBuffer(buf)) buf = Buffer3.from(buf);
+            buf.copy(buffer, pos);
+          } else {
+            Uint8Array.prototype.set.call(
+              buffer,
+              buf,
+              pos
+            );
+          }
+        } else if (!Buffer3.isBuffer(buf)) {
+          throw new TypeError('"list" argument must be an Array of Buffers');
+        } else {
+          buf.copy(buffer, pos);
+        }
+        pos += buf.length;
+      }
+      return buffer;
+    };
+    function byteLength(string3, encoding) {
+      if (Buffer3.isBuffer(string3)) {
+        return string3.length;
+      }
+      if (ArrayBuffer.isView(string3) || isInstance(string3, ArrayBuffer)) {
+        return string3.byteLength;
+      }
+      if (typeof string3 !== "string") {
+        throw new TypeError(
+          'The "string" argument must be one of type string, Buffer, or ArrayBuffer. Received type ' + typeof string3
+        );
+      }
+      const len = string3.length;
+      const mustMatch = arguments.length > 2 && arguments[2] === true;
+      if (!mustMatch && len === 0) return 0;
+      let loweredCase = false;
+      for (; ; ) {
+        switch (encoding) {
+          case "ascii":
+          case "latin1":
+          case "binary":
+            return len;
+          case "utf8":
+          case "utf-8":
+            return utf8ToBytes(string3).length;
+          case "ucs2":
+          case "ucs-2":
+          case "utf16le":
+          case "utf-16le":
+            return len * 2;
+          case "hex":
+            return len >>> 1;
+          case "base64":
+            return base64ToBytes2(string3).length;
+          default:
+            if (loweredCase) {
+              return mustMatch ? -1 : utf8ToBytes(string3).length;
+            }
+            encoding = ("" + encoding).toLowerCase();
+            loweredCase = true;
+        }
+      }
+    }
+    Buffer3.byteLength = byteLength;
+    function slowToString(encoding, start, end) {
+      let loweredCase = false;
+      if (start === void 0 || start < 0) {
+        start = 0;
+      }
+      if (start > this.length) {
+        return "";
+      }
+      if (end === void 0 || end > this.length) {
+        end = this.length;
+      }
+      if (end <= 0) {
+        return "";
+      }
+      end >>>= 0;
+      start >>>= 0;
+      if (end <= start) {
+        return "";
+      }
+      if (!encoding) encoding = "utf8";
+      while (true) {
+        switch (encoding) {
+          case "hex":
+            return hexSlice(this, start, end);
+          case "utf8":
+          case "utf-8":
+            return utf8Slice(this, start, end);
+          case "ascii":
+            return asciiSlice(this, start, end);
+          case "latin1":
+          case "binary":
+            return latin1Slice(this, start, end);
+          case "base64":
+            return base64Slice(this, start, end);
+          case "ucs2":
+          case "ucs-2":
+          case "utf16le":
+          case "utf-16le":
+            return utf16leSlice(this, start, end);
+          default:
+            if (loweredCase) throw new TypeError("Unknown encoding: " + encoding);
+            encoding = (encoding + "").toLowerCase();
+            loweredCase = true;
+        }
+      }
+    }
+    Buffer3.prototype._isBuffer = true;
+    function swap(b, n, m) {
+      const i = b[n];
+      b[n] = b[m];
+      b[m] = i;
+    }
+    Buffer3.prototype.swap16 = function swap16() {
+      const len = this.length;
+      if (len % 2 !== 0) {
+        throw new RangeError("Buffer size must be a multiple of 16-bits");
+      }
+      for (let i = 0; i < len; i += 2) {
+        swap(this, i, i + 1);
+      }
+      return this;
+    };
+    Buffer3.prototype.swap32 = function swap322() {
+      const len = this.length;
+      if (len % 4 !== 0) {
+        throw new RangeError("Buffer size must be a multiple of 32-bits");
+      }
+      for (let i = 0; i < len; i += 4) {
+        swap(this, i, i + 3);
+        swap(this, i + 1, i + 2);
+      }
+      return this;
+    };
+    Buffer3.prototype.swap64 = function swap64() {
+      const len = this.length;
+      if (len % 8 !== 0) {
+        throw new RangeError("Buffer size must be a multiple of 64-bits");
+      }
+      for (let i = 0; i < len; i += 8) {
+        swap(this, i, i + 7);
+        swap(this, i + 1, i + 6);
+        swap(this, i + 2, i + 5);
+        swap(this, i + 3, i + 4);
+      }
+      return this;
+    };
+    Buffer3.prototype.toString = function toString3() {
+      const length2 = this.length;
+      if (length2 === 0) return "";
+      if (arguments.length === 0) return utf8Slice(this, 0, length2);
+      return slowToString.apply(this, arguments);
+    };
+    Buffer3.prototype.toLocaleString = Buffer3.prototype.toString;
+    Buffer3.prototype.equals = function equals(b) {
+      if (!Buffer3.isBuffer(b)) throw new TypeError("Argument must be a Buffer");
+      if (this === b) return true;
+      return Buffer3.compare(this, b) === 0;
+    };
+    Buffer3.prototype.inspect = function inspect() {
+      let str = "";
+      const max = exports.INSPECT_MAX_BYTES;
+      str = this.toString("hex", 0, max).replace(/(.{2})/g, "$1 ").trim();
+      if (this.length > max) str += " ... ";
+      return "<Buffer " + str + ">";
+    };
+    if (customInspectSymbol) {
+      Buffer3.prototype[customInspectSymbol] = Buffer3.prototype.inspect;
+    }
+    Buffer3.prototype.compare = function compare(target, start, end, thisStart, thisEnd) {
+      if (isInstance(target, Uint8Array)) {
+        target = Buffer3.from(target, target.offset, target.byteLength);
+      }
+      if (!Buffer3.isBuffer(target)) {
+        throw new TypeError(
+          'The "target" argument must be one of type Buffer or Uint8Array. Received type ' + typeof target
+        );
+      }
+      if (start === void 0) {
+        start = 0;
+      }
+      if (end === void 0) {
+        end = target ? target.length : 0;
+      }
+      if (thisStart === void 0) {
+        thisStart = 0;
+      }
+      if (thisEnd === void 0) {
+        thisEnd = this.length;
+      }
+      if (start < 0 || end > target.length || thisStart < 0 || thisEnd > this.length) {
+        throw new RangeError("out of range index");
+      }
+      if (thisStart >= thisEnd && start >= end) {
+        return 0;
+      }
+      if (thisStart >= thisEnd) {
+        return -1;
+      }
+      if (start >= end) {
+        return 1;
+      }
+      start >>>= 0;
+      end >>>= 0;
+      thisStart >>>= 0;
+      thisEnd >>>= 0;
+      if (this === target) return 0;
+      let x = thisEnd - thisStart;
+      let y = end - start;
+      const len = Math.min(x, y);
+      const thisCopy = this.slice(thisStart, thisEnd);
+      const targetCopy = target.slice(start, end);
+      for (let i = 0; i < len; ++i) {
+        if (thisCopy[i] !== targetCopy[i]) {
+          x = thisCopy[i];
+          y = targetCopy[i];
+          break;
+        }
+      }
+      if (x < y) return -1;
+      if (y < x) return 1;
+      return 0;
+    };
+    function bidirectionalIndexOf(buffer, val, byteOffset, encoding, dir) {
+      if (buffer.length === 0) return -1;
+      if (typeof byteOffset === "string") {
+        encoding = byteOffset;
+        byteOffset = 0;
+      } else if (byteOffset > 2147483647) {
+        byteOffset = 2147483647;
+      } else if (byteOffset < -2147483648) {
+        byteOffset = -2147483648;
+      }
+      byteOffset = +byteOffset;
+      if (numberIsNaN(byteOffset)) {
+        byteOffset = dir ? 0 : buffer.length - 1;
+      }
+      if (byteOffset < 0) byteOffset = buffer.length + byteOffset;
+      if (byteOffset >= buffer.length) {
+        if (dir) return -1;
+        else byteOffset = buffer.length - 1;
+      } else if (byteOffset < 0) {
+        if (dir) byteOffset = 0;
+        else return -1;
+      }
+      if (typeof val === "string") {
+        val = Buffer3.from(val, encoding);
+      }
+      if (Buffer3.isBuffer(val)) {
+        if (val.length === 0) {
+          return -1;
+        }
+        return arrayIndexOf(buffer, val, byteOffset, encoding, dir);
+      } else if (typeof val === "number") {
+        val = val & 255;
+        if (typeof Uint8Array.prototype.indexOf === "function") {
+          if (dir) {
+            return Uint8Array.prototype.indexOf.call(buffer, val, byteOffset);
+          } else {
+            return Uint8Array.prototype.lastIndexOf.call(buffer, val, byteOffset);
+          }
+        }
+        return arrayIndexOf(buffer, [val], byteOffset, encoding, dir);
+      }
+      throw new TypeError("val must be string, number or Buffer");
+    }
+    function arrayIndexOf(arr, val, byteOffset, encoding, dir) {
+      let indexSize = 1;
+      let arrLength = arr.length;
+      let valLength = val.length;
+      if (encoding !== void 0) {
+        encoding = String(encoding).toLowerCase();
+        if (encoding === "ucs2" || encoding === "ucs-2" || encoding === "utf16le" || encoding === "utf-16le") {
+          if (arr.length < 2 || val.length < 2) {
+            return -1;
+          }
+          indexSize = 2;
+          arrLength /= 2;
+          valLength /= 2;
+          byteOffset /= 2;
+        }
+      }
+      function read(buf, i2) {
+        if (indexSize === 1) {
+          return buf[i2];
+        } else {
+          return buf.readUInt16BE(i2 * indexSize);
+        }
+      }
+      let i;
+      if (dir) {
+        let foundIndex = -1;
+        for (i = byteOffset; i < arrLength; i++) {
+          if (read(arr, i) === read(val, foundIndex === -1 ? 0 : i - foundIndex)) {
+            if (foundIndex === -1) foundIndex = i;
+            if (i - foundIndex + 1 === valLength) return foundIndex * indexSize;
+          } else {
+            if (foundIndex !== -1) i -= i - foundIndex;
+            foundIndex = -1;
+          }
+        }
+      } else {
+        if (byteOffset + valLength > arrLength) byteOffset = arrLength - valLength;
+        for (i = byteOffset; i >= 0; i--) {
+          let found = true;
+          for (let j = 0; j < valLength; j++) {
+            if (read(arr, i + j) !== read(val, j)) {
+              found = false;
+              break;
+            }
+          }
+          if (found) return i;
+        }
+      }
+      return -1;
+    }
+    Buffer3.prototype.includes = function includes(val, byteOffset, encoding) {
+      return this.indexOf(val, byteOffset, encoding) !== -1;
+    };
+    Buffer3.prototype.indexOf = function indexOf(val, byteOffset, encoding) {
+      return bidirectionalIndexOf(this, val, byteOffset, encoding, true);
+    };
+    Buffer3.prototype.lastIndexOf = function lastIndexOf(val, byteOffset, encoding) {
+      return bidirectionalIndexOf(this, val, byteOffset, encoding, false);
+    };
+    function hexWrite(buf, string3, offset, length2) {
+      offset = Number(offset) || 0;
+      const remaining = buf.length - offset;
+      if (!length2) {
+        length2 = remaining;
+      } else {
+        length2 = Number(length2);
+        if (length2 > remaining) {
+          length2 = remaining;
+        }
+      }
+      const strLen = string3.length;
+      if (length2 > strLen / 2) {
+        length2 = strLen / 2;
+      }
+      let i;
+      for (i = 0; i < length2; ++i) {
+        const parsed = parseInt(string3.substr(i * 2, 2), 16);
+        if (numberIsNaN(parsed)) return i;
+        buf[offset + i] = parsed;
+      }
+      return i;
+    }
+    function utf8Write(buf, string3, offset, length2) {
+      return blitBuffer(utf8ToBytes(string3, buf.length - offset), buf, offset, length2);
+    }
+    function asciiWrite(buf, string3, offset, length2) {
+      return blitBuffer(asciiToBytes2(string3), buf, offset, length2);
+    }
+    function base64Write(buf, string3, offset, length2) {
+      return blitBuffer(base64ToBytes2(string3), buf, offset, length2);
+    }
+    function ucs2Write(buf, string3, offset, length2) {
+      return blitBuffer(utf16leToBytes(string3, buf.length - offset), buf, offset, length2);
+    }
+    Buffer3.prototype.write = function write(string3, offset, length2, encoding) {
+      if (offset === void 0) {
+        encoding = "utf8";
+        length2 = this.length;
+        offset = 0;
+      } else if (length2 === void 0 && typeof offset === "string") {
+        encoding = offset;
+        length2 = this.length;
+        offset = 0;
+      } else if (isFinite(offset)) {
+        offset = offset >>> 0;
+        if (isFinite(length2)) {
+          length2 = length2 >>> 0;
+          if (encoding === void 0) encoding = "utf8";
+        } else {
+          encoding = length2;
+          length2 = void 0;
+        }
+      } else {
+        throw new Error(
+          "Buffer.write(string, encoding, offset[, length]) is no longer supported"
+        );
+      }
+      const remaining = this.length - offset;
+      if (length2 === void 0 || length2 > remaining) length2 = remaining;
+      if (string3.length > 0 && (length2 < 0 || offset < 0) || offset > this.length) {
+        throw new RangeError("Attempt to write outside buffer bounds");
+      }
+      if (!encoding) encoding = "utf8";
+      let loweredCase = false;
+      for (; ; ) {
+        switch (encoding) {
+          case "hex":
+            return hexWrite(this, string3, offset, length2);
+          case "utf8":
+          case "utf-8":
+            return utf8Write(this, string3, offset, length2);
+          case "ascii":
+          case "latin1":
+          case "binary":
+            return asciiWrite(this, string3, offset, length2);
+          case "base64":
+            return base64Write(this, string3, offset, length2);
+          case "ucs2":
+          case "ucs-2":
+          case "utf16le":
+          case "utf-16le":
+            return ucs2Write(this, string3, offset, length2);
+          default:
+            if (loweredCase) throw new TypeError("Unknown encoding: " + encoding);
+            encoding = ("" + encoding).toLowerCase();
+            loweredCase = true;
+        }
+      }
+    };
+    Buffer3.prototype.toJSON = function toJSON() {
+      return {
+        type: "Buffer",
+        data: Array.prototype.slice.call(this._arr || this, 0)
+      };
+    };
+    function base64Slice(buf, start, end) {
+      if (start === 0 && end === buf.length) {
+        return base64.fromByteArray(buf);
+      } else {
+        return base64.fromByteArray(buf.slice(start, end));
+      }
+    }
+    function utf8Slice(buf, start, end) {
+      end = Math.min(buf.length, end);
+      const res = [];
+      let i = start;
+      while (i < end) {
+        const firstByte = buf[i];
+        let codePoint = null;
+        let bytesPerSequence = firstByte > 239 ? 4 : firstByte > 223 ? 3 : firstByte > 191 ? 2 : 1;
+        if (i + bytesPerSequence <= end) {
+          let secondByte, thirdByte, fourthByte, tempCodePoint;
+          switch (bytesPerSequence) {
+            case 1:
+              if (firstByte < 128) {
+                codePoint = firstByte;
+              }
+              break;
+            case 2:
+              secondByte = buf[i + 1];
+              if ((secondByte & 192) === 128) {
+                tempCodePoint = (firstByte & 31) << 6 | secondByte & 63;
+                if (tempCodePoint > 127) {
+                  codePoint = tempCodePoint;
+                }
+              }
+              break;
+            case 3:
+              secondByte = buf[i + 1];
+              thirdByte = buf[i + 2];
+              if ((secondByte & 192) === 128 && (thirdByte & 192) === 128) {
+                tempCodePoint = (firstByte & 15) << 12 | (secondByte & 63) << 6 | thirdByte & 63;
+                if (tempCodePoint > 2047 && (tempCodePoint < 55296 || tempCodePoint > 57343)) {
+                  codePoint = tempCodePoint;
+                }
+              }
+              break;
+            case 4:
+              secondByte = buf[i + 1];
+              thirdByte = buf[i + 2];
+              fourthByte = buf[i + 3];
+              if ((secondByte & 192) === 128 && (thirdByte & 192) === 128 && (fourthByte & 192) === 128) {
+                tempCodePoint = (firstByte & 15) << 18 | (secondByte & 63) << 12 | (thirdByte & 63) << 6 | fourthByte & 63;
+                if (tempCodePoint > 65535 && tempCodePoint < 1114112) {
+                  codePoint = tempCodePoint;
+                }
+              }
+          }
+        }
+        if (codePoint === null) {
+          codePoint = 65533;
+          bytesPerSequence = 1;
+        } else if (codePoint > 65535) {
+          codePoint -= 65536;
+          res.push(codePoint >>> 10 & 1023 | 55296);
+          codePoint = 56320 | codePoint & 1023;
+        }
+        res.push(codePoint);
+        i += bytesPerSequence;
+      }
+      return decodeCodePointsArray(res);
+    }
+    var MAX_ARGUMENTS_LENGTH = 4096;
+    function decodeCodePointsArray(codePoints) {
+      const len = codePoints.length;
+      if (len <= MAX_ARGUMENTS_LENGTH) {
+        return String.fromCharCode.apply(String, codePoints);
+      }
+      let res = "";
+      let i = 0;
+      while (i < len) {
+        res += String.fromCharCode.apply(
+          String,
+          codePoints.slice(i, i += MAX_ARGUMENTS_LENGTH)
+        );
+      }
+      return res;
+    }
+    function asciiSlice(buf, start, end) {
+      let ret = "";
+      end = Math.min(buf.length, end);
+      for (let i = start; i < end; ++i) {
+        ret += String.fromCharCode(buf[i] & 127);
+      }
+      return ret;
+    }
+    function latin1Slice(buf, start, end) {
+      let ret = "";
+      end = Math.min(buf.length, end);
+      for (let i = start; i < end; ++i) {
+        ret += String.fromCharCode(buf[i]);
+      }
+      return ret;
+    }
+    function hexSlice(buf, start, end) {
+      const len = buf.length;
+      if (!start || start < 0) start = 0;
+      if (!end || end < 0 || end > len) end = len;
+      let out = "";
+      for (let i = start; i < end; ++i) {
+        out += hexSliceLookupTable[buf[i]];
+      }
+      return out;
+    }
+    function utf16leSlice(buf, start, end) {
+      const bytes = buf.slice(start, end);
+      let res = "";
+      for (let i = 0; i < bytes.length - 1; i += 2) {
+        res += String.fromCharCode(bytes[i] + bytes[i + 1] * 256);
+      }
+      return res;
+    }
+    Buffer3.prototype.slice = function slice(start, end) {
+      const len = this.length;
+      start = ~~start;
+      end = end === void 0 ? len : ~~end;
+      if (start < 0) {
+        start += len;
+        if (start < 0) start = 0;
+      } else if (start > len) {
+        start = len;
+      }
+      if (end < 0) {
+        end += len;
+        if (end < 0) end = 0;
+      } else if (end > len) {
+        end = len;
+      }
+      if (end < start) end = start;
+      const newBuf = this.subarray(start, end);
+      Object.setPrototypeOf(newBuf, Buffer3.prototype);
+      return newBuf;
+    };
+    function checkOffset(offset, ext, length2) {
+      if (offset % 1 !== 0 || offset < 0) throw new RangeError("offset is not uint");
+      if (offset + ext > length2) throw new RangeError("Trying to access beyond buffer length");
+    }
+    Buffer3.prototype.readUintLE = Buffer3.prototype.readUIntLE = function readUIntLE(offset, byteLength2, noAssert) {
+      offset = offset >>> 0;
+      byteLength2 = byteLength2 >>> 0;
+      if (!noAssert) checkOffset(offset, byteLength2, this.length);
+      let val = this[offset];
+      let mul = 1;
+      let i = 0;
+      while (++i < byteLength2 && (mul *= 256)) {
+        val += this[offset + i] * mul;
+      }
+      return val;
+    };
+    Buffer3.prototype.readUintBE = Buffer3.prototype.readUIntBE = function readUIntBE(offset, byteLength2, noAssert) {
+      offset = offset >>> 0;
+      byteLength2 = byteLength2 >>> 0;
+      if (!noAssert) {
+        checkOffset(offset, byteLength2, this.length);
+      }
+      let val = this[offset + --byteLength2];
+      let mul = 1;
+      while (byteLength2 > 0 && (mul *= 256)) {
+        val += this[offset + --byteLength2] * mul;
+      }
+      return val;
+    };
+    Buffer3.prototype.readUint8 = Buffer3.prototype.readUInt8 = function readUInt8(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 1, this.length);
+      return this[offset];
+    };
+    Buffer3.prototype.readUint16LE = Buffer3.prototype.readUInt16LE = function readUInt16LE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 2, this.length);
+      return this[offset] | this[offset + 1] << 8;
+    };
+    Buffer3.prototype.readUint16BE = Buffer3.prototype.readUInt16BE = function readUInt16BE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 2, this.length);
+      return this[offset] << 8 | this[offset + 1];
+    };
+    Buffer3.prototype.readUint32LE = Buffer3.prototype.readUInt32LE = function readUInt32LE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 4, this.length);
+      return (this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16) + this[offset + 3] * 16777216;
+    };
+    Buffer3.prototype.readUint32BE = Buffer3.prototype.readUInt32BE = function readUInt32BE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 4, this.length);
+      return this[offset] * 16777216 + (this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3]);
+    };
+    Buffer3.prototype.readBigUInt64LE = defineBigIntMethod(function readBigUInt64LE(offset) {
+      offset = offset >>> 0;
+      validateNumber(offset, "offset");
+      const first = this[offset];
+      const last = this[offset + 7];
+      if (first === void 0 || last === void 0) {
+        boundsError(offset, this.length - 8);
+      }
+      const lo = first + this[++offset] * 2 ** 8 + this[++offset] * 2 ** 16 + this[++offset] * 2 ** 24;
+      const hi = this[++offset] + this[++offset] * 2 ** 8 + this[++offset] * 2 ** 16 + last * 2 ** 24;
+      return BigInt(lo) + (BigInt(hi) << BigInt(32));
+    });
+    Buffer3.prototype.readBigUInt64BE = defineBigIntMethod(function readBigUInt64BE(offset) {
+      offset = offset >>> 0;
+      validateNumber(offset, "offset");
+      const first = this[offset];
+      const last = this[offset + 7];
+      if (first === void 0 || last === void 0) {
+        boundsError(offset, this.length - 8);
+      }
+      const hi = first * 2 ** 24 + this[++offset] * 2 ** 16 + this[++offset] * 2 ** 8 + this[++offset];
+      const lo = this[++offset] * 2 ** 24 + this[++offset] * 2 ** 16 + this[++offset] * 2 ** 8 + last;
+      return (BigInt(hi) << BigInt(32)) + BigInt(lo);
+    });
+    Buffer3.prototype.readIntLE = function readIntLE(offset, byteLength2, noAssert) {
+      offset = offset >>> 0;
+      byteLength2 = byteLength2 >>> 0;
+      if (!noAssert) checkOffset(offset, byteLength2, this.length);
+      let val = this[offset];
+      let mul = 1;
+      let i = 0;
+      while (++i < byteLength2 && (mul *= 256)) {
+        val += this[offset + i] * mul;
+      }
+      mul *= 128;
+      if (val >= mul) val -= Math.pow(2, 8 * byteLength2);
+      return val;
+    };
+    Buffer3.prototype.readIntBE = function readIntBE(offset, byteLength2, noAssert) {
+      offset = offset >>> 0;
+      byteLength2 = byteLength2 >>> 0;
+      if (!noAssert) checkOffset(offset, byteLength2, this.length);
+      let i = byteLength2;
+      let mul = 1;
+      let val = this[offset + --i];
+      while (i > 0 && (mul *= 256)) {
+        val += this[offset + --i] * mul;
+      }
+      mul *= 128;
+      if (val >= mul) val -= Math.pow(2, 8 * byteLength2);
+      return val;
+    };
+    Buffer3.prototype.readInt8 = function readInt8(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 1, this.length);
+      if (!(this[offset] & 128)) return this[offset];
+      return (255 - this[offset] + 1) * -1;
+    };
+    Buffer3.prototype.readInt16LE = function readInt16LE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 2, this.length);
+      const val = this[offset] | this[offset + 1] << 8;
+      return val & 32768 ? val | 4294901760 : val;
+    };
+    Buffer3.prototype.readInt16BE = function readInt16BE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 2, this.length);
+      const val = this[offset + 1] | this[offset] << 8;
+      return val & 32768 ? val | 4294901760 : val;
+    };
+    Buffer3.prototype.readInt32LE = function readInt32LE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 4, this.length);
+      return this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16 | this[offset + 3] << 24;
+    };
+    Buffer3.prototype.readInt32BE = function readInt32BE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 4, this.length);
+      return this[offset] << 24 | this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3];
+    };
+    Buffer3.prototype.readBigInt64LE = defineBigIntMethod(function readBigInt64LE(offset) {
+      offset = offset >>> 0;
+      validateNumber(offset, "offset");
+      const first = this[offset];
+      const last = this[offset + 7];
+      if (first === void 0 || last === void 0) {
+        boundsError(offset, this.length - 8);
+      }
+      const val = this[offset + 4] + this[offset + 5] * 2 ** 8 + this[offset + 6] * 2 ** 16 + (last << 24);
+      return (BigInt(val) << BigInt(32)) + BigInt(first + this[++offset] * 2 ** 8 + this[++offset] * 2 ** 16 + this[++offset] * 2 ** 24);
+    });
+    Buffer3.prototype.readBigInt64BE = defineBigIntMethod(function readBigInt64BE(offset) {
+      offset = offset >>> 0;
+      validateNumber(offset, "offset");
+      const first = this[offset];
+      const last = this[offset + 7];
+      if (first === void 0 || last === void 0) {
+        boundsError(offset, this.length - 8);
+      }
+      const val = (first << 24) + // Overflow
+      this[++offset] * 2 ** 16 + this[++offset] * 2 ** 8 + this[++offset];
+      return (BigInt(val) << BigInt(32)) + BigInt(this[++offset] * 2 ** 24 + this[++offset] * 2 ** 16 + this[++offset] * 2 ** 8 + last);
+    });
+    Buffer3.prototype.readFloatLE = function readFloatLE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 4, this.length);
+      return ieee754.read(this, offset, true, 23, 4);
+    };
+    Buffer3.prototype.readFloatBE = function readFloatBE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 4, this.length);
+      return ieee754.read(this, offset, false, 23, 4);
+    };
+    Buffer3.prototype.readDoubleLE = function readDoubleLE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 8, this.length);
+      return ieee754.read(this, offset, true, 52, 8);
+    };
+    Buffer3.prototype.readDoubleBE = function readDoubleBE(offset, noAssert) {
+      offset = offset >>> 0;
+      if (!noAssert) checkOffset(offset, 8, this.length);
+      return ieee754.read(this, offset, false, 52, 8);
+    };
+    function checkInt(buf, value, offset, ext, max, min) {
+      if (!Buffer3.isBuffer(buf)) throw new TypeError('"buffer" argument must be a Buffer instance');
+      if (value > max || value < min) throw new RangeError('"value" argument is out of bounds');
+      if (offset + ext > buf.length) throw new RangeError("Index out of range");
+    }
+    Buffer3.prototype.writeUintLE = Buffer3.prototype.writeUIntLE = function writeUIntLE(value, offset, byteLength2, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      byteLength2 = byteLength2 >>> 0;
+      if (!noAssert) {
+        const maxBytes = Math.pow(2, 8 * byteLength2) - 1;
+        checkInt(this, value, offset, byteLength2, maxBytes, 0);
+      }
+      let mul = 1;
+      let i = 0;
+      this[offset] = value & 255;
+      while (++i < byteLength2 && (mul *= 256)) {
+        this[offset + i] = value / mul & 255;
+      }
+      return offset + byteLength2;
+    };
+    Buffer3.prototype.writeUintBE = Buffer3.prototype.writeUIntBE = function writeUIntBE(value, offset, byteLength2, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      byteLength2 = byteLength2 >>> 0;
+      if (!noAssert) {
+        const maxBytes = Math.pow(2, 8 * byteLength2) - 1;
+        checkInt(this, value, offset, byteLength2, maxBytes, 0);
+      }
+      let i = byteLength2 - 1;
+      let mul = 1;
+      this[offset + i] = value & 255;
+      while (--i >= 0 && (mul *= 256)) {
+        this[offset + i] = value / mul & 255;
+      }
+      return offset + byteLength2;
+    };
+    Buffer3.prototype.writeUint8 = Buffer3.prototype.writeUInt8 = function writeUInt8(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 1, 255, 0);
+      this[offset] = value & 255;
+      return offset + 1;
+    };
+    Buffer3.prototype.writeUint16LE = Buffer3.prototype.writeUInt16LE = function writeUInt16LE(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 2, 65535, 0);
+      this[offset] = value & 255;
+      this[offset + 1] = value >>> 8;
+      return offset + 2;
+    };
+    Buffer3.prototype.writeUint16BE = Buffer3.prototype.writeUInt16BE = function writeUInt16BE(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 2, 65535, 0);
+      this[offset] = value >>> 8;
+      this[offset + 1] = value & 255;
+      return offset + 2;
+    };
+    Buffer3.prototype.writeUint32LE = Buffer3.prototype.writeUInt32LE = function writeUInt32LE(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 4, 4294967295, 0);
+      this[offset + 3] = value >>> 24;
+      this[offset + 2] = value >>> 16;
+      this[offset + 1] = value >>> 8;
+      this[offset] = value & 255;
+      return offset + 4;
+    };
+    Buffer3.prototype.writeUint32BE = Buffer3.prototype.writeUInt32BE = function writeUInt32BE(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 4, 4294967295, 0);
+      this[offset] = value >>> 24;
+      this[offset + 1] = value >>> 16;
+      this[offset + 2] = value >>> 8;
+      this[offset + 3] = value & 255;
+      return offset + 4;
+    };
+    function wrtBigUInt64LE(buf, value, offset, min, max) {
+      checkIntBI(value, min, max, buf, offset, 7);
+      let lo = Number(value & BigInt(4294967295));
+      buf[offset++] = lo;
+      lo = lo >> 8;
+      buf[offset++] = lo;
+      lo = lo >> 8;
+      buf[offset++] = lo;
+      lo = lo >> 8;
+      buf[offset++] = lo;
+      let hi = Number(value >> BigInt(32) & BigInt(4294967295));
+      buf[offset++] = hi;
+      hi = hi >> 8;
+      buf[offset++] = hi;
+      hi = hi >> 8;
+      buf[offset++] = hi;
+      hi = hi >> 8;
+      buf[offset++] = hi;
+      return offset;
+    }
+    function wrtBigUInt64BE(buf, value, offset, min, max) {
+      checkIntBI(value, min, max, buf, offset, 7);
+      let lo = Number(value & BigInt(4294967295));
+      buf[offset + 7] = lo;
+      lo = lo >> 8;
+      buf[offset + 6] = lo;
+      lo = lo >> 8;
+      buf[offset + 5] = lo;
+      lo = lo >> 8;
+      buf[offset + 4] = lo;
+      let hi = Number(value >> BigInt(32) & BigInt(4294967295));
+      buf[offset + 3] = hi;
+      hi = hi >> 8;
+      buf[offset + 2] = hi;
+      hi = hi >> 8;
+      buf[offset + 1] = hi;
+      hi = hi >> 8;
+      buf[offset] = hi;
+      return offset + 8;
+    }
+    Buffer3.prototype.writeBigUInt64LE = defineBigIntMethod(function writeBigUInt64LE(value, offset = 0) {
+      return wrtBigUInt64LE(this, value, offset, BigInt(0), BigInt("0xffffffffffffffff"));
+    });
+    Buffer3.prototype.writeBigUInt64BE = defineBigIntMethod(function writeBigUInt64BE(value, offset = 0) {
+      return wrtBigUInt64BE(this, value, offset, BigInt(0), BigInt("0xffffffffffffffff"));
+    });
+    Buffer3.prototype.writeIntLE = function writeIntLE(value, offset, byteLength2, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) {
+        const limit = Math.pow(2, 8 * byteLength2 - 1);
+        checkInt(this, value, offset, byteLength2, limit - 1, -limit);
+      }
+      let i = 0;
+      let mul = 1;
+      let sub = 0;
+      this[offset] = value & 255;
+      while (++i < byteLength2 && (mul *= 256)) {
+        if (value < 0 && sub === 0 && this[offset + i - 1] !== 0) {
+          sub = 1;
+        }
+        this[offset + i] = (value / mul >> 0) - sub & 255;
+      }
+      return offset + byteLength2;
+    };
+    Buffer3.prototype.writeIntBE = function writeIntBE(value, offset, byteLength2, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) {
+        const limit = Math.pow(2, 8 * byteLength2 - 1);
+        checkInt(this, value, offset, byteLength2, limit - 1, -limit);
+      }
+      let i = byteLength2 - 1;
+      let mul = 1;
+      let sub = 0;
+      this[offset + i] = value & 255;
+      while (--i >= 0 && (mul *= 256)) {
+        if (value < 0 && sub === 0 && this[offset + i + 1] !== 0) {
+          sub = 1;
+        }
+        this[offset + i] = (value / mul >> 0) - sub & 255;
+      }
+      return offset + byteLength2;
+    };
+    Buffer3.prototype.writeInt8 = function writeInt8(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 1, 127, -128);
+      if (value < 0) value = 255 + value + 1;
+      this[offset] = value & 255;
+      return offset + 1;
+    };
+    Buffer3.prototype.writeInt16LE = function writeInt16LE(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 2, 32767, -32768);
+      this[offset] = value & 255;
+      this[offset + 1] = value >>> 8;
+      return offset + 2;
+    };
+    Buffer3.prototype.writeInt16BE = function writeInt16BE(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 2, 32767, -32768);
+      this[offset] = value >>> 8;
+      this[offset + 1] = value & 255;
+      return offset + 2;
+    };
+    Buffer3.prototype.writeInt32LE = function writeInt32LE(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 4, 2147483647, -2147483648);
+      this[offset] = value & 255;
+      this[offset + 1] = value >>> 8;
+      this[offset + 2] = value >>> 16;
+      this[offset + 3] = value >>> 24;
+      return offset + 4;
+    };
+    Buffer3.prototype.writeInt32BE = function writeInt32BE(value, offset, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) checkInt(this, value, offset, 4, 2147483647, -2147483648);
+      if (value < 0) value = 4294967295 + value + 1;
+      this[offset] = value >>> 24;
+      this[offset + 1] = value >>> 16;
+      this[offset + 2] = value >>> 8;
+      this[offset + 3] = value & 255;
+      return offset + 4;
+    };
+    Buffer3.prototype.writeBigInt64LE = defineBigIntMethod(function writeBigInt64LE(value, offset = 0) {
+      return wrtBigUInt64LE(this, value, offset, -BigInt("0x8000000000000000"), BigInt("0x7fffffffffffffff"));
+    });
+    Buffer3.prototype.writeBigInt64BE = defineBigIntMethod(function writeBigInt64BE(value, offset = 0) {
+      return wrtBigUInt64BE(this, value, offset, -BigInt("0x8000000000000000"), BigInt("0x7fffffffffffffff"));
+    });
+    function checkIEEE754(buf, value, offset, ext, max, min) {
+      if (offset + ext > buf.length) throw new RangeError("Index out of range");
+      if (offset < 0) throw new RangeError("Index out of range");
+    }
+    function writeFloat(buf, value, offset, littleEndian, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) {
+        checkIEEE754(buf, value, offset, 4, 34028234663852886e22, -34028234663852886e22);
+      }
+      ieee754.write(buf, value, offset, littleEndian, 23, 4);
+      return offset + 4;
+    }
+    Buffer3.prototype.writeFloatLE = function writeFloatLE(value, offset, noAssert) {
+      return writeFloat(this, value, offset, true, noAssert);
+    };
+    Buffer3.prototype.writeFloatBE = function writeFloatBE(value, offset, noAssert) {
+      return writeFloat(this, value, offset, false, noAssert);
+    };
+    function writeDouble(buf, value, offset, littleEndian, noAssert) {
+      value = +value;
+      offset = offset >>> 0;
+      if (!noAssert) {
+        checkIEEE754(buf, value, offset, 8, 17976931348623157e292, -17976931348623157e292);
+      }
+      ieee754.write(buf, value, offset, littleEndian, 52, 8);
+      return offset + 8;
+    }
+    Buffer3.prototype.writeDoubleLE = function writeDoubleLE(value, offset, noAssert) {
+      return writeDouble(this, value, offset, true, noAssert);
+    };
+    Buffer3.prototype.writeDoubleBE = function writeDoubleBE(value, offset, noAssert) {
+      return writeDouble(this, value, offset, false, noAssert);
+    };
+    Buffer3.prototype.copy = function copy(target, targetStart, start, end) {
+      if (!Buffer3.isBuffer(target)) throw new TypeError("argument should be a Buffer");
+      if (!start) start = 0;
+      if (!end && end !== 0) end = this.length;
+      if (targetStart >= target.length) targetStart = target.length;
+      if (!targetStart) targetStart = 0;
+      if (end > 0 && end < start) end = start;
+      if (end === start) return 0;
+      if (target.length === 0 || this.length === 0) return 0;
+      if (targetStart < 0) {
+        throw new RangeError("targetStart out of bounds");
+      }
+      if (start < 0 || start >= this.length) throw new RangeError("Index out of range");
+      if (end < 0) throw new RangeError("sourceEnd out of bounds");
+      if (end > this.length) end = this.length;
+      if (target.length - targetStart < end - start) {
+        end = target.length - targetStart + start;
+      }
+      const len = end - start;
+      if (this === target && typeof Uint8Array.prototype.copyWithin === "function") {
+        this.copyWithin(targetStart, start, end);
+      } else {
+        Uint8Array.prototype.set.call(
+          target,
+          this.subarray(start, end),
+          targetStart
+        );
+      }
+      return len;
+    };
+    Buffer3.prototype.fill = function fill(val, start, end, encoding) {
+      if (typeof val === "string") {
+        if (typeof start === "string") {
+          encoding = start;
+          start = 0;
+          end = this.length;
+        } else if (typeof end === "string") {
+          encoding = end;
+          end = this.length;
+        }
+        if (encoding !== void 0 && typeof encoding !== "string") {
+          throw new TypeError("encoding must be a string");
+        }
+        if (typeof encoding === "string" && !Buffer3.isEncoding(encoding)) {
+          throw new TypeError("Unknown encoding: " + encoding);
+        }
+        if (val.length === 1) {
+          const code = val.charCodeAt(0);
+          if (encoding === "utf8" && code < 128 || encoding === "latin1") {
+            val = code;
+          }
+        }
+      } else if (typeof val === "number") {
+        val = val & 255;
+      } else if (typeof val === "boolean") {
+        val = Number(val);
+      }
+      if (start < 0 || this.length < start || this.length < end) {
+        throw new RangeError("Out of range index");
+      }
+      if (end <= start) {
+        return this;
+      }
+      start = start >>> 0;
+      end = end === void 0 ? this.length : end >>> 0;
+      if (!val) val = 0;
+      let i;
+      if (typeof val === "number") {
+        for (i = start; i < end; ++i) {
+          this[i] = val;
+        }
+      } else {
+        const bytes = Buffer3.isBuffer(val) ? val : Buffer3.from(val, encoding);
+        const len = bytes.length;
+        if (len === 0) {
+          throw new TypeError('The value "' + val + '" is invalid for argument "value"');
+        }
+        for (i = 0; i < end - start; ++i) {
+          this[i + start] = bytes[i % len];
+        }
+      }
+      return this;
+    };
+    var errors = {};
+    function E(sym, getMessage, Base) {
+      errors[sym] = class NodeError extends Base {
+        constructor() {
+          super();
+          Object.defineProperty(this, "message", {
+            value: getMessage.apply(this, arguments),
+            writable: true,
+            configurable: true
+          });
+          this.name = `${this.name} [${sym}]`;
+          this.stack;
+          delete this.name;
+        }
+        get code() {
+          return sym;
+        }
+        set code(value) {
+          Object.defineProperty(this, "code", {
+            configurable: true,
+            enumerable: true,
+            value,
+            writable: true
+          });
+        }
+        toString() {
+          return `${this.name} [${sym}]: ${this.message}`;
+        }
+      };
+    }
+    E(
+      "ERR_BUFFER_OUT_OF_BOUNDS",
+      function(name) {
+        if (name) {
+          return `${name} is outside of buffer bounds`;
+        }
+        return "Attempt to access memory outside buffer bounds";
+      },
+      RangeError
+    );
+    E(
+      "ERR_INVALID_ARG_TYPE",
+      function(name, actual) {
+        return `The "${name}" argument must be of type number. Received type ${typeof actual}`;
+      },
+      TypeError
+    );
+    E(
+      "ERR_OUT_OF_RANGE",
+      function(str, range, input) {
+        let msg = `The value of "${str}" is out of range.`;
+        let received = input;
+        if (Number.isInteger(input) && Math.abs(input) > 2 ** 32) {
+          received = addNumericalSeparator(String(input));
+        } else if (typeof input === "bigint") {
+          received = String(input);
+          if (input > BigInt(2) ** BigInt(32) || input < -(BigInt(2) ** BigInt(32))) {
+            received = addNumericalSeparator(received);
+          }
+          received += "n";
+        }
+        msg += ` It must be ${range}. Received ${received}`;
+        return msg;
+      },
+      RangeError
+    );
+    function addNumericalSeparator(val) {
+      let res = "";
+      let i = val.length;
+      const start = val[0] === "-" ? 1 : 0;
+      for (; i >= start + 4; i -= 3) {
+        res = `_${val.slice(i - 3, i)}${res}`;
+      }
+      return `${val.slice(0, i)}${res}`;
+    }
+    function checkBounds2(buf, offset, byteLength2) {
+      validateNumber(offset, "offset");
+      if (buf[offset] === void 0 || buf[offset + byteLength2] === void 0) {
+        boundsError(offset, buf.length - (byteLength2 + 1));
+      }
+    }
+    function checkIntBI(value, min, max, buf, offset, byteLength2) {
+      if (value > max || value < min) {
+        const n = typeof min === "bigint" ? "n" : "";
+        let range;
+        if (byteLength2 > 3) {
+          if (min === 0 || min === BigInt(0)) {
+            range = `>= 0${n} and < 2${n} ** ${(byteLength2 + 1) * 8}${n}`;
+          } else {
+            range = `>= -(2${n} ** ${(byteLength2 + 1) * 8 - 1}${n}) and < 2 ** ${(byteLength2 + 1) * 8 - 1}${n}`;
+          }
+        } else {
+          range = `>= ${min}${n} and <= ${max}${n}`;
+        }
+        throw new errors.ERR_OUT_OF_RANGE("value", range, value);
+      }
+      checkBounds2(buf, offset, byteLength2);
+    }
+    function validateNumber(value, name) {
+      if (typeof value !== "number") {
+        throw new errors.ERR_INVALID_ARG_TYPE(name, "number", value);
+      }
+    }
+    function boundsError(value, length2, type) {
+      if (Math.floor(value) !== value) {
+        validateNumber(value, type);
+        throw new errors.ERR_OUT_OF_RANGE(type || "offset", "an integer", value);
+      }
+      if (length2 < 0) {
+        throw new errors.ERR_BUFFER_OUT_OF_BOUNDS();
+      }
+      throw new errors.ERR_OUT_OF_RANGE(
+        type || "offset",
+        `>= ${type ? 1 : 0} and <= ${length2}`,
+        value
+      );
+    }
+    var INVALID_BASE64_RE = /[^+/0-9A-Za-z-_]/g;
+    function base64clean(str) {
+      str = str.split("=")[0];
+      str = str.trim().replace(INVALID_BASE64_RE, "");
+      if (str.length < 2) return "";
+      while (str.length % 4 !== 0) {
+        str = str + "=";
+      }
+      return str;
+    }
+    function utf8ToBytes(string3, units) {
+      units = units || Infinity;
+      let codePoint;
+      const length2 = string3.length;
+      let leadSurrogate = null;
+      const bytes = [];
+      for (let i = 0; i < length2; ++i) {
+        codePoint = string3.charCodeAt(i);
+        if (codePoint > 55295 && codePoint < 57344) {
+          if (!leadSurrogate) {
+            if (codePoint > 56319) {
+              if ((units -= 3) > -1) bytes.push(239, 191, 189);
+              continue;
+            } else if (i + 1 === length2) {
+              if ((units -= 3) > -1) bytes.push(239, 191, 189);
+              continue;
+            }
+            leadSurrogate = codePoint;
+            continue;
+          }
+          if (codePoint < 56320) {
+            if ((units -= 3) > -1) bytes.push(239, 191, 189);
+            leadSurrogate = codePoint;
+            continue;
+          }
+          codePoint = (leadSurrogate - 55296 << 10 | codePoint - 56320) + 65536;
+        } else if (leadSurrogate) {
+          if ((units -= 3) > -1) bytes.push(239, 191, 189);
+        }
+        leadSurrogate = null;
+        if (codePoint < 128) {
+          if ((units -= 1) < 0) break;
+          bytes.push(codePoint);
+        } else if (codePoint < 2048) {
+          if ((units -= 2) < 0) break;
+          bytes.push(
+            codePoint >> 6 | 192,
+            codePoint & 63 | 128
+          );
+        } else if (codePoint < 65536) {
+          if ((units -= 3) < 0) break;
+          bytes.push(
+            codePoint >> 12 | 224,
+            codePoint >> 6 & 63 | 128,
+            codePoint & 63 | 128
+          );
+        } else if (codePoint < 1114112) {
+          if ((units -= 4) < 0) break;
+          bytes.push(
+            codePoint >> 18 | 240,
+            codePoint >> 12 & 63 | 128,
+            codePoint >> 6 & 63 | 128,
+            codePoint & 63 | 128
+          );
+        } else {
+          throw new Error("Invalid code point");
+        }
+      }
+      return bytes;
+    }
+    function asciiToBytes2(str) {
+      const byteArray = [];
+      for (let i = 0; i < str.length; ++i) {
+        byteArray.push(str.charCodeAt(i) & 255);
+      }
+      return byteArray;
+    }
+    function utf16leToBytes(str, units) {
+      let c, hi, lo;
+      const byteArray = [];
+      for (let i = 0; i < str.length; ++i) {
+        if ((units -= 2) < 0) break;
+        c = str.charCodeAt(i);
+        hi = c >> 8;
+        lo = c % 256;
+        byteArray.push(lo);
+        byteArray.push(hi);
+      }
+      return byteArray;
+    }
+    function base64ToBytes2(str) {
+      return base64.toByteArray(base64clean(str));
+    }
+    function blitBuffer(src, dst, offset, length2) {
+      let i;
+      for (i = 0; i < length2; ++i) {
+        if (i + offset >= dst.length || i >= src.length) break;
+        dst[i + offset] = src[i];
+      }
+      return i;
+    }
+    function isInstance(obj, type) {
+      return obj instanceof type || obj != null && obj.constructor != null && obj.constructor.name != null && obj.constructor.name === type.name;
+    }
+    function numberIsNaN(obj) {
+      return obj !== obj;
+    }
+    var hexSliceLookupTable = (function() {
+      const alphabet4 = "0123456789abcdef";
+      const table = new Array(256);
+      for (let i = 0; i < 16; ++i) {
+        const i16 = i * 16;
+        for (let j = 0; j < 16; ++j) {
+          table[i16 + j] = alphabet4[i] + alphabet4[j];
+        }
+      }
+      return table;
+    })();
+    function defineBigIntMethod(fn) {
+      return typeof BigInt === "undefined" ? BufferBigIntNotDefined : fn;
+    }
+    function BufferBigIntNotDefined() {
+      throw new Error("BigInt not supported");
+    }
+  }
+});
+
+// node_modules/jsontokens/lib/base64Url.js
+var require_base64Url = __commonJS({
+  "node_modules/jsontokens/lib/base64Url.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.decode = exports.encode = exports.unescape = exports.escape = exports.pad = void 0;
+    var base64_js_1 = require_base64_js();
+    function pad(base64) {
+      return `${base64}${"=".repeat(4 - (base64.length % 4 || 4))}`;
+    }
+    exports.pad = pad;
+    function escape(base64) {
+      return base64.replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    }
+    exports.escape = escape;
+    function unescape(base64Url) {
+      return pad(base64Url).replace(/-/g, "+").replace(/_/g, "/");
+    }
+    exports.unescape = unescape;
+    function encode3(base64) {
+      return escape((0, base64_js_1.fromByteArray)(new TextEncoder().encode(base64)));
+    }
+    exports.encode = encode3;
+    function decode(base64Url) {
+      return new TextDecoder().decode((0, base64_js_1.toByteArray)(pad(unescape(base64Url))));
+    }
+    exports.decode = decode;
+  }
+});
+
+// node_modules/jsontokens/node_modules/@noble/hashes/crypto.js
+var require_crypto = __commonJS({
+  "node_modules/jsontokens/node_modules/@noble/hashes/crypto.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.crypto = void 0;
+    exports.crypto = typeof globalThis === "object" && "crypto" in globalThis ? globalThis.crypto : void 0;
+  }
+});
+
+// node_modules/jsontokens/node_modules/@noble/hashes/utils.js
+var require_utils = __commonJS({
+  "node_modules/jsontokens/node_modules/@noble/hashes/utils.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.wrapXOFConstructorWithOpts = exports.wrapConstructorWithOpts = exports.wrapConstructor = exports.Hash = exports.nextTick = exports.swap32IfBE = exports.byteSwapIfBE = exports.swap8IfBE = exports.isLE = void 0;
+    exports.isBytes = isBytes8;
+    exports.anumber = anumber6;
+    exports.abytes = abytes6;
+    exports.ahash = ahash2;
+    exports.aexists = aexists2;
+    exports.aoutput = aoutput2;
+    exports.u8 = u8;
+    exports.u32 = u32;
+    exports.clean = clean2;
+    exports.createView = createView3;
+    exports.rotr = rotr2;
+    exports.rotl = rotl2;
+    exports.byteSwap = byteSwap;
+    exports.byteSwap32 = byteSwap32;
+    exports.bytesToHex = bytesToHex3;
+    exports.hexToBytes = hexToBytes3;
+    exports.asyncLoop = asyncLoop;
+    exports.utf8ToBytes = utf8ToBytes;
+    exports.bytesToUtf8 = bytesToUtf8;
+    exports.toBytes = toBytes;
+    exports.kdfInputToBytes = kdfInputToBytes;
+    exports.concatBytes = concatBytes5;
+    exports.checkOpts = checkOpts;
+    exports.createHasher = createHasher2;
+    exports.createOptHasher = createOptHasher;
+    exports.createXOFer = createXOFer;
+    exports.randomBytes = randomBytes3;
+    var crypto_1 = require_crypto();
+    function isBytes8(a) {
+      return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
+    }
+    function anumber6(n) {
+      if (!Number.isSafeInteger(n) || n < 0)
+        throw new Error("positive integer expected, got " + n);
+    }
+    function abytes6(b, ...lengths) {
+      if (!isBytes8(b))
+        throw new Error("Uint8Array expected");
+      if (lengths.length > 0 && !lengths.includes(b.length))
+        throw new Error("Uint8Array expected of length " + lengths + ", got length=" + b.length);
+    }
+    function ahash2(h) {
+      if (typeof h !== "function" || typeof h.create !== "function")
+        throw new Error("Hash should be wrapped by utils.createHasher");
+      anumber6(h.outputLen);
+      anumber6(h.blockLen);
+    }
+    function aexists2(instance, checkFinished = true) {
+      if (instance.destroyed)
+        throw new Error("Hash instance has been destroyed");
+      if (checkFinished && instance.finished)
+        throw new Error("Hash#digest() has already been called");
+    }
+    function aoutput2(out, instance) {
+      abytes6(out);
+      const min = instance.outputLen;
+      if (out.length < min) {
+        throw new Error("digestInto() expects output buffer of length at least " + min);
+      }
+    }
+    function u8(arr) {
+      return new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
+    }
+    function u32(arr) {
+      return new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
+    }
+    function clean2(...arrays) {
+      for (let i = 0; i < arrays.length; i++) {
+        arrays[i].fill(0);
+      }
+    }
+    function createView3(arr) {
+      return new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+    }
+    function rotr2(word, shift) {
+      return word << 32 - shift | word >>> shift;
+    }
+    function rotl2(word, shift) {
+      return word << shift | word >>> 32 - shift >>> 0;
+    }
+    exports.isLE = (() => new Uint8Array(new Uint32Array([287454020]).buffer)[0] === 68)();
+    function byteSwap(word) {
+      return word << 24 & 4278190080 | word << 8 & 16711680 | word >>> 8 & 65280 | word >>> 24 & 255;
+    }
+    exports.swap8IfBE = exports.isLE ? (n) => n : (n) => byteSwap(n);
+    exports.byteSwapIfBE = exports.swap8IfBE;
+    function byteSwap32(arr) {
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = byteSwap(arr[i]);
+      }
+      return arr;
+    }
+    exports.swap32IfBE = exports.isLE ? (u) => u : byteSwap32;
+    var hasHexBuiltin5 = /* @__PURE__ */ (() => (
+      // @ts-ignore
+      typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function"
+    ))();
+    var hexes2 = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
+    function bytesToHex3(bytes) {
+      abytes6(bytes);
+      if (hasHexBuiltin5)
+        return bytes.toHex();
+      let hex4 = "";
+      for (let i = 0; i < bytes.length; i++) {
+        hex4 += hexes2[bytes[i]];
+      }
+      return hex4;
+    }
+    var asciis2 = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 };
+    function asciiToBase162(ch2) {
+      if (ch2 >= asciis2._0 && ch2 <= asciis2._9)
+        return ch2 - asciis2._0;
+      if (ch2 >= asciis2.A && ch2 <= asciis2.F)
+        return ch2 - (asciis2.A - 10);
+      if (ch2 >= asciis2.a && ch2 <= asciis2.f)
+        return ch2 - (asciis2.a - 10);
+      return;
+    }
+    function hexToBytes3(hex4) {
+      if (typeof hex4 !== "string")
+        throw new Error("hex string expected, got " + typeof hex4);
+      if (hasHexBuiltin5)
+        return Uint8Array.fromHex(hex4);
+      const hl = hex4.length;
+      const al = hl / 2;
+      if (hl % 2)
+        throw new Error("hex string expected, got unpadded hex of length " + hl);
+      const array3 = new Uint8Array(al);
+      for (let ai = 0, hi = 0; ai < al; ai++, hi += 2) {
+        const n1 = asciiToBase162(hex4.charCodeAt(hi));
+        const n2 = asciiToBase162(hex4.charCodeAt(hi + 1));
+        if (n1 === void 0 || n2 === void 0) {
+          const char = hex4[hi] + hex4[hi + 1];
+          throw new Error('hex string expected, got non-hex character "' + char + '" at index ' + hi);
+        }
+        array3[ai] = n1 * 16 + n2;
+      }
+      return array3;
+    }
+    var nextTick = async () => {
+    };
+    exports.nextTick = nextTick;
+    async function asyncLoop(iters, tick, cb) {
+      let ts = Date.now();
+      for (let i = 0; i < iters; i++) {
+        cb(i);
+        const diff = Date.now() - ts;
+        if (diff >= 0 && diff < tick)
+          continue;
+        await (0, exports.nextTick)();
+        ts += diff;
+      }
+    }
+    function utf8ToBytes(str) {
+      if (typeof str !== "string")
+        throw new Error("string expected");
+      return new Uint8Array(new TextEncoder().encode(str));
+    }
+    function bytesToUtf8(bytes) {
+      return new TextDecoder().decode(bytes);
+    }
+    function toBytes(data) {
+      if (typeof data === "string")
+        data = utf8ToBytes(data);
+      abytes6(data);
+      return data;
+    }
+    function kdfInputToBytes(data) {
+      if (typeof data === "string")
+        data = utf8ToBytes(data);
+      abytes6(data);
+      return data;
+    }
+    function concatBytes5(...arrays) {
+      let sum = 0;
+      for (let i = 0; i < arrays.length; i++) {
+        const a = arrays[i];
+        abytes6(a);
+        sum += a.length;
+      }
+      const res = new Uint8Array(sum);
+      for (let i = 0, pad = 0; i < arrays.length; i++) {
+        const a = arrays[i];
+        res.set(a, pad);
+        pad += a.length;
+      }
+      return res;
+    }
+    function checkOpts(defaults2, opts) {
+      if (opts !== void 0 && {}.toString.call(opts) !== "[object Object]")
+        throw new Error("options should be object or undefined");
+      const merged = Object.assign(defaults2, opts);
+      return merged;
+    }
+    var Hash2 = class {
+    };
+    exports.Hash = Hash2;
+    function createHasher2(hashCons) {
+      const hashC = (msg) => hashCons().update(toBytes(msg)).digest();
+      const tmp = hashCons();
+      hashC.outputLen = tmp.outputLen;
+      hashC.blockLen = tmp.blockLen;
+      hashC.create = () => hashCons();
+      return hashC;
+    }
+    function createOptHasher(hashCons) {
+      const hashC = (msg, opts) => hashCons(opts).update(toBytes(msg)).digest();
+      const tmp = hashCons({});
+      hashC.outputLen = tmp.outputLen;
+      hashC.blockLen = tmp.blockLen;
+      hashC.create = (opts) => hashCons(opts);
+      return hashC;
+    }
+    function createXOFer(hashCons) {
+      const hashC = (msg, opts) => hashCons(opts).update(toBytes(msg)).digest();
+      const tmp = hashCons({});
+      hashC.outputLen = tmp.outputLen;
+      hashC.blockLen = tmp.blockLen;
+      hashC.create = (opts) => hashCons(opts);
+      return hashC;
+    }
+    exports.wrapConstructor = createHasher2;
+    exports.wrapConstructorWithOpts = createOptHasher;
+    exports.wrapXOFConstructorWithOpts = createXOFer;
+    function randomBytes3(bytesLength = 32) {
+      if (crypto_1.crypto && typeof crypto_1.crypto.getRandomValues === "function") {
+        return crypto_1.crypto.getRandomValues(new Uint8Array(bytesLength));
+      }
+      if (crypto_1.crypto && typeof crypto_1.crypto.randomBytes === "function") {
+        return Uint8Array.from(crypto_1.crypto.randomBytes(bytesLength));
+      }
+      throw new Error("crypto.getRandomValues must be defined");
+    }
+  }
+});
+
+// node_modules/jsontokens/node_modules/@noble/hashes/hmac.js
+var require_hmac = __commonJS({
+  "node_modules/jsontokens/node_modules/@noble/hashes/hmac.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.hmac = exports.HMAC = void 0;
+    var utils_ts_1 = require_utils();
+    var HMAC = class extends utils_ts_1.Hash {
+      constructor(hash, _key) {
+        super();
+        this.finished = false;
+        this.destroyed = false;
+        (0, utils_ts_1.ahash)(hash);
+        const key = (0, utils_ts_1.toBytes)(_key);
+        this.iHash = hash.create();
+        if (typeof this.iHash.update !== "function")
+          throw new Error("Expected instance of class which extends utils.Hash");
+        this.blockLen = this.iHash.blockLen;
+        this.outputLen = this.iHash.outputLen;
+        const blockLen = this.blockLen;
+        const pad = new Uint8Array(blockLen);
+        pad.set(key.length > blockLen ? hash.create().update(key).digest() : key);
+        for (let i = 0; i < pad.length; i++)
+          pad[i] ^= 54;
+        this.iHash.update(pad);
+        this.oHash = hash.create();
+        for (let i = 0; i < pad.length; i++)
+          pad[i] ^= 54 ^ 92;
+        this.oHash.update(pad);
+        (0, utils_ts_1.clean)(pad);
+      }
+      update(buf) {
+        (0, utils_ts_1.aexists)(this);
+        this.iHash.update(buf);
+        return this;
+      }
+      digestInto(out) {
+        (0, utils_ts_1.aexists)(this);
+        (0, utils_ts_1.abytes)(out, this.outputLen);
+        this.finished = true;
+        this.iHash.digestInto(out);
+        this.oHash.update(out);
+        this.oHash.digestInto(out);
+        this.destroy();
+      }
+      digest() {
+        const out = new Uint8Array(this.oHash.outputLen);
+        this.digestInto(out);
+        return out;
+      }
+      _cloneInto(to) {
+        to || (to = Object.create(Object.getPrototypeOf(this), {}));
+        const { oHash, iHash, finished, destroyed, blockLen, outputLen } = this;
+        to = to;
+        to.finished = finished;
+        to.destroyed = destroyed;
+        to.blockLen = blockLen;
+        to.outputLen = outputLen;
+        to.oHash = oHash._cloneInto(to.oHash);
+        to.iHash = iHash._cloneInto(to.iHash);
+        return to;
+      }
+      clone() {
+        return this._cloneInto();
+      }
+      destroy() {
+        this.destroyed = true;
+        this.oHash.destroy();
+        this.iHash.destroy();
+      }
+    };
+    exports.HMAC = HMAC;
+    var hmac2 = (hash, key, message) => new HMAC(hash, key).update(message).digest();
+    exports.hmac = hmac2;
+    exports.hmac.create = (hash, key) => new HMAC(hash, key);
+  }
+});
+
+// node_modules/jsontokens/node_modules/@noble/hashes/_md.js
+var require_md = __commonJS({
+  "node_modules/jsontokens/node_modules/@noble/hashes/_md.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SHA512_IV = exports.SHA384_IV = exports.SHA224_IV = exports.SHA256_IV = exports.HashMD = void 0;
+    exports.setBigUint64 = setBigUint64;
+    exports.Chi = Chi2;
+    exports.Maj = Maj2;
+    var utils_ts_1 = require_utils();
+    function setBigUint64(view2, byteOffset, value, isLE) {
+      if (typeof view2.setBigUint64 === "function")
+        return view2.setBigUint64(byteOffset, value, isLE);
+      const _32n = BigInt(32);
+      const _u32_max = BigInt(4294967295);
+      const wh = Number(value >> _32n & _u32_max);
+      const wl = Number(value & _u32_max);
+      const h = isLE ? 4 : 0;
+      const l = isLE ? 0 : 4;
+      view2.setUint32(byteOffset + h, wh, isLE);
+      view2.setUint32(byteOffset + l, wl, isLE);
+    }
+    function Chi2(a, b, c) {
+      return a & b ^ ~a & c;
+    }
+    function Maj2(a, b, c) {
+      return a & b ^ a & c ^ b & c;
+    }
+    var HashMD2 = class extends utils_ts_1.Hash {
+      constructor(blockLen, outputLen, padOffset, isLE) {
+        super();
+        this.finished = false;
+        this.length = 0;
+        this.pos = 0;
+        this.destroyed = false;
+        this.blockLen = blockLen;
+        this.outputLen = outputLen;
+        this.padOffset = padOffset;
+        this.isLE = isLE;
+        this.buffer = new Uint8Array(blockLen);
+        this.view = (0, utils_ts_1.createView)(this.buffer);
+      }
+      update(data) {
+        (0, utils_ts_1.aexists)(this);
+        data = (0, utils_ts_1.toBytes)(data);
+        (0, utils_ts_1.abytes)(data);
+        const { view: view2, buffer, blockLen } = this;
+        const len = data.length;
+        for (let pos = 0; pos < len; ) {
+          const take = Math.min(blockLen - this.pos, len - pos);
+          if (take === blockLen) {
+            const dataView = (0, utils_ts_1.createView)(data);
+            for (; blockLen <= len - pos; pos += blockLen)
+              this.process(dataView, pos);
+            continue;
+          }
+          buffer.set(data.subarray(pos, pos + take), this.pos);
+          this.pos += take;
+          pos += take;
+          if (this.pos === blockLen) {
+            this.process(view2, 0);
+            this.pos = 0;
+          }
+        }
+        this.length += data.length;
+        this.roundClean();
+        return this;
+      }
+      digestInto(out) {
+        (0, utils_ts_1.aexists)(this);
+        (0, utils_ts_1.aoutput)(out, this);
+        this.finished = true;
+        const { buffer, view: view2, blockLen, isLE } = this;
+        let { pos } = this;
+        buffer[pos++] = 128;
+        (0, utils_ts_1.clean)(this.buffer.subarray(pos));
+        if (this.padOffset > blockLen - pos) {
+          this.process(view2, 0);
+          pos = 0;
+        }
+        for (let i = pos; i < blockLen; i++)
+          buffer[i] = 0;
+        setBigUint64(view2, blockLen - 8, BigInt(this.length * 8), isLE);
+        this.process(view2, 0);
+        const oview = (0, utils_ts_1.createView)(out);
+        const len = this.outputLen;
+        if (len % 4)
+          throw new Error("_sha2: outputLen should be aligned to 32bit");
+        const outLen = len / 4;
+        const state = this.get();
+        if (outLen > state.length)
+          throw new Error("_sha2: outputLen bigger than state");
+        for (let i = 0; i < outLen; i++)
+          oview.setUint32(4 * i, state[i], isLE);
+      }
+      digest() {
+        const { buffer, outputLen } = this;
+        this.digestInto(buffer);
+        const res = buffer.slice(0, outputLen);
+        this.destroy();
+        return res;
+      }
+      _cloneInto(to) {
+        to || (to = new this.constructor());
+        to.set(...this.get());
+        const { blockLen, buffer, length: length2, finished, destroyed, pos } = this;
+        to.destroyed = destroyed;
+        to.finished = finished;
+        to.length = length2;
+        to.pos = pos;
+        if (length2 % blockLen)
+          to.buffer.set(buffer);
+        return to;
+      }
+      clone() {
+        return this._cloneInto();
+      }
+    };
+    exports.HashMD = HashMD2;
+    exports.SHA256_IV = Uint32Array.from([
+      1779033703,
+      3144134277,
+      1013904242,
+      2773480762,
+      1359893119,
+      2600822924,
+      528734635,
+      1541459225
+    ]);
+    exports.SHA224_IV = Uint32Array.from([
+      3238371032,
+      914150663,
+      812702999,
+      4144912697,
+      4290775857,
+      1750603025,
+      1694076839,
+      3204075428
+    ]);
+    exports.SHA384_IV = Uint32Array.from([
+      3418070365,
+      3238371032,
+      1654270250,
+      914150663,
+      2438529370,
+      812702999,
+      355462360,
+      4144912697,
+      1731405415,
+      4290775857,
+      2394180231,
+      1750603025,
+      3675008525,
+      1694076839,
+      1203062813,
+      3204075428
+    ]);
+    exports.SHA512_IV = Uint32Array.from([
+      1779033703,
+      4089235720,
+      3144134277,
+      2227873595,
+      1013904242,
+      4271175723,
+      2773480762,
+      1595750129,
+      1359893119,
+      2917565137,
+      2600822924,
+      725511199,
+      528734635,
+      4215389547,
+      1541459225,
+      327033209
+    ]);
+  }
+});
+
+// node_modules/jsontokens/node_modules/@noble/hashes/_u64.js
+var require_u64 = __commonJS({
+  "node_modules/jsontokens/node_modules/@noble/hashes/_u64.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.toBig = exports.shrSL = exports.shrSH = exports.rotrSL = exports.rotrSH = exports.rotrBL = exports.rotrBH = exports.rotr32L = exports.rotr32H = exports.rotlSL = exports.rotlSH = exports.rotlBL = exports.rotlBH = exports.add5L = exports.add5H = exports.add4L = exports.add4H = exports.add3L = exports.add3H = void 0;
+    exports.add = add;
+    exports.fromBig = fromBig;
+    exports.split = split;
+    var U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
+    var _32n = /* @__PURE__ */ BigInt(32);
+    function fromBig(n, le = false) {
+      if (le)
+        return { h: Number(n & U32_MASK64), l: Number(n >> _32n & U32_MASK64) };
+      return { h: Number(n >> _32n & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
+    }
+    function split(lst, le = false) {
+      const len = lst.length;
+      let Ah = new Uint32Array(len);
+      let Al = new Uint32Array(len);
+      for (let i = 0; i < len; i++) {
+        const { h, l } = fromBig(lst[i], le);
+        [Ah[i], Al[i]] = [h, l];
+      }
+      return [Ah, Al];
+    }
+    var toBig = (h, l) => BigInt(h >>> 0) << _32n | BigInt(l >>> 0);
+    exports.toBig = toBig;
+    var shrSH = (h, _l, s) => h >>> s;
+    exports.shrSH = shrSH;
+    var shrSL = (h, l, s) => h << 32 - s | l >>> s;
+    exports.shrSL = shrSL;
+    var rotrSH = (h, l, s) => h >>> s | l << 32 - s;
+    exports.rotrSH = rotrSH;
+    var rotrSL = (h, l, s) => h << 32 - s | l >>> s;
+    exports.rotrSL = rotrSL;
+    var rotrBH = (h, l, s) => h << 64 - s | l >>> s - 32;
+    exports.rotrBH = rotrBH;
+    var rotrBL = (h, l, s) => h >>> s - 32 | l << 64 - s;
+    exports.rotrBL = rotrBL;
+    var rotr32H = (_h, l) => l;
+    exports.rotr32H = rotr32H;
+    var rotr32L = (h, _l) => h;
+    exports.rotr32L = rotr32L;
+    var rotlSH = (h, l, s) => h << s | l >>> 32 - s;
+    exports.rotlSH = rotlSH;
+    var rotlSL = (h, l, s) => l << s | h >>> 32 - s;
+    exports.rotlSL = rotlSL;
+    var rotlBH = (h, l, s) => l << s - 32 | h >>> 64 - s;
+    exports.rotlBH = rotlBH;
+    var rotlBL = (h, l, s) => h << s - 32 | l >>> 64 - s;
+    exports.rotlBL = rotlBL;
+    function add(Ah, Al, Bh, Bl) {
+      const l = (Al >>> 0) + (Bl >>> 0);
+      return { h: Ah + Bh + (l / 2 ** 32 | 0) | 0, l: l | 0 };
+    }
+    var add3L = (Al, Bl, Cl) => (Al >>> 0) + (Bl >>> 0) + (Cl >>> 0);
+    exports.add3L = add3L;
+    var add3H = (low, Ah, Bh, Ch) => Ah + Bh + Ch + (low / 2 ** 32 | 0) | 0;
+    exports.add3H = add3H;
+    var add4L = (Al, Bl, Cl, Dl) => (Al >>> 0) + (Bl >>> 0) + (Cl >>> 0) + (Dl >>> 0);
+    exports.add4L = add4L;
+    var add4H = (low, Ah, Bh, Ch, Dh) => Ah + Bh + Ch + Dh + (low / 2 ** 32 | 0) | 0;
+    exports.add4H = add4H;
+    var add5L = (Al, Bl, Cl, Dl, El) => (Al >>> 0) + (Bl >>> 0) + (Cl >>> 0) + (Dl >>> 0) + (El >>> 0);
+    exports.add5L = add5L;
+    var add5H = (low, Ah, Bh, Ch, Dh, Eh) => Ah + Bh + Ch + Dh + Eh + (low / 2 ** 32 | 0) | 0;
+    exports.add5H = add5H;
+    var u64 = {
+      fromBig,
+      split,
+      toBig,
+      shrSH,
+      shrSL,
+      rotrSH,
+      rotrSL,
+      rotrBH,
+      rotrBL,
+      rotr32H,
+      rotr32L,
+      rotlSH,
+      rotlSL,
+      rotlBH,
+      rotlBL,
+      add,
+      add3L,
+      add3H,
+      add4L,
+      add4H,
+      add5H,
+      add5L
+    };
+    exports.default = u64;
+  }
+});
+
+// node_modules/jsontokens/node_modules/@noble/hashes/sha2.js
+var require_sha2 = __commonJS({
+  "node_modules/jsontokens/node_modules/@noble/hashes/sha2.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.sha512_224 = exports.sha512_256 = exports.sha384 = exports.sha512 = exports.sha224 = exports.sha256 = exports.SHA512_256 = exports.SHA512_224 = exports.SHA384 = exports.SHA512 = exports.SHA224 = exports.SHA256 = void 0;
+    var _md_ts_1 = require_md();
+    var u64 = require_u64();
+    var utils_ts_1 = require_utils();
+    var SHA256_K2 = /* @__PURE__ */ Uint32Array.from([
+      1116352408,
+      1899447441,
+      3049323471,
+      3921009573,
+      961987163,
+      1508970993,
+      2453635748,
+      2870763221,
+      3624381080,
+      310598401,
+      607225278,
+      1426881987,
+      1925078388,
+      2162078206,
+      2614888103,
+      3248222580,
+      3835390401,
+      4022224774,
+      264347078,
+      604807628,
+      770255983,
+      1249150122,
+      1555081692,
+      1996064986,
+      2554220882,
+      2821834349,
+      2952996808,
+      3210313671,
+      3336571891,
+      3584528711,
+      113926993,
+      338241895,
+      666307205,
+      773529912,
+      1294757372,
+      1396182291,
+      1695183700,
+      1986661051,
+      2177026350,
+      2456956037,
+      2730485921,
+      2820302411,
+      3259730800,
+      3345764771,
+      3516065817,
+      3600352804,
+      4094571909,
+      275423344,
+      430227734,
+      506948616,
+      659060556,
+      883997877,
+      958139571,
+      1322822218,
+      1537002063,
+      1747873779,
+      1955562222,
+      2024104815,
+      2227730452,
+      2361852424,
+      2428436474,
+      2756734187,
+      3204031479,
+      3329325298
+    ]);
+    var SHA256_W2 = /* @__PURE__ */ new Uint32Array(64);
+    var SHA256 = class extends _md_ts_1.HashMD {
+      constructor(outputLen = 32) {
+        super(64, outputLen, 8, false);
+        this.A = _md_ts_1.SHA256_IV[0] | 0;
+        this.B = _md_ts_1.SHA256_IV[1] | 0;
+        this.C = _md_ts_1.SHA256_IV[2] | 0;
+        this.D = _md_ts_1.SHA256_IV[3] | 0;
+        this.E = _md_ts_1.SHA256_IV[4] | 0;
+        this.F = _md_ts_1.SHA256_IV[5] | 0;
+        this.G = _md_ts_1.SHA256_IV[6] | 0;
+        this.H = _md_ts_1.SHA256_IV[7] | 0;
+      }
+      get() {
+        const { A, B, C, D, E, F, G: G2, H } = this;
+        return [A, B, C, D, E, F, G2, H];
+      }
+      // prettier-ignore
+      set(A, B, C, D, E, F, G2, H) {
+        this.A = A | 0;
+        this.B = B | 0;
+        this.C = C | 0;
+        this.D = D | 0;
+        this.E = E | 0;
+        this.F = F | 0;
+        this.G = G2 | 0;
+        this.H = H | 0;
+      }
+      process(view2, offset) {
+        for (let i = 0; i < 16; i++, offset += 4)
+          SHA256_W2[i] = view2.getUint32(offset, false);
+        for (let i = 16; i < 64; i++) {
+          const W15 = SHA256_W2[i - 15];
+          const W2 = SHA256_W2[i - 2];
+          const s0 = (0, utils_ts_1.rotr)(W15, 7) ^ (0, utils_ts_1.rotr)(W15, 18) ^ W15 >>> 3;
+          const s1 = (0, utils_ts_1.rotr)(W2, 17) ^ (0, utils_ts_1.rotr)(W2, 19) ^ W2 >>> 10;
+          SHA256_W2[i] = s1 + SHA256_W2[i - 7] + s0 + SHA256_W2[i - 16] | 0;
+        }
+        let { A, B, C, D, E, F, G: G2, H } = this;
+        for (let i = 0; i < 64; i++) {
+          const sigma12 = (0, utils_ts_1.rotr)(E, 6) ^ (0, utils_ts_1.rotr)(E, 11) ^ (0, utils_ts_1.rotr)(E, 25);
+          const T1 = H + sigma12 + (0, _md_ts_1.Chi)(E, F, G2) + SHA256_K2[i] + SHA256_W2[i] | 0;
+          const sigma02 = (0, utils_ts_1.rotr)(A, 2) ^ (0, utils_ts_1.rotr)(A, 13) ^ (0, utils_ts_1.rotr)(A, 22);
+          const T2 = sigma02 + (0, _md_ts_1.Maj)(A, B, C) | 0;
+          H = G2;
+          G2 = F;
+          F = E;
+          E = D + T1 | 0;
+          D = C;
+          C = B;
+          B = A;
+          A = T1 + T2 | 0;
+        }
+        A = A + this.A | 0;
+        B = B + this.B | 0;
+        C = C + this.C | 0;
+        D = D + this.D | 0;
+        E = E + this.E | 0;
+        F = F + this.F | 0;
+        G2 = G2 + this.G | 0;
+        H = H + this.H | 0;
+        this.set(A, B, C, D, E, F, G2, H);
+      }
+      roundClean() {
+        (0, utils_ts_1.clean)(SHA256_W2);
+      }
+      destroy() {
+        this.set(0, 0, 0, 0, 0, 0, 0, 0);
+        (0, utils_ts_1.clean)(this.buffer);
+      }
+    };
+    exports.SHA256 = SHA256;
+    var SHA224 = class extends SHA256 {
+      constructor() {
+        super(28);
+        this.A = _md_ts_1.SHA224_IV[0] | 0;
+        this.B = _md_ts_1.SHA224_IV[1] | 0;
+        this.C = _md_ts_1.SHA224_IV[2] | 0;
+        this.D = _md_ts_1.SHA224_IV[3] | 0;
+        this.E = _md_ts_1.SHA224_IV[4] | 0;
+        this.F = _md_ts_1.SHA224_IV[5] | 0;
+        this.G = _md_ts_1.SHA224_IV[6] | 0;
+        this.H = _md_ts_1.SHA224_IV[7] | 0;
+      }
+    };
+    exports.SHA224 = SHA224;
+    var K512 = /* @__PURE__ */ (() => u64.split([
+      "0x428a2f98d728ae22",
+      "0x7137449123ef65cd",
+      "0xb5c0fbcfec4d3b2f",
+      "0xe9b5dba58189dbbc",
+      "0x3956c25bf348b538",
+      "0x59f111f1b605d019",
+      "0x923f82a4af194f9b",
+      "0xab1c5ed5da6d8118",
+      "0xd807aa98a3030242",
+      "0x12835b0145706fbe",
+      "0x243185be4ee4b28c",
+      "0x550c7dc3d5ffb4e2",
+      "0x72be5d74f27b896f",
+      "0x80deb1fe3b1696b1",
+      "0x9bdc06a725c71235",
+      "0xc19bf174cf692694",
+      "0xe49b69c19ef14ad2",
+      "0xefbe4786384f25e3",
+      "0x0fc19dc68b8cd5b5",
+      "0x240ca1cc77ac9c65",
+      "0x2de92c6f592b0275",
+      "0x4a7484aa6ea6e483",
+      "0x5cb0a9dcbd41fbd4",
+      "0x76f988da831153b5",
+      "0x983e5152ee66dfab",
+      "0xa831c66d2db43210",
+      "0xb00327c898fb213f",
+      "0xbf597fc7beef0ee4",
+      "0xc6e00bf33da88fc2",
+      "0xd5a79147930aa725",
+      "0x06ca6351e003826f",
+      "0x142929670a0e6e70",
+      "0x27b70a8546d22ffc",
+      "0x2e1b21385c26c926",
+      "0x4d2c6dfc5ac42aed",
+      "0x53380d139d95b3df",
+      "0x650a73548baf63de",
+      "0x766a0abb3c77b2a8",
+      "0x81c2c92e47edaee6",
+      "0x92722c851482353b",
+      "0xa2bfe8a14cf10364",
+      "0xa81a664bbc423001",
+      "0xc24b8b70d0f89791",
+      "0xc76c51a30654be30",
+      "0xd192e819d6ef5218",
+      "0xd69906245565a910",
+      "0xf40e35855771202a",
+      "0x106aa07032bbd1b8",
+      "0x19a4c116b8d2d0c8",
+      "0x1e376c085141ab53",
+      "0x2748774cdf8eeb99",
+      "0x34b0bcb5e19b48a8",
+      "0x391c0cb3c5c95a63",
+      "0x4ed8aa4ae3418acb",
+      "0x5b9cca4f7763e373",
+      "0x682e6ff3d6b2b8a3",
+      "0x748f82ee5defb2fc",
+      "0x78a5636f43172f60",
+      "0x84c87814a1f0ab72",
+      "0x8cc702081a6439ec",
+      "0x90befffa23631e28",
+      "0xa4506cebde82bde9",
+      "0xbef9a3f7b2c67915",
+      "0xc67178f2e372532b",
+      "0xca273eceea26619c",
+      "0xd186b8c721c0c207",
+      "0xeada7dd6cde0eb1e",
+      "0xf57d4f7fee6ed178",
+      "0x06f067aa72176fba",
+      "0x0a637dc5a2c898a6",
+      "0x113f9804bef90dae",
+      "0x1b710b35131c471b",
+      "0x28db77f523047d84",
+      "0x32caab7b40c72493",
+      "0x3c9ebe0a15c9bebc",
+      "0x431d67c49c100d4c",
+      "0x4cc5d4becb3e42b6",
+      "0x597f299cfc657e2a",
+      "0x5fcb6fab3ad6faec",
+      "0x6c44198c4a475817"
+    ].map((n) => BigInt(n))))();
+    var SHA512_Kh = /* @__PURE__ */ (() => K512[0])();
+    var SHA512_Kl = /* @__PURE__ */ (() => K512[1])();
+    var SHA512_W_H = /* @__PURE__ */ new Uint32Array(80);
+    var SHA512_W_L = /* @__PURE__ */ new Uint32Array(80);
+    var SHA512 = class extends _md_ts_1.HashMD {
+      constructor(outputLen = 64) {
+        super(128, outputLen, 16, false);
+        this.Ah = _md_ts_1.SHA512_IV[0] | 0;
+        this.Al = _md_ts_1.SHA512_IV[1] | 0;
+        this.Bh = _md_ts_1.SHA512_IV[2] | 0;
+        this.Bl = _md_ts_1.SHA512_IV[3] | 0;
+        this.Ch = _md_ts_1.SHA512_IV[4] | 0;
+        this.Cl = _md_ts_1.SHA512_IV[5] | 0;
+        this.Dh = _md_ts_1.SHA512_IV[6] | 0;
+        this.Dl = _md_ts_1.SHA512_IV[7] | 0;
+        this.Eh = _md_ts_1.SHA512_IV[8] | 0;
+        this.El = _md_ts_1.SHA512_IV[9] | 0;
+        this.Fh = _md_ts_1.SHA512_IV[10] | 0;
+        this.Fl = _md_ts_1.SHA512_IV[11] | 0;
+        this.Gh = _md_ts_1.SHA512_IV[12] | 0;
+        this.Gl = _md_ts_1.SHA512_IV[13] | 0;
+        this.Hh = _md_ts_1.SHA512_IV[14] | 0;
+        this.Hl = _md_ts_1.SHA512_IV[15] | 0;
+      }
+      // prettier-ignore
+      get() {
+        const { Ah, Al, Bh, Bl, Ch, Cl, Dh, Dl, Eh, El, Fh, Fl, Gh, Gl, Hh, Hl } = this;
+        return [Ah, Al, Bh, Bl, Ch, Cl, Dh, Dl, Eh, El, Fh, Fl, Gh, Gl, Hh, Hl];
+      }
+      // prettier-ignore
+      set(Ah, Al, Bh, Bl, Ch, Cl, Dh, Dl, Eh, El, Fh, Fl, Gh, Gl, Hh, Hl) {
+        this.Ah = Ah | 0;
+        this.Al = Al | 0;
+        this.Bh = Bh | 0;
+        this.Bl = Bl | 0;
+        this.Ch = Ch | 0;
+        this.Cl = Cl | 0;
+        this.Dh = Dh | 0;
+        this.Dl = Dl | 0;
+        this.Eh = Eh | 0;
+        this.El = El | 0;
+        this.Fh = Fh | 0;
+        this.Fl = Fl | 0;
+        this.Gh = Gh | 0;
+        this.Gl = Gl | 0;
+        this.Hh = Hh | 0;
+        this.Hl = Hl | 0;
+      }
+      process(view2, offset) {
+        for (let i = 0; i < 16; i++, offset += 4) {
+          SHA512_W_H[i] = view2.getUint32(offset);
+          SHA512_W_L[i] = view2.getUint32(offset += 4);
+        }
+        for (let i = 16; i < 80; i++) {
+          const W15h = SHA512_W_H[i - 15] | 0;
+          const W15l = SHA512_W_L[i - 15] | 0;
+          const s0h = u64.rotrSH(W15h, W15l, 1) ^ u64.rotrSH(W15h, W15l, 8) ^ u64.shrSH(W15h, W15l, 7);
+          const s0l = u64.rotrSL(W15h, W15l, 1) ^ u64.rotrSL(W15h, W15l, 8) ^ u64.shrSL(W15h, W15l, 7);
+          const W2h = SHA512_W_H[i - 2] | 0;
+          const W2l = SHA512_W_L[i - 2] | 0;
+          const s1h = u64.rotrSH(W2h, W2l, 19) ^ u64.rotrBH(W2h, W2l, 61) ^ u64.shrSH(W2h, W2l, 6);
+          const s1l = u64.rotrSL(W2h, W2l, 19) ^ u64.rotrBL(W2h, W2l, 61) ^ u64.shrSL(W2h, W2l, 6);
+          const SUMl = u64.add4L(s0l, s1l, SHA512_W_L[i - 7], SHA512_W_L[i - 16]);
+          const SUMh = u64.add4H(SUMl, s0h, s1h, SHA512_W_H[i - 7], SHA512_W_H[i - 16]);
+          SHA512_W_H[i] = SUMh | 0;
+          SHA512_W_L[i] = SUMl | 0;
+        }
+        let { Ah, Al, Bh, Bl, Ch, Cl, Dh, Dl, Eh, El, Fh, Fl, Gh, Gl, Hh, Hl } = this;
+        for (let i = 0; i < 80; i++) {
+          const sigma1h = u64.rotrSH(Eh, El, 14) ^ u64.rotrSH(Eh, El, 18) ^ u64.rotrBH(Eh, El, 41);
+          const sigma1l = u64.rotrSL(Eh, El, 14) ^ u64.rotrSL(Eh, El, 18) ^ u64.rotrBL(Eh, El, 41);
+          const CHIh = Eh & Fh ^ ~Eh & Gh;
+          const CHIl = El & Fl ^ ~El & Gl;
+          const T1ll = u64.add5L(Hl, sigma1l, CHIl, SHA512_Kl[i], SHA512_W_L[i]);
+          const T1h = u64.add5H(T1ll, Hh, sigma1h, CHIh, SHA512_Kh[i], SHA512_W_H[i]);
+          const T1l = T1ll | 0;
+          const sigma0h = u64.rotrSH(Ah, Al, 28) ^ u64.rotrBH(Ah, Al, 34) ^ u64.rotrBH(Ah, Al, 39);
+          const sigma0l = u64.rotrSL(Ah, Al, 28) ^ u64.rotrBL(Ah, Al, 34) ^ u64.rotrBL(Ah, Al, 39);
+          const MAJh = Ah & Bh ^ Ah & Ch ^ Bh & Ch;
+          const MAJl = Al & Bl ^ Al & Cl ^ Bl & Cl;
+          Hh = Gh | 0;
+          Hl = Gl | 0;
+          Gh = Fh | 0;
+          Gl = Fl | 0;
+          Fh = Eh | 0;
+          Fl = El | 0;
+          ({ h: Eh, l: El } = u64.add(Dh | 0, Dl | 0, T1h | 0, T1l | 0));
+          Dh = Ch | 0;
+          Dl = Cl | 0;
+          Ch = Bh | 0;
+          Cl = Bl | 0;
+          Bh = Ah | 0;
+          Bl = Al | 0;
+          const All = u64.add3L(T1l, sigma0l, MAJl);
+          Ah = u64.add3H(All, T1h, sigma0h, MAJh);
+          Al = All | 0;
+        }
+        ({ h: Ah, l: Al } = u64.add(this.Ah | 0, this.Al | 0, Ah | 0, Al | 0));
+        ({ h: Bh, l: Bl } = u64.add(this.Bh | 0, this.Bl | 0, Bh | 0, Bl | 0));
+        ({ h: Ch, l: Cl } = u64.add(this.Ch | 0, this.Cl | 0, Ch | 0, Cl | 0));
+        ({ h: Dh, l: Dl } = u64.add(this.Dh | 0, this.Dl | 0, Dh | 0, Dl | 0));
+        ({ h: Eh, l: El } = u64.add(this.Eh | 0, this.El | 0, Eh | 0, El | 0));
+        ({ h: Fh, l: Fl } = u64.add(this.Fh | 0, this.Fl | 0, Fh | 0, Fl | 0));
+        ({ h: Gh, l: Gl } = u64.add(this.Gh | 0, this.Gl | 0, Gh | 0, Gl | 0));
+        ({ h: Hh, l: Hl } = u64.add(this.Hh | 0, this.Hl | 0, Hh | 0, Hl | 0));
+        this.set(Ah, Al, Bh, Bl, Ch, Cl, Dh, Dl, Eh, El, Fh, Fl, Gh, Gl, Hh, Hl);
+      }
+      roundClean() {
+        (0, utils_ts_1.clean)(SHA512_W_H, SHA512_W_L);
+      }
+      destroy() {
+        (0, utils_ts_1.clean)(this.buffer);
+        this.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+      }
+    };
+    exports.SHA512 = SHA512;
+    var SHA384 = class extends SHA512 {
+      constructor() {
+        super(48);
+        this.Ah = _md_ts_1.SHA384_IV[0] | 0;
+        this.Al = _md_ts_1.SHA384_IV[1] | 0;
+        this.Bh = _md_ts_1.SHA384_IV[2] | 0;
+        this.Bl = _md_ts_1.SHA384_IV[3] | 0;
+        this.Ch = _md_ts_1.SHA384_IV[4] | 0;
+        this.Cl = _md_ts_1.SHA384_IV[5] | 0;
+        this.Dh = _md_ts_1.SHA384_IV[6] | 0;
+        this.Dl = _md_ts_1.SHA384_IV[7] | 0;
+        this.Eh = _md_ts_1.SHA384_IV[8] | 0;
+        this.El = _md_ts_1.SHA384_IV[9] | 0;
+        this.Fh = _md_ts_1.SHA384_IV[10] | 0;
+        this.Fl = _md_ts_1.SHA384_IV[11] | 0;
+        this.Gh = _md_ts_1.SHA384_IV[12] | 0;
+        this.Gl = _md_ts_1.SHA384_IV[13] | 0;
+        this.Hh = _md_ts_1.SHA384_IV[14] | 0;
+        this.Hl = _md_ts_1.SHA384_IV[15] | 0;
+      }
+    };
+    exports.SHA384 = SHA384;
+    var T224_IV = /* @__PURE__ */ Uint32Array.from([
+      2352822216,
+      424955298,
+      1944164710,
+      2312950998,
+      502970286,
+      855612546,
+      1738396948,
+      1479516111,
+      258812777,
+      2077511080,
+      2011393907,
+      79989058,
+      1067287976,
+      1780299464,
+      286451373,
+      2446758561
+    ]);
+    var T256_IV = /* @__PURE__ */ Uint32Array.from([
+      573645204,
+      4230739756,
+      2673172387,
+      3360449730,
+      596883563,
+      1867755857,
+      2520282905,
+      1497426621,
+      2519219938,
+      2827943907,
+      3193839141,
+      1401305490,
+      721525244,
+      746961066,
+      246885852,
+      2177182882
+    ]);
+    var SHA512_224 = class extends SHA512 {
+      constructor() {
+        super(28);
+        this.Ah = T224_IV[0] | 0;
+        this.Al = T224_IV[1] | 0;
+        this.Bh = T224_IV[2] | 0;
+        this.Bl = T224_IV[3] | 0;
+        this.Ch = T224_IV[4] | 0;
+        this.Cl = T224_IV[5] | 0;
+        this.Dh = T224_IV[6] | 0;
+        this.Dl = T224_IV[7] | 0;
+        this.Eh = T224_IV[8] | 0;
+        this.El = T224_IV[9] | 0;
+        this.Fh = T224_IV[10] | 0;
+        this.Fl = T224_IV[11] | 0;
+        this.Gh = T224_IV[12] | 0;
+        this.Gl = T224_IV[13] | 0;
+        this.Hh = T224_IV[14] | 0;
+        this.Hl = T224_IV[15] | 0;
+      }
+    };
+    exports.SHA512_224 = SHA512_224;
+    var SHA512_256 = class extends SHA512 {
+      constructor() {
+        super(32);
+        this.Ah = T256_IV[0] | 0;
+        this.Al = T256_IV[1] | 0;
+        this.Bh = T256_IV[2] | 0;
+        this.Bl = T256_IV[3] | 0;
+        this.Ch = T256_IV[4] | 0;
+        this.Cl = T256_IV[5] | 0;
+        this.Dh = T256_IV[6] | 0;
+        this.Dl = T256_IV[7] | 0;
+        this.Eh = T256_IV[8] | 0;
+        this.El = T256_IV[9] | 0;
+        this.Fh = T256_IV[10] | 0;
+        this.Fl = T256_IV[11] | 0;
+        this.Gh = T256_IV[12] | 0;
+        this.Gl = T256_IV[13] | 0;
+        this.Hh = T256_IV[14] | 0;
+        this.Hl = T256_IV[15] | 0;
+      }
+    };
+    exports.SHA512_256 = SHA512_256;
+    exports.sha256 = (0, utils_ts_1.createHasher)(() => new SHA256());
+    exports.sha224 = (0, utils_ts_1.createHasher)(() => new SHA224());
+    exports.sha512 = (0, utils_ts_1.createHasher)(() => new SHA512());
+    exports.sha384 = (0, utils_ts_1.createHasher)(() => new SHA384());
+    exports.sha512_256 = (0, utils_ts_1.createHasher)(() => new SHA512_256());
+    exports.sha512_224 = (0, utils_ts_1.createHasher)(() => new SHA512_224());
+  }
+});
+
+// node_modules/jsontokens/node_modules/@noble/hashes/sha256.js
+var require_sha256 = __commonJS({
+  "node_modules/jsontokens/node_modules/@noble/hashes/sha256.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.sha224 = exports.SHA224 = exports.sha256 = exports.SHA256 = void 0;
+    var sha2_ts_1 = require_sha2();
+    exports.SHA256 = sha2_ts_1.SHA256;
+    exports.sha256 = sha2_ts_1.sha256;
+    exports.SHA224 = sha2_ts_1.SHA224;
+    exports.sha224 = sha2_ts_1.sha224;
+  }
+});
+
+// (disabled):crypto
+var require_crypto2 = __commonJS({
+  "(disabled):crypto"() {
+  }
+});
+
+// node_modules/@noble/secp256k1/lib/index.js
+var require_lib = __commonJS({
+  "node_modules/@noble/secp256k1/lib/index.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.utils = exports.schnorr = exports.verify = exports.signSync = exports.sign = exports.getSharedSecret = exports.recoverPublicKey = exports.getPublicKey = exports.hexToBytes = exports.bytesToHex = exports.Signature = exports.Point = exports.CURVE = void 0;
+    var nodeCrypto = require_crypto2();
+    var _0n8 = BigInt(0);
+    var _1n7 = BigInt(1);
+    var _2n5 = BigInt(2);
+    var _3n3 = BigInt(3);
+    var _8n3 = BigInt(8);
+    var CURVE = Object.freeze({
+      a: _0n8,
+      b: BigInt(7),
+      P: BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"),
+      n: BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"),
+      h: _1n7,
+      Gx: BigInt("55066263022277343669578718895168534326250603453777594175500187360389116729240"),
+      Gy: BigInt("32670510020758816978083085130507043184471273380659243275938904335757337482424"),
+      beta: BigInt("0x7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee")
+    });
+    exports.CURVE = CURVE;
+    var divNearest2 = (a, b) => (a + b / _2n5) / b;
+    var endo = {
+      beta: BigInt("0x7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee"),
+      splitScalar(k) {
+        const { n } = CURVE;
+        const a1 = BigInt("0x3086d221a7d46bcde86c90e49284eb15");
+        const b1 = -_1n7 * BigInt("0xe4437ed6010e88286f547fa90abfe4c3");
+        const a2 = BigInt("0x114ca50f7a8e2f3f657c1108d9d44cfd8");
+        const b2 = a1;
+        const POW_2_128 = BigInt("0x100000000000000000000000000000000");
+        const c1 = divNearest2(b2 * k, n);
+        const c2 = divNearest2(-b1 * k, n);
+        let k1 = mod2(k - c1 * a1 - c2 * a2, n);
+        let k2 = mod2(-c1 * b1 - c2 * b2, n);
+        const k1neg = k1 > POW_2_128;
+        const k2neg = k2 > POW_2_128;
+        if (k1neg)
+          k1 = n - k1;
+        if (k2neg)
+          k2 = n - k2;
+        if (k1 > POW_2_128 || k2 > POW_2_128) {
+          throw new Error("splitScalarEndo: Endomorphism failed, k=" + k);
+        }
+        return { k1neg, k1, k2neg, k2 };
+      }
+    };
+    var fieldLen = 32;
+    var groupLen = 32;
+    var hashLen = 32;
+    var compressedLen = fieldLen + 1;
+    var uncompressedLen = 2 * fieldLen + 1;
+    function weierstrass2(x) {
+      const { a, b } = CURVE;
+      const x2 = mod2(x * x);
+      const x3 = mod2(x2 * x);
+      return mod2(x3 + a * x + b);
+    }
+    var USE_ENDOMORPHISM = CURVE.a === _0n8;
+    var ShaError = class extends Error {
+      constructor(message) {
+        super(message);
+      }
+    };
+    function assertJacPoint(other) {
+      if (!(other instanceof JacobianPoint))
+        throw new TypeError("JacobianPoint expected");
+    }
+    var JacobianPoint = class _JacobianPoint {
+      constructor(x, y, z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+      }
+      static fromAffine(p) {
+        if (!(p instanceof Point2)) {
+          throw new TypeError("JacobianPoint#fromAffine: expected Point");
+        }
+        if (p.equals(Point2.ZERO))
+          return _JacobianPoint.ZERO;
+        return new _JacobianPoint(p.x, p.y, _1n7);
+      }
+      static toAffineBatch(points) {
+        const toInv = invertBatch(points.map((p) => p.z));
+        return points.map((p, i) => p.toAffine(toInv[i]));
+      }
+      static normalizeZ(points) {
+        return _JacobianPoint.toAffineBatch(points).map(_JacobianPoint.fromAffine);
+      }
+      equals(other) {
+        assertJacPoint(other);
+        const { x: X1, y: Y1, z: Z1 } = this;
+        const { x: X2, y: Y2, z: Z2 } = other;
+        const Z1Z1 = mod2(Z1 * Z1);
+        const Z2Z2 = mod2(Z2 * Z2);
+        const U1 = mod2(X1 * Z2Z2);
+        const U2 = mod2(X2 * Z1Z1);
+        const S1 = mod2(mod2(Y1 * Z2) * Z2Z2);
+        const S2 = mod2(mod2(Y2 * Z1) * Z1Z1);
+        return U1 === U2 && S1 === S2;
+      }
+      negate() {
+        return new _JacobianPoint(this.x, mod2(-this.y), this.z);
+      }
+      double() {
+        const { x: X1, y: Y1, z: Z1 } = this;
+        const A = mod2(X1 * X1);
+        const B = mod2(Y1 * Y1);
+        const C = mod2(B * B);
+        const x1b = X1 + B;
+        const D = mod2(_2n5 * (mod2(x1b * x1b) - A - C));
+        const E = mod2(_3n3 * A);
+        const F = mod2(E * E);
+        const X3 = mod2(F - _2n5 * D);
+        const Y3 = mod2(E * (D - X3) - _8n3 * C);
+        const Z3 = mod2(_2n5 * Y1 * Z1);
+        return new _JacobianPoint(X3, Y3, Z3);
+      }
+      add(other) {
+        assertJacPoint(other);
+        const { x: X1, y: Y1, z: Z1 } = this;
+        const { x: X2, y: Y2, z: Z2 } = other;
+        if (X2 === _0n8 || Y2 === _0n8)
+          return this;
+        if (X1 === _0n8 || Y1 === _0n8)
+          return other;
+        const Z1Z1 = mod2(Z1 * Z1);
+        const Z2Z2 = mod2(Z2 * Z2);
+        const U1 = mod2(X1 * Z2Z2);
+        const U2 = mod2(X2 * Z1Z1);
+        const S1 = mod2(mod2(Y1 * Z2) * Z2Z2);
+        const S2 = mod2(mod2(Y2 * Z1) * Z1Z1);
+        const H = mod2(U2 - U1);
+        const r = mod2(S2 - S1);
+        if (H === _0n8) {
+          if (r === _0n8) {
+            return this.double();
+          } else {
+            return _JacobianPoint.ZERO;
+          }
+        }
+        const HH = mod2(H * H);
+        const HHH = mod2(H * HH);
+        const V = mod2(U1 * HH);
+        const X3 = mod2(r * r - HHH - _2n5 * V);
+        const Y3 = mod2(r * (V - X3) - S1 * HHH);
+        const Z3 = mod2(Z1 * Z2 * H);
+        return new _JacobianPoint(X3, Y3, Z3);
+      }
+      subtract(other) {
+        return this.add(other.negate());
+      }
+      multiplyUnsafe(scalar) {
+        const P0 = _JacobianPoint.ZERO;
+        if (typeof scalar === "bigint" && scalar === _0n8)
+          return P0;
+        let n = normalizeScalar(scalar);
+        if (n === _1n7)
+          return this;
+        if (!USE_ENDOMORPHISM) {
+          let p = P0;
+          let d2 = this;
+          while (n > _0n8) {
+            if (n & _1n7)
+              p = p.add(d2);
+            d2 = d2.double();
+            n >>= _1n7;
+          }
+          return p;
+        }
+        let { k1neg, k1, k2neg, k2 } = endo.splitScalar(n);
+        let k1p = P0;
+        let k2p = P0;
+        let d = this;
+        while (k1 > _0n8 || k2 > _0n8) {
+          if (k1 & _1n7)
+            k1p = k1p.add(d);
+          if (k2 & _1n7)
+            k2p = k2p.add(d);
+          d = d.double();
+          k1 >>= _1n7;
+          k2 >>= _1n7;
+        }
+        if (k1neg)
+          k1p = k1p.negate();
+        if (k2neg)
+          k2p = k2p.negate();
+        k2p = new _JacobianPoint(mod2(k2p.x * endo.beta), k2p.y, k2p.z);
+        return k1p.add(k2p);
+      }
+      precomputeWindow(W2) {
+        const windows = USE_ENDOMORPHISM ? 128 / W2 + 1 : 256 / W2 + 1;
+        const points = [];
+        let p = this;
+        let base = p;
+        for (let window2 = 0; window2 < windows; window2++) {
+          base = p;
+          points.push(base);
+          for (let i = 1; i < 2 ** (W2 - 1); i++) {
+            base = base.add(p);
+            points.push(base);
+          }
+          p = base.double();
+        }
+        return points;
+      }
+      wNAF(n, affinePoint) {
+        if (!affinePoint && this.equals(_JacobianPoint.BASE))
+          affinePoint = Point2.BASE;
+        const W2 = affinePoint && affinePoint._WINDOW_SIZE || 1;
+        if (256 % W2) {
+          throw new Error("Point#wNAF: Invalid precomputation window, must be power of 2");
+        }
+        let precomputes = affinePoint && pointPrecomputes2.get(affinePoint);
+        if (!precomputes) {
+          precomputes = this.precomputeWindow(W2);
+          if (affinePoint && W2 !== 1) {
+            precomputes = _JacobianPoint.normalizeZ(precomputes);
+            pointPrecomputes2.set(affinePoint, precomputes);
+          }
+        }
+        let p = _JacobianPoint.ZERO;
+        let f = _JacobianPoint.BASE;
+        const windows = 1 + (USE_ENDOMORPHISM ? 128 / W2 : 256 / W2);
+        const windowSize = 2 ** (W2 - 1);
+        const mask = BigInt(2 ** W2 - 1);
+        const maxNumber = 2 ** W2;
+        const shiftBy = BigInt(W2);
+        for (let window2 = 0; window2 < windows; window2++) {
+          const offset = window2 * windowSize;
+          let wbits = Number(n & mask);
+          n >>= shiftBy;
+          if (wbits > windowSize) {
+            wbits -= maxNumber;
+            n += _1n7;
+          }
+          const offset1 = offset;
+          const offset2 = offset + Math.abs(wbits) - 1;
+          const cond1 = window2 % 2 !== 0;
+          const cond2 = wbits < 0;
+          if (wbits === 0) {
+            f = f.add(constTimeNegate(cond1, precomputes[offset1]));
+          } else {
+            p = p.add(constTimeNegate(cond2, precomputes[offset2]));
+          }
+        }
+        return { p, f };
+      }
+      multiply(scalar, affinePoint) {
+        let n = normalizeScalar(scalar);
+        let point;
+        let fake;
+        if (USE_ENDOMORPHISM) {
+          const { k1neg, k1, k2neg, k2 } = endo.splitScalar(n);
+          let { p: k1p, f: f1p } = this.wNAF(k1, affinePoint);
+          let { p: k2p, f: f2p } = this.wNAF(k2, affinePoint);
+          k1p = constTimeNegate(k1neg, k1p);
+          k2p = constTimeNegate(k2neg, k2p);
+          k2p = new _JacobianPoint(mod2(k2p.x * endo.beta), k2p.y, k2p.z);
+          point = k1p.add(k2p);
+          fake = f1p.add(f2p);
+        } else {
+          const { p, f } = this.wNAF(n, affinePoint);
+          point = p;
+          fake = f;
+        }
+        return _JacobianPoint.normalizeZ([point, fake])[0];
+      }
+      toAffine(invZ) {
+        const { x, y, z } = this;
+        const is0 = this.equals(_JacobianPoint.ZERO);
+        if (invZ == null)
+          invZ = is0 ? _8n3 : invert2(z);
+        const iz1 = invZ;
+        const iz2 = mod2(iz1 * iz1);
+        const iz3 = mod2(iz2 * iz1);
+        const ax = mod2(x * iz2);
+        const ay = mod2(y * iz3);
+        const zz = mod2(z * iz1);
+        if (is0)
+          return Point2.ZERO;
+        if (zz !== _1n7)
+          throw new Error("invZ was invalid");
+        return new Point2(ax, ay);
+      }
+    };
+    JacobianPoint.BASE = new JacobianPoint(CURVE.Gx, CURVE.Gy, _1n7);
+    JacobianPoint.ZERO = new JacobianPoint(_0n8, _1n7, _0n8);
+    function constTimeNegate(condition, item) {
+      const neg = item.negate();
+      return condition ? neg : item;
+    }
+    var pointPrecomputes2 = /* @__PURE__ */ new WeakMap();
+    var Point2 = class _Point {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+      }
+      _setWindowSize(windowSize) {
+        this._WINDOW_SIZE = windowSize;
+        pointPrecomputes2.delete(this);
+      }
+      hasEvenY() {
+        return this.y % _2n5 === _0n8;
+      }
+      static fromCompressedHex(bytes) {
+        const isShort = bytes.length === 32;
+        const x = bytesToNumber(isShort ? bytes : bytes.subarray(1));
+        if (!isValidFieldElement(x))
+          throw new Error("Point is not on curve");
+        const y2 = weierstrass2(x);
+        let y = sqrtMod2(y2);
+        const isYOdd = (y & _1n7) === _1n7;
+        if (isShort) {
+          if (isYOdd)
+            y = mod2(-y);
+        } else {
+          const isFirstByteOdd = (bytes[0] & 1) === 1;
+          if (isFirstByteOdd !== isYOdd)
+            y = mod2(-y);
+        }
+        const point = new _Point(x, y);
+        point.assertValidity();
+        return point;
+      }
+      static fromUncompressedHex(bytes) {
+        const x = bytesToNumber(bytes.subarray(1, fieldLen + 1));
+        const y = bytesToNumber(bytes.subarray(fieldLen + 1, fieldLen * 2 + 1));
+        const point = new _Point(x, y);
+        point.assertValidity();
+        return point;
+      }
+      static fromHex(hex4) {
+        const bytes = ensureBytes(hex4);
+        const len = bytes.length;
+        const header = bytes[0];
+        if (len === fieldLen)
+          return this.fromCompressedHex(bytes);
+        if (len === compressedLen && (header === 2 || header === 3)) {
+          return this.fromCompressedHex(bytes);
+        }
+        if (len === uncompressedLen && header === 4)
+          return this.fromUncompressedHex(bytes);
+        throw new Error(`Point.fromHex: received invalid point. Expected 32-${compressedLen} compressed bytes or ${uncompressedLen} uncompressed bytes, not ${len}`);
+      }
+      static fromPrivateKey(privateKey) {
+        return _Point.BASE.multiply(normalizePrivateKey(privateKey));
+      }
+      static fromSignature(msgHash, signature, recovery) {
+        const { r, s } = normalizeSignature(signature);
+        if (![0, 1, 2, 3].includes(recovery))
+          throw new Error("Cannot recover: invalid recovery bit");
+        const h = truncateHash(ensureBytes(msgHash));
+        const { n } = CURVE;
+        const radj = recovery === 2 || recovery === 3 ? r + n : r;
+        const rinv = invert2(radj, n);
+        const u1 = mod2(-h * rinv, n);
+        const u2 = mod2(s * rinv, n);
+        const prefix2 = recovery & 1 ? "03" : "02";
+        const R = _Point.fromHex(prefix2 + numTo32bStr(radj));
+        const Q = _Point.BASE.multiplyAndAddUnsafe(R, u1, u2);
+        if (!Q)
+          throw new Error("Cannot recover signature: point at infinify");
+        Q.assertValidity();
+        return Q;
+      }
+      toRawBytes(isCompressed = false) {
+        return hexToBytes3(this.toHex(isCompressed));
+      }
+      toHex(isCompressed = false) {
+        const x = numTo32bStr(this.x);
+        if (isCompressed) {
+          const prefix2 = this.hasEvenY() ? "02" : "03";
+          return `${prefix2}${x}`;
+        } else {
+          return `04${x}${numTo32bStr(this.y)}`;
+        }
+      }
+      toHexX() {
+        return this.toHex(true).slice(2);
+      }
+      toRawX() {
+        return this.toRawBytes(true).slice(1);
+      }
+      assertValidity() {
+        const msg = "Point is not on elliptic curve";
+        const { x, y } = this;
+        if (!isValidFieldElement(x) || !isValidFieldElement(y))
+          throw new Error(msg);
+        const left = mod2(y * y);
+        const right = weierstrass2(x);
+        if (mod2(left - right) !== _0n8)
+          throw new Error(msg);
+      }
+      equals(other) {
+        return this.x === other.x && this.y === other.y;
+      }
+      negate() {
+        return new _Point(this.x, mod2(-this.y));
+      }
+      double() {
+        return JacobianPoint.fromAffine(this).double().toAffine();
+      }
+      add(other) {
+        return JacobianPoint.fromAffine(this).add(JacobianPoint.fromAffine(other)).toAffine();
+      }
+      subtract(other) {
+        return this.add(other.negate());
+      }
+      multiply(scalar) {
+        return JacobianPoint.fromAffine(this).multiply(scalar, this).toAffine();
+      }
+      multiplyAndAddUnsafe(Q, a, b) {
+        const P = JacobianPoint.fromAffine(this);
+        const aP = a === _0n8 || a === _1n7 || this !== _Point.BASE ? P.multiplyUnsafe(a) : P.multiply(a);
+        const bQ = JacobianPoint.fromAffine(Q).multiplyUnsafe(b);
+        const sum = aP.add(bQ);
+        return sum.equals(JacobianPoint.ZERO) ? void 0 : sum.toAffine();
+      }
+    };
+    exports.Point = Point2;
+    Point2.BASE = new Point2(CURVE.Gx, CURVE.Gy);
+    Point2.ZERO = new Point2(_0n8, _0n8);
+    function sliceDER(s) {
+      return Number.parseInt(s[0], 16) >= 8 ? "00" + s : s;
+    }
+    function parseDERInt(data) {
+      if (data.length < 2 || data[0] !== 2) {
+        throw new Error(`Invalid signature integer tag: ${bytesToHex3(data)}`);
+      }
+      const len = data[1];
+      const res = data.subarray(2, len + 2);
+      if (!len || res.length !== len) {
+        throw new Error(`Invalid signature integer: wrong length`);
+      }
+      if (res[0] === 0 && res[1] <= 127) {
+        throw new Error("Invalid signature integer: trailing length");
+      }
+      return { data: bytesToNumber(res), left: data.subarray(len + 2) };
+    }
+    function parseDERSignature(data) {
+      if (data.length < 2 || data[0] != 48) {
+        throw new Error(`Invalid signature tag: ${bytesToHex3(data)}`);
+      }
+      if (data[1] !== data.length - 2) {
+        throw new Error("Invalid signature: incorrect length");
+      }
+      const { data: r, left: sBytes } = parseDERInt(data.subarray(2));
+      const { data: s, left: rBytesLeft } = parseDERInt(sBytes);
+      if (rBytesLeft.length) {
+        throw new Error(`Invalid signature: left bytes after parsing: ${bytesToHex3(rBytesLeft)}`);
+      }
+      return { r, s };
+    }
+    var Signature = class _Signature {
+      constructor(r, s) {
+        this.r = r;
+        this.s = s;
+        this.assertValidity();
+      }
+      static fromCompact(hex4) {
+        const arr = isBytes8(hex4);
+        const name = "Signature.fromCompact";
+        if (typeof hex4 !== "string" && !arr)
+          throw new TypeError(`${name}: Expected string or Uint8Array`);
+        const str = arr ? bytesToHex3(hex4) : hex4;
+        if (str.length !== 128)
+          throw new Error(`${name}: Expected 64-byte hex`);
+        return new _Signature(hexToNumber2(str.slice(0, 64)), hexToNumber2(str.slice(64, 128)));
+      }
+      static fromDER(hex4) {
+        const arr = isBytes8(hex4);
+        if (typeof hex4 !== "string" && !arr)
+          throw new TypeError(`Signature.fromDER: Expected string or Uint8Array`);
+        const { r, s } = parseDERSignature(arr ? hex4 : hexToBytes3(hex4));
+        return new _Signature(r, s);
+      }
+      static fromHex(hex4) {
+        return this.fromDER(hex4);
+      }
+      assertValidity() {
+        const { r, s } = this;
+        if (!isWithinCurveOrder(r))
+          throw new Error("Invalid Signature: r must be 0 < r < n");
+        if (!isWithinCurveOrder(s))
+          throw new Error("Invalid Signature: s must be 0 < s < n");
+      }
+      hasHighS() {
+        const HALF = CURVE.n >> _1n7;
+        return this.s > HALF;
+      }
+      normalizeS() {
+        return this.hasHighS() ? new _Signature(this.r, mod2(-this.s, CURVE.n)) : this;
+      }
+      toDERRawBytes() {
+        return hexToBytes3(this.toDERHex());
+      }
+      toDERHex() {
+        const sHex = sliceDER(numberToHexUnpadded2(this.s));
+        const rHex = sliceDER(numberToHexUnpadded2(this.r));
+        const sHexL = sHex.length / 2;
+        const rHexL = rHex.length / 2;
+        const sLen = numberToHexUnpadded2(sHexL);
+        const rLen = numberToHexUnpadded2(rHexL);
+        const length2 = numberToHexUnpadded2(rHexL + sHexL + 4);
+        return `30${length2}02${rLen}${rHex}02${sLen}${sHex}`;
+      }
+      toRawBytes() {
+        return this.toDERRawBytes();
+      }
+      toHex() {
+        return this.toDERHex();
+      }
+      toCompactRawBytes() {
+        return hexToBytes3(this.toCompactHex());
+      }
+      toCompactHex() {
+        return numTo32bStr(this.r) + numTo32bStr(this.s);
+      }
+    };
+    exports.Signature = Signature;
+    function isBytes8(a) {
+      return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
+    }
+    function abytes6(item) {
+      if (!isBytes8(item))
+        throw new Error("Uint8Array expected");
+    }
+    function concatBytes5(...arrays) {
+      arrays.every(abytes6);
+      if (arrays.length === 1)
+        return arrays[0];
+      const length2 = arrays.reduce((a, arr) => a + arr.length, 0);
+      const result = new Uint8Array(length2);
+      for (let i = 0, pad = 0; i < arrays.length; i++) {
+        const arr = arrays[i];
+        result.set(arr, pad);
+        pad += arr.length;
+      }
+      return result;
+    }
+    var hexes2 = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
+    function bytesToHex3(bytes) {
+      abytes6(bytes);
+      let hex4 = "";
+      for (let i = 0; i < bytes.length; i++) {
+        hex4 += hexes2[bytes[i]];
+      }
+      return hex4;
+    }
+    exports.bytesToHex = bytesToHex3;
+    var asciis2 = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 };
+    function asciiToBase162(ch2) {
+      if (ch2 >= asciis2._0 && ch2 <= asciis2._9)
+        return ch2 - asciis2._0;
+      if (ch2 >= asciis2.A && ch2 <= asciis2.F)
+        return ch2 - (asciis2.A - 10);
+      if (ch2 >= asciis2.a && ch2 <= asciis2.f)
+        return ch2 - (asciis2.a - 10);
+      return;
+    }
+    function hexToBytes3(hex4) {
+      if (typeof hex4 !== "string")
+        throw new Error("hex string expected, got " + typeof hex4);
+      const hl = hex4.length;
+      const al = hl / 2;
+      if (hl % 2)
+        throw new Error("hex string expected, got unpadded hex of length " + hl);
+      const array3 = new Uint8Array(al);
+      for (let ai = 0, hi = 0; ai < al; ai++, hi += 2) {
+        const n1 = asciiToBase162(hex4.charCodeAt(hi));
+        const n2 = asciiToBase162(hex4.charCodeAt(hi + 1));
+        if (n1 === void 0 || n2 === void 0) {
+          const char = hex4[hi] + hex4[hi + 1];
+          throw new Error('hex string expected, got non-hex character "' + char + '" at index ' + hi);
+        }
+        array3[ai] = n1 * 16 + n2;
+      }
+      return array3;
+    }
+    exports.hexToBytes = hexToBytes3;
+    var POW_2_256 = BigInt("0x10000000000000000000000000000000000000000000000000000000000000000");
+    function numTo32bStr(num2) {
+      if (typeof num2 !== "bigint")
+        throw new Error("Expected bigint");
+      if (!(_0n8 <= num2 && num2 < POW_2_256))
+        throw new Error("Expected number 0 <= n < 2^256");
+      return num2.toString(16).padStart(64, "0");
+    }
+    function numTo32b(num2) {
+      const b = hexToBytes3(numTo32bStr(num2));
+      if (b.length !== 32)
+        throw new Error("Error: expected 32 bytes");
+      return b;
+    }
+    function numberToHexUnpadded2(num2) {
+      const hex4 = num2.toString(16);
+      return hex4.length & 1 ? `0${hex4}` : hex4;
+    }
+    function hexToNumber2(hex4) {
+      if (typeof hex4 !== "string") {
+        throw new TypeError("hexToNumber: expected string, got " + typeof hex4);
+      }
+      return BigInt(`0x${hex4}`);
+    }
+    function bytesToNumber(bytes) {
+      return hexToNumber2(bytesToHex3(bytes));
+    }
+    function ensureBytes(hex4) {
+      return isBytes8(hex4) ? Uint8Array.from(hex4) : hexToBytes3(hex4);
+    }
+    function normalizeScalar(num2) {
+      if (typeof num2 === "number" && Number.isSafeInteger(num2) && num2 > 0)
+        return BigInt(num2);
+      if (typeof num2 === "bigint" && isWithinCurveOrder(num2))
+        return num2;
+      throw new TypeError("Expected valid private scalar: 0 < scalar < curve.n");
+    }
+    function mod2(a, b = CURVE.P) {
+      const result = a % b;
+      return result >= _0n8 ? result : b + result;
+    }
+    function pow22(x, power) {
+      const { P } = CURVE;
+      let res = x;
+      while (power-- > _0n8) {
+        res *= res;
+        res %= P;
+      }
+      return res;
+    }
+    function sqrtMod2(x) {
+      const { P } = CURVE;
+      const _6n = BigInt(6);
+      const _11n = BigInt(11);
+      const _22n = BigInt(22);
+      const _23n = BigInt(23);
+      const _44n = BigInt(44);
+      const _88n = BigInt(88);
+      const b2 = x * x * x % P;
+      const b3 = b2 * b2 * x % P;
+      const b6 = pow22(b3, _3n3) * b3 % P;
+      const b9 = pow22(b6, _3n3) * b3 % P;
+      const b11 = pow22(b9, _2n5) * b2 % P;
+      const b22 = pow22(b11, _11n) * b11 % P;
+      const b44 = pow22(b22, _22n) * b22 % P;
+      const b88 = pow22(b44, _44n) * b44 % P;
+      const b176 = pow22(b88, _88n) * b88 % P;
+      const b220 = pow22(b176, _44n) * b44 % P;
+      const b223 = pow22(b220, _3n3) * b3 % P;
+      const t1 = pow22(b223, _23n) * b22 % P;
+      const t2 = pow22(t1, _6n) * b2 % P;
+      const rt = pow22(t2, _2n5);
+      const xc = rt * rt % P;
+      if (xc !== x)
+        throw new Error("Cannot find square root");
+      return rt;
+    }
+    function invert2(number2, modulo = CURVE.P) {
+      if (number2 === _0n8 || modulo <= _0n8) {
+        throw new Error(`invert: expected positive integers, got n=${number2} mod=${modulo}`);
+      }
+      let a = mod2(number2, modulo);
+      let b = modulo;
+      let x = _0n8, y = _1n7, u = _1n7, v = _0n8;
+      while (a !== _0n8) {
+        const q = b / a;
+        const r = b % a;
+        const m = x - u * q;
+        const n = y - v * q;
+        b = a, a = r, x = u, y = v, u = m, v = n;
+      }
+      const gcd3 = b;
+      if (gcd3 !== _1n7)
+        throw new Error("invert: does not exist");
+      return mod2(x, modulo);
+    }
+    function invertBatch(nums, p = CURVE.P) {
+      const scratch = new Array(nums.length);
+      const lastMultiplied = nums.reduce((acc, num2, i) => {
+        if (num2 === _0n8)
+          return acc;
+        scratch[i] = acc;
+        return mod2(acc * num2, p);
+      }, _1n7);
+      const inverted = invert2(lastMultiplied, p);
+      nums.reduceRight((acc, num2, i) => {
+        if (num2 === _0n8)
+          return acc;
+        scratch[i] = mod2(acc * scratch[i], p);
+        return mod2(acc * num2, p);
+      }, inverted);
+      return scratch;
+    }
+    function bits2int_2(bytes) {
+      const delta = bytes.length * 8 - groupLen * 8;
+      const num2 = bytesToNumber(bytes);
+      return delta > 0 ? num2 >> BigInt(delta) : num2;
+    }
+    function truncateHash(hash, truncateOnly = false) {
+      const h = bits2int_2(hash);
+      if (truncateOnly)
+        return h;
+      const { n } = CURVE;
+      return h >= n ? h - n : h;
+    }
+    var _sha256Sync;
+    var _hmacSha256Sync;
+    var HmacDrbg = class {
+      constructor(hashLen2, qByteLen) {
+        this.hashLen = hashLen2;
+        this.qByteLen = qByteLen;
+        if (typeof hashLen2 !== "number" || hashLen2 < 2)
+          throw new Error("hashLen must be a number");
+        if (typeof qByteLen !== "number" || qByteLen < 2)
+          throw new Error("qByteLen must be a number");
+        this.v = new Uint8Array(hashLen2).fill(1);
+        this.k = new Uint8Array(hashLen2).fill(0);
+        this.counter = 0;
+      }
+      hmac(...values) {
+        return exports.utils.hmacSha256(this.k, ...values);
+      }
+      hmacSync(...values) {
+        return _hmacSha256Sync(this.k, ...values);
+      }
+      checkSync() {
+        if (typeof _hmacSha256Sync !== "function")
+          throw new ShaError("hmacSha256Sync needs to be set");
+      }
+      incr() {
+        if (this.counter >= 1e3)
+          throw new Error("Tried 1,000 k values for sign(), all were invalid");
+        this.counter += 1;
+      }
+      async reseed(seed = new Uint8Array()) {
+        this.k = await this.hmac(this.v, Uint8Array.from([0]), seed);
+        this.v = await this.hmac(this.v);
+        if (seed.length === 0)
+          return;
+        this.k = await this.hmac(this.v, Uint8Array.from([1]), seed);
+        this.v = await this.hmac(this.v);
+      }
+      reseedSync(seed = new Uint8Array()) {
+        this.checkSync();
+        this.k = this.hmacSync(this.v, Uint8Array.from([0]), seed);
+        this.v = this.hmacSync(this.v);
+        if (seed.length === 0)
+          return;
+        this.k = this.hmacSync(this.v, Uint8Array.from([1]), seed);
+        this.v = this.hmacSync(this.v);
+      }
+      async generate() {
+        this.incr();
+        let len = 0;
+        const out = [];
+        while (len < this.qByteLen) {
+          this.v = await this.hmac(this.v);
+          const sl = this.v.slice();
+          out.push(sl);
+          len += this.v.length;
+        }
+        return concatBytes5(...out);
+      }
+      generateSync() {
+        this.checkSync();
+        this.incr();
+        let len = 0;
+        const out = [];
+        while (len < this.qByteLen) {
+          this.v = this.hmacSync(this.v);
+          const sl = this.v.slice();
+          out.push(sl);
+          len += this.v.length;
+        }
+        return concatBytes5(...out);
+      }
+    };
+    function isWithinCurveOrder(num2) {
+      return _0n8 < num2 && num2 < CURVE.n;
+    }
+    function isValidFieldElement(num2) {
+      return _0n8 < num2 && num2 < CURVE.P;
+    }
+    function kmdToSig(kBytes, m, d, lowS = true) {
+      const { n } = CURVE;
+      const k = truncateHash(kBytes, true);
+      if (!isWithinCurveOrder(k))
+        return;
+      const kinv = invert2(k, n);
+      const q = Point2.BASE.multiply(k);
+      const r = mod2(q.x, n);
+      if (r === _0n8)
+        return;
+      const s = mod2(kinv * mod2(m + d * r, n), n);
+      if (s === _0n8)
+        return;
+      let sig = new Signature(r, s);
+      let recovery = (q.x === sig.r ? 0 : 2) | Number(q.y & _1n7);
+      if (lowS && sig.hasHighS()) {
+        sig = sig.normalizeS();
+        recovery ^= 1;
+      }
+      return { sig, recovery };
+    }
+    function normalizePrivateKey(key) {
+      let num2;
+      if (typeof key === "bigint") {
+        num2 = key;
+      } else if (typeof key === "number" && Number.isSafeInteger(key) && key > 0) {
+        num2 = BigInt(key);
+      } else if (typeof key === "string") {
+        if (key.length !== 2 * groupLen)
+          throw new Error("Expected 32 bytes of private key");
+        num2 = hexToNumber2(key);
+      } else if (isBytes8(key)) {
+        if (key.length !== groupLen)
+          throw new Error("Expected 32 bytes of private key");
+        num2 = bytesToNumber(key);
+      } else {
+        throw new TypeError("Expected valid private key");
+      }
+      if (!isWithinCurveOrder(num2))
+        throw new Error("Expected private key: 0 < key < n");
+      return num2;
+    }
+    function normalizePublicKey(publicKey) {
+      if (publicKey instanceof Point2) {
+        publicKey.assertValidity();
+        return publicKey;
+      } else {
+        return Point2.fromHex(publicKey);
+      }
+    }
+    function normalizeSignature(signature) {
+      if (signature instanceof Signature) {
+        signature.assertValidity();
+        return signature;
+      }
+      try {
+        return Signature.fromDER(signature);
+      } catch (error) {
+        return Signature.fromCompact(signature);
+      }
+    }
+    function getPublicKey(privateKey, isCompressed = false) {
+      return Point2.fromPrivateKey(privateKey).toRawBytes(isCompressed);
+    }
+    exports.getPublicKey = getPublicKey;
+    function recoverPublicKey(msgHash, signature, recovery, isCompressed = false) {
+      return Point2.fromSignature(msgHash, signature, recovery).toRawBytes(isCompressed);
+    }
+    exports.recoverPublicKey = recoverPublicKey;
+    function isProbPub(item) {
+      const arr = isBytes8(item);
+      const str = typeof item === "string";
+      const len = (arr || str) && item.length;
+      if (arr)
+        return len === compressedLen || len === uncompressedLen;
+      if (str)
+        return len === compressedLen * 2 || len === uncompressedLen * 2;
+      if (item instanceof Point2)
+        return true;
+      return false;
+    }
+    function getSharedSecret(privateA, publicB, isCompressed = false) {
+      if (isProbPub(privateA))
+        throw new TypeError("getSharedSecret: first arg must be private key");
+      if (!isProbPub(publicB))
+        throw new TypeError("getSharedSecret: second arg must be public key");
+      const b = normalizePublicKey(publicB);
+      b.assertValidity();
+      return b.multiply(normalizePrivateKey(privateA)).toRawBytes(isCompressed);
+    }
+    exports.getSharedSecret = getSharedSecret;
+    function bits2int(bytes) {
+      const slice = bytes.length > fieldLen ? bytes.slice(0, fieldLen) : bytes;
+      return bytesToNumber(slice);
+    }
+    function bits2octets(bytes) {
+      const z1 = bits2int(bytes);
+      const z2 = mod2(z1, CURVE.n);
+      return int2octets(z2 < _0n8 ? z1 : z2);
+    }
+    function int2octets(num2) {
+      return numTo32b(num2);
+    }
+    function initSigArgs(msgHash, privateKey, extraEntropy) {
+      if (msgHash == null)
+        throw new Error(`sign: expected valid message hash, not "${msgHash}"`);
+      const h1 = ensureBytes(msgHash);
+      const d = normalizePrivateKey(privateKey);
+      const seedArgs = [int2octets(d), bits2octets(h1)];
+      if (extraEntropy != null) {
+        if (extraEntropy === true)
+          extraEntropy = exports.utils.randomBytes(fieldLen);
+        const e = ensureBytes(extraEntropy);
+        if (e.length !== fieldLen)
+          throw new Error(`sign: Expected ${fieldLen} bytes of extra data`);
+        seedArgs.push(e);
+      }
+      const seed = concatBytes5(...seedArgs);
+      const m = bits2int(h1);
+      return { seed, m, d };
+    }
+    function finalizeSig(recSig, opts) {
+      const { sig, recovery } = recSig;
+      const { der, recovered } = Object.assign({ canonical: true, der: true }, opts);
+      const hashed = der ? sig.toDERRawBytes() : sig.toCompactRawBytes();
+      return recovered ? [hashed, recovery] : hashed;
+    }
+    async function sign(msgHash, privKey, opts = {}) {
+      const { seed, m, d } = initSigArgs(msgHash, privKey, opts.extraEntropy);
+      const drbg = new HmacDrbg(hashLen, groupLen);
+      await drbg.reseed(seed);
+      let sig;
+      while (!(sig = kmdToSig(await drbg.generate(), m, d, opts.canonical)))
+        await drbg.reseed();
+      return finalizeSig(sig, opts);
+    }
+    exports.sign = sign;
+    function signSync(msgHash, privKey, opts = {}) {
+      const { seed, m, d } = initSigArgs(msgHash, privKey, opts.extraEntropy);
+      const drbg = new HmacDrbg(hashLen, groupLen);
+      drbg.reseedSync(seed);
+      let sig;
+      while (!(sig = kmdToSig(drbg.generateSync(), m, d, opts.canonical)))
+        drbg.reseedSync();
+      return finalizeSig(sig, opts);
+    }
+    exports.signSync = signSync;
+    var vopts = { strict: true };
+    function verify(signature, msgHash, publicKey, opts = vopts) {
+      let sig;
+      try {
+        sig = normalizeSignature(signature);
+        msgHash = ensureBytes(msgHash);
+      } catch (error) {
+        return false;
+      }
+      const { r, s } = sig;
+      if (opts.strict && sig.hasHighS())
+        return false;
+      const h = truncateHash(msgHash);
+      let P;
+      try {
+        P = normalizePublicKey(publicKey);
+      } catch (error) {
+        return false;
+      }
+      const { n } = CURVE;
+      const sinv = invert2(s, n);
+      const u1 = mod2(h * sinv, n);
+      const u2 = mod2(r * sinv, n);
+      const R = Point2.BASE.multiplyAndAddUnsafe(P, u1, u2);
+      if (!R)
+        return false;
+      const v = mod2(R.x, n);
+      return v === r;
+    }
+    exports.verify = verify;
+    function schnorrChallengeFinalize(ch2) {
+      return mod2(bytesToNumber(ch2), CURVE.n);
+    }
+    var SchnorrSignature = class _SchnorrSignature {
+      constructor(r, s) {
+        this.r = r;
+        this.s = s;
+        this.assertValidity();
+      }
+      static fromHex(hex4) {
+        const bytes = ensureBytes(hex4);
+        if (bytes.length !== 64)
+          throw new TypeError(`SchnorrSignature.fromHex: expected 64 bytes, not ${bytes.length}`);
+        const r = bytesToNumber(bytes.subarray(0, 32));
+        const s = bytesToNumber(bytes.subarray(32, 64));
+        return new _SchnorrSignature(r, s);
+      }
+      assertValidity() {
+        const { r, s } = this;
+        if (!isValidFieldElement(r) || !isWithinCurveOrder(s))
+          throw new Error("Invalid signature");
+      }
+      toHex() {
+        return numTo32bStr(this.r) + numTo32bStr(this.s);
+      }
+      toRawBytes() {
+        return hexToBytes3(this.toHex());
+      }
+    };
+    function schnorrGetPublicKey2(privateKey) {
+      return Point2.fromPrivateKey(privateKey).toRawX();
+    }
+    var InternalSchnorrSignature = class {
+      constructor(message, privateKey, auxRand = exports.utils.randomBytes()) {
+        if (message == null)
+          throw new TypeError(`sign: Expected valid message, not "${message}"`);
+        this.m = ensureBytes(message);
+        const { x, scalar } = this.getScalar(normalizePrivateKey(privateKey));
+        this.px = x;
+        this.d = scalar;
+        this.rand = ensureBytes(auxRand);
+        if (this.rand.length !== 32)
+          throw new TypeError("sign: Expected 32 bytes of aux randomness");
+      }
+      getScalar(priv) {
+        const point = Point2.fromPrivateKey(priv);
+        const scalar = point.hasEvenY() ? priv : CURVE.n - priv;
+        return { point, scalar, x: point.toRawX() };
+      }
+      initNonce(d, t0h) {
+        return numTo32b(d ^ bytesToNumber(t0h));
+      }
+      finalizeNonce(k0h) {
+        const k0 = mod2(bytesToNumber(k0h), CURVE.n);
+        if (k0 === _0n8)
+          throw new Error("sign: Creation of signature failed. k is zero");
+        const { point: R, x: rx, scalar: k } = this.getScalar(k0);
+        return { R, rx, k };
+      }
+      finalizeSig(R, k, e, d) {
+        return new SchnorrSignature(R.x, mod2(k + e * d, CURVE.n)).toRawBytes();
+      }
+      error() {
+        throw new Error("sign: Invalid signature produced");
+      }
+      async calc() {
+        const { m, d, px, rand } = this;
+        const tag2 = exports.utils.taggedHash;
+        const t = this.initNonce(d, await tag2(TAGS.aux, rand));
+        const { R, rx, k } = this.finalizeNonce(await tag2(TAGS.nonce, t, px, m));
+        const e = schnorrChallengeFinalize(await tag2(TAGS.challenge, rx, px, m));
+        const sig = this.finalizeSig(R, k, e, d);
+        if (!await schnorrVerify2(sig, m, px))
+          this.error();
+        return sig;
+      }
+      calcSync() {
+        const { m, d, px, rand } = this;
+        const tag2 = exports.utils.taggedHashSync;
+        const t = this.initNonce(d, tag2(TAGS.aux, rand));
+        const { R, rx, k } = this.finalizeNonce(tag2(TAGS.nonce, t, px, m));
+        const e = schnorrChallengeFinalize(tag2(TAGS.challenge, rx, px, m));
+        const sig = this.finalizeSig(R, k, e, d);
+        if (!schnorrVerifySync(sig, m, px))
+          this.error();
+        return sig;
+      }
+    };
+    async function schnorrSign2(msg, privKey, auxRand) {
+      return new InternalSchnorrSignature(msg, privKey, auxRand).calc();
+    }
+    function schnorrSignSync(msg, privKey, auxRand) {
+      return new InternalSchnorrSignature(msg, privKey, auxRand).calcSync();
+    }
+    function initSchnorrVerify(signature, message, publicKey) {
+      const raw = signature instanceof SchnorrSignature;
+      const sig = raw ? signature : SchnorrSignature.fromHex(signature);
+      if (raw)
+        sig.assertValidity();
+      return {
+        ...sig,
+        m: ensureBytes(message),
+        P: normalizePublicKey(publicKey)
+      };
+    }
+    function finalizeSchnorrVerify(r, P, s, e) {
+      const R = Point2.BASE.multiplyAndAddUnsafe(P, normalizePrivateKey(s), mod2(-e, CURVE.n));
+      if (!R || !R.hasEvenY() || R.x !== r)
+        return false;
+      return true;
+    }
+    async function schnorrVerify2(signature, message, publicKey) {
+      try {
+        const { r, s, m, P } = initSchnorrVerify(signature, message, publicKey);
+        const e = schnorrChallengeFinalize(await exports.utils.taggedHash(TAGS.challenge, numTo32b(r), P.toRawX(), m));
+        return finalizeSchnorrVerify(r, P, s, e);
+      } catch (error) {
+        return false;
+      }
+    }
+    function schnorrVerifySync(signature, message, publicKey) {
+      try {
+        const { r, s, m, P } = initSchnorrVerify(signature, message, publicKey);
+        const e = schnorrChallengeFinalize(exports.utils.taggedHashSync(TAGS.challenge, numTo32b(r), P.toRawX(), m));
+        return finalizeSchnorrVerify(r, P, s, e);
+      } catch (error) {
+        if (error instanceof ShaError)
+          throw error;
+        return false;
+      }
+    }
+    exports.schnorr = {
+      Signature: SchnorrSignature,
+      getPublicKey: schnorrGetPublicKey2,
+      sign: schnorrSign2,
+      verify: schnorrVerify2,
+      signSync: schnorrSignSync,
+      verifySync: schnorrVerifySync
+    };
+    Point2.BASE._setWindowSize(8);
+    var crypto2 = {
+      node: nodeCrypto,
+      web: typeof self === "object" && "crypto" in self ? self.crypto : void 0
+    };
+    var TAGS = {
+      challenge: "BIP0340/challenge",
+      aux: "BIP0340/aux",
+      nonce: "BIP0340/nonce"
+    };
+    var TAGGED_HASH_PREFIXES2 = {};
+    exports.utils = {
+      bytesToHex: bytesToHex3,
+      hexToBytes: hexToBytes3,
+      concatBytes: concatBytes5,
+      mod: mod2,
+      invert: invert2,
+      isValidPrivateKey(privateKey) {
+        try {
+          normalizePrivateKey(privateKey);
+          return true;
+        } catch (error) {
+          return false;
+        }
+      },
+      _bigintTo32Bytes: numTo32b,
+      _normalizePrivateKey: normalizePrivateKey,
+      hashToPrivateKey: (hash) => {
+        hash = ensureBytes(hash);
+        const minLen = groupLen + 8;
+        if (hash.length < minLen || hash.length > 1024) {
+          throw new Error(`Expected valid bytes of private key as per FIPS 186`);
+        }
+        const num2 = mod2(bytesToNumber(hash), CURVE.n - _1n7) + _1n7;
+        return numTo32b(num2);
+      },
+      randomBytes: (bytesLength = 32) => {
+        if (crypto2.web) {
+          return crypto2.web.getRandomValues(new Uint8Array(bytesLength));
+        } else if (crypto2.node) {
+          const { randomBytes: randomBytes3 } = crypto2.node;
+          return Uint8Array.from(randomBytes3(bytesLength));
+        } else {
+          throw new Error("The environment doesn't have randomBytes function");
+        }
+      },
+      randomPrivateKey: () => exports.utils.hashToPrivateKey(exports.utils.randomBytes(groupLen + 8)),
+      precompute(windowSize = 8, point = Point2.BASE) {
+        const cached = point === Point2.BASE ? point : new Point2(point.x, point.y);
+        cached._setWindowSize(windowSize);
+        cached.multiply(_3n3);
+        return cached;
+      },
+      sha256: async (...messages) => {
+        if (crypto2.web) {
+          const buffer = await crypto2.web.subtle.digest("SHA-256", concatBytes5(...messages));
+          return new Uint8Array(buffer);
+        } else if (crypto2.node) {
+          const { createHash: createHash2 } = crypto2.node;
+          const hash = createHash2("sha256");
+          messages.forEach((m) => hash.update(m));
+          return Uint8Array.from(hash.digest());
+        } else {
+          throw new Error("The environment doesn't have sha256 function");
+        }
+      },
+      hmacSha256: async (key, ...messages) => {
+        if (crypto2.web) {
+          const ckey = await crypto2.web.subtle.importKey("raw", key, { name: "HMAC", hash: { name: "SHA-256" } }, false, ["sign"]);
+          const message = concatBytes5(...messages);
+          const buffer = await crypto2.web.subtle.sign("HMAC", ckey, message);
+          return new Uint8Array(buffer);
+        } else if (crypto2.node) {
+          const { createHmac } = crypto2.node;
+          const hash = createHmac("sha256", key);
+          messages.forEach((m) => hash.update(m));
+          return Uint8Array.from(hash.digest());
+        } else {
+          throw new Error("The environment doesn't have hmac-sha256 function");
+        }
+      },
+      sha256Sync: void 0,
+      hmacSha256Sync: void 0,
+      taggedHash: async (tag2, ...messages) => {
+        let tagP = TAGGED_HASH_PREFIXES2[tag2];
+        if (tagP === void 0) {
+          const tagH = await exports.utils.sha256(Uint8Array.from(tag2, (c) => c.charCodeAt(0)));
+          tagP = concatBytes5(tagH, tagH);
+          TAGGED_HASH_PREFIXES2[tag2] = tagP;
+        }
+        return exports.utils.sha256(tagP, ...messages);
+      },
+      taggedHashSync: (tag2, ...messages) => {
+        if (typeof _sha256Sync !== "function")
+          throw new ShaError("sha256Sync is undefined, you need to set it");
+        let tagP = TAGGED_HASH_PREFIXES2[tag2];
+        if (tagP === void 0) {
+          const tagH = _sha256Sync(Uint8Array.from(tag2, (c) => c.charCodeAt(0)));
+          tagP = concatBytes5(tagH, tagH);
+          TAGGED_HASH_PREFIXES2[tag2] = tagP;
+        }
+        return _sha256Sync(tagP, ...messages);
+      },
+      _JacobianPoint: JacobianPoint
+    };
+    Object.defineProperties(exports.utils, {
+      sha256Sync: {
+        configurable: false,
+        get() {
+          return _sha256Sync;
+        },
+        set(val) {
+          if (!_sha256Sync)
+            _sha256Sync = val;
+        }
+      },
+      hmacSha256Sync: {
+        configurable: false,
+        get() {
+          return _hmacSha256Sync;
+        },
+        set(val) {
+          if (!_hmacSha256Sync)
+            _hmacSha256Sync = val;
+        }
+      }
+    });
+  }
+});
+
+// node_modules/jsontokens/lib/ecdsaSigFormatter.js
+var require_ecdsaSigFormatter = __commonJS({
+  "node_modules/jsontokens/lib/ecdsaSigFormatter.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.joseToDer = exports.derToJose = void 0;
+    var base64_js_1 = require_base64_js();
+    var base64Url_1 = require_base64Url();
+    function getParamSize(keySize) {
+      return (keySize / 8 | 0) + (keySize % 8 === 0 ? 0 : 1);
+    }
+    var paramBytesForAlg = {
+      ES256: getParamSize(256),
+      ES384: getParamSize(384),
+      ES512: getParamSize(521)
+    };
+    function getParamBytesForAlg(alg) {
+      const paramBytes = paramBytesForAlg[alg];
+      if (paramBytes) {
+        return paramBytes;
+      }
+      throw new Error(`Unknown algorithm "${alg}"`);
+    }
+    var MAX_OCTET = 128;
+    var CLASS_UNIVERSAL = 0;
+    var PRIMITIVE_BIT = 32;
+    var TAG_SEQ = 16;
+    var TAG_INT = 2;
+    var ENCODED_TAG_SEQ = TAG_SEQ | PRIMITIVE_BIT | CLASS_UNIVERSAL << 6;
+    var ENCODED_TAG_INT = TAG_INT | CLASS_UNIVERSAL << 6;
+    function signatureAsBytes(signature) {
+      if (signature instanceof Uint8Array) {
+        return signature;
+      } else if ("string" === typeof signature) {
+        return (0, base64_js_1.toByteArray)((0, base64Url_1.pad)(signature));
+      }
+      throw new TypeError("ECDSA signature must be a Base64 string or a Uint8Array");
+    }
+    function derToJose(signature, alg) {
+      const signatureBytes = signatureAsBytes(signature);
+      const paramBytes = getParamBytesForAlg(alg);
+      const maxEncodedParamLength = paramBytes + 1;
+      const inputLength = signatureBytes.length;
+      let offset = 0;
+      if (signatureBytes[offset++] !== ENCODED_TAG_SEQ) {
+        throw new Error('Could not find expected "seq"');
+      }
+      let seqLength = signatureBytes[offset++];
+      if (seqLength === (MAX_OCTET | 1)) {
+        seqLength = signatureBytes[offset++];
+      }
+      if (inputLength - offset < seqLength) {
+        throw new Error(`"seq" specified length of "${seqLength}", only "${inputLength - offset}" remaining`);
+      }
+      if (signatureBytes[offset++] !== ENCODED_TAG_INT) {
+        throw new Error('Could not find expected "int" for "r"');
+      }
+      const rLength = signatureBytes[offset++];
+      if (inputLength - offset - 2 < rLength) {
+        throw new Error(`"r" specified length of "${rLength}", only "${inputLength - offset - 2}" available`);
+      }
+      if (maxEncodedParamLength < rLength) {
+        throw new Error(`"r" specified length of "${rLength}", max of "${maxEncodedParamLength}" is acceptable`);
+      }
+      const rOffset = offset;
+      offset += rLength;
+      if (signatureBytes[offset++] !== ENCODED_TAG_INT) {
+        throw new Error('Could not find expected "int" for "s"');
+      }
+      const sLength = signatureBytes[offset++];
+      if (inputLength - offset !== sLength) {
+        throw new Error(`"s" specified length of "${sLength}", expected "${inputLength - offset}"`);
+      }
+      if (maxEncodedParamLength < sLength) {
+        throw new Error(`"s" specified length of "${sLength}", max of "${maxEncodedParamLength}" is acceptable`);
+      }
+      const sOffset = offset;
+      offset += sLength;
+      if (offset !== inputLength) {
+        throw new Error(`Expected to consume entire array, but "${inputLength - offset}" bytes remain`);
+      }
+      const rPadding = paramBytes - rLength;
+      const sPadding = paramBytes - sLength;
+      const dst = new Uint8Array(rPadding + rLength + sPadding + sLength);
+      for (offset = 0; offset < rPadding; ++offset) {
+        dst[offset] = 0;
+      }
+      dst.set(signatureBytes.subarray(rOffset + Math.max(-rPadding, 0), rOffset + rLength), offset);
+      offset = paramBytes;
+      for (const o = offset; offset < o + sPadding; ++offset) {
+        dst[offset] = 0;
+      }
+      dst.set(signatureBytes.subarray(sOffset + Math.max(-sPadding, 0), sOffset + sLength), offset);
+      return (0, base64Url_1.escape)((0, base64_js_1.fromByteArray)(dst));
+    }
+    exports.derToJose = derToJose;
+    function countPadding(buf, start, stop) {
+      let padding = 0;
+      while (start + padding < stop && buf[start + padding] === 0) {
+        ++padding;
+      }
+      const needsSign = buf[start + padding] >= MAX_OCTET;
+      if (needsSign) {
+        --padding;
+      }
+      return padding;
+    }
+    function joseToDer(signature, alg) {
+      signature = signatureAsBytes(signature);
+      const paramBytes = getParamBytesForAlg(alg);
+      const signatureBytes = signature.length;
+      if (signatureBytes !== paramBytes * 2) {
+        throw new TypeError(`"${alg}" signatures must be "${paramBytes * 2}" bytes, saw "${signatureBytes}"`);
+      }
+      const rPadding = countPadding(signature, 0, paramBytes);
+      const sPadding = countPadding(signature, paramBytes, signature.length);
+      const rLength = paramBytes - rPadding;
+      const sLength = paramBytes - sPadding;
+      const rsBytes = 1 + 1 + rLength + 1 + 1 + sLength;
+      const shortLength = rsBytes < MAX_OCTET;
+      const dst = new Uint8Array((shortLength ? 2 : 3) + rsBytes);
+      let offset = 0;
+      dst[offset++] = ENCODED_TAG_SEQ;
+      if (shortLength) {
+        dst[offset++] = rsBytes;
+      } else {
+        dst[offset++] = MAX_OCTET | 1;
+        dst[offset++] = rsBytes & 255;
+      }
+      dst[offset++] = ENCODED_TAG_INT;
+      dst[offset++] = rLength;
+      if (rPadding < 0) {
+        dst[offset++] = 0;
+        dst.set(signature.subarray(0, paramBytes), offset);
+        offset += paramBytes;
+      } else {
+        dst.set(signature.subarray(rPadding, paramBytes), offset);
+        offset += paramBytes - rPadding;
+      }
+      dst[offset++] = ENCODED_TAG_INT;
+      dst[offset++] = sLength;
+      if (sPadding < 0) {
+        dst[offset++] = 0;
+        dst.set(signature.subarray(paramBytes), offset);
+      } else {
+        dst.set(signature.subarray(paramBytes + sPadding), offset);
+      }
+      return dst;
+    }
+    exports.joseToDer = joseToDer;
+  }
+});
+
+// node_modules/jsontokens/lib/errors.js
+var require_errors = __commonJS({
+  "node_modules/jsontokens/lib/errors.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.InvalidTokenError = exports.MissingParametersError = void 0;
+    var MissingParametersError = class extends Error {
+      constructor(message) {
+        super();
+        this.name = "MissingParametersError";
+        this.message = message || "";
+      }
+    };
+    exports.MissingParametersError = MissingParametersError;
+    var InvalidTokenError = class extends Error {
+      constructor(message) {
+        super();
+        this.name = "InvalidTokenError";
+        this.message = message || "";
+      }
+    };
+    exports.InvalidTokenError = InvalidTokenError;
+  }
+});
+
+// node_modules/jsontokens/lib/cryptoClients/secp256k1.js
+var require_secp256k1 = __commonJS({
+  "node_modules/jsontokens/lib/cryptoClients/secp256k1.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SECP256K1Client = void 0;
+    var hmac_1 = require_hmac();
+    var sha256_1 = require_sha256();
+    var secp = require_lib();
+    var ecdsaSigFormatter_1 = require_ecdsaSigFormatter();
+    var errors_1 = require_errors();
+    var utils_1 = require_utils();
+    secp.utils.hmacSha256Sync = (key, ...msgs) => {
+      const h = hmac_1.hmac.create(sha256_1.sha256, key);
+      msgs.forEach((msg) => h.update(msg));
+      return h.digest();
+    };
+    var SECP256K1Client = class {
+      static derivePublicKey(privateKey, compressed = true) {
+        if (privateKey.length === 66) {
+          privateKey = privateKey.slice(0, 64);
+        }
+        if (privateKey.length < 64) {
+          privateKey = privateKey.padStart(64, "0");
+        }
+        return (0, utils_1.bytesToHex)(secp.getPublicKey(privateKey, compressed));
+      }
+      static signHash(signingInputHash, privateKey, format = "jose") {
+        if (!signingInputHash || !privateKey) {
+          throw new errors_1.MissingParametersError("a signing input hash and private key are all required");
+        }
+        const derSignature = secp.signSync(signingInputHash, privateKey.slice(0, 64), {
+          der: true,
+          canonical: false
+        });
+        if (format === "der")
+          return (0, utils_1.bytesToHex)(derSignature);
+        if (format === "jose")
+          return (0, ecdsaSigFormatter_1.derToJose)(derSignature, "ES256");
+        throw Error("Invalid signature format");
+      }
+      static loadSignature(joseSignature) {
+        return (0, ecdsaSigFormatter_1.joseToDer)(joseSignature, "ES256");
+      }
+      static verifyHash(signingInputHash, derSignatureBytes, publicKey) {
+        if (!signingInputHash || !derSignatureBytes || !publicKey) {
+          throw new errors_1.MissingParametersError("a signing input hash, der signature, and public key are all required");
+        }
+        return secp.verify(derSignatureBytes, signingInputHash, publicKey, { strict: false });
+      }
+    };
+    exports.SECP256K1Client = SECP256K1Client;
+    SECP256K1Client.algorithmName = "ES256K";
+  }
+});
+
+// node_modules/jsontokens/lib/cryptoClients/index.js
+var require_cryptoClients = __commonJS({
+  "node_modules/jsontokens/lib/cryptoClients/index.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.cryptoClients = exports.SECP256K1Client = void 0;
+    var secp256k1_1 = require_secp256k1();
+    Object.defineProperty(exports, "SECP256K1Client", { enumerable: true, get: function() {
+      return secp256k1_1.SECP256K1Client;
+    } });
+    var cryptoClients = {
+      ES256K: secp256k1_1.SECP256K1Client
+    };
+    exports.cryptoClients = cryptoClients;
+  }
+});
+
+// node_modules/jsontokens/lib/cryptoClients/sha256.js
+var require_sha2562 = __commonJS({
+  "node_modules/jsontokens/lib/cryptoClients/sha256.js"(exports) {
+    "use strict";
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.hashSha256Async = exports.hashSha256 = void 0;
+    var sha256_1 = require_sha256();
+    function hashSha256(input) {
+      return (0, sha256_1.sha256)(input);
+    }
+    exports.hashSha256 = hashSha256;
+    function hashSha256Async(input) {
+      return __awaiter(this, void 0, void 0, function* () {
+        try {
+          const isSubtleCryptoAvailable = typeof crypto !== "undefined" && typeof crypto.subtle !== "undefined";
+          if (isSubtleCryptoAvailable) {
+            const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+            const hash = yield crypto.subtle.digest("SHA-256", bytes);
+            return new Uint8Array(hash);
+          } else {
+            const nodeCrypto = require_crypto2();
+            if (!nodeCrypto.createHash) {
+              throw new Error("`crypto` module does not contain `createHash`");
+            }
+            return Promise.resolve(nodeCrypto.createHash("sha256").update(input).digest());
+          }
+        } catch (error) {
+          console.log(error);
+          console.log('Crypto lib not found. Neither the global `crypto.subtle` Web Crypto API, nor the or the Node.js `require("crypto").createHash` module is available. Falling back to JS implementation.');
+          return Promise.resolve(hashSha256(input));
+        }
+      });
+    }
+    exports.hashSha256Async = hashSha256Async;
+  }
+});
+
+// node_modules/jsontokens/lib/signer.js
+var require_signer = __commonJS({
+  "node_modules/jsontokens/lib/signer.js"(exports) {
+    "use strict";
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve) {
+          resolve(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.TokenSigner = exports.createUnsecuredToken = void 0;
+    var base64url = require_base64Url();
+    var cryptoClients_1 = require_cryptoClients();
+    var errors_1 = require_errors();
+    var sha256_1 = require_sha2562();
+    function createSigningInput(payload, header) {
+      const tokenParts = [];
+      const encodedHeader = base64url.encode(JSON.stringify(header));
+      tokenParts.push(encodedHeader);
+      const encodedPayload = base64url.encode(JSON.stringify(payload));
+      tokenParts.push(encodedPayload);
+      const signingInput = tokenParts.join(".");
+      return signingInput;
+    }
+    function createUnsecuredToken2(payload) {
+      const header = { typ: "JWT", alg: "none" };
+      return createSigningInput(payload, header) + ".";
+    }
+    exports.createUnsecuredToken = createUnsecuredToken2;
+    var TokenSigner = class {
+      constructor(signingAlgorithm, rawPrivateKey) {
+        if (!(signingAlgorithm && rawPrivateKey)) {
+          throw new errors_1.MissingParametersError("a signing algorithm and private key are required");
+        }
+        if (typeof signingAlgorithm !== "string") {
+          throw new Error("signing algorithm parameter must be a string");
+        }
+        signingAlgorithm = signingAlgorithm.toUpperCase();
+        if (!cryptoClients_1.cryptoClients.hasOwnProperty(signingAlgorithm)) {
+          throw new Error("invalid signing algorithm");
+        }
+        this.tokenType = "JWT";
+        this.cryptoClient = cryptoClients_1.cryptoClients[signingAlgorithm];
+        this.rawPrivateKey = rawPrivateKey;
+      }
+      header(header = {}) {
+        const defaultHeader = { typ: this.tokenType, alg: this.cryptoClient.algorithmName };
+        return Object.assign({}, defaultHeader, header);
+      }
+      sign(payload, expanded = false, customHeader = {}) {
+        const header = this.header(customHeader);
+        const signingInput = createSigningInput(payload, header);
+        const signingInputHash = (0, sha256_1.hashSha256)(signingInput);
+        return this.createWithSignedHash(payload, expanded, header, signingInput, signingInputHash);
+      }
+      signAsync(payload, expanded = false, customHeader = {}) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const header = this.header(customHeader);
+          const signingInput = createSigningInput(payload, header);
+          const signingInputHash = yield (0, sha256_1.hashSha256Async)(signingInput);
+          return this.createWithSignedHash(payload, expanded, header, signingInput, signingInputHash);
+        });
+      }
+      createWithSignedHash(payload, expanded, header, signingInput, signingInputHash) {
+        const signature = this.cryptoClient.signHash(signingInputHash, this.rawPrivateKey);
+        if (expanded) {
+          const signedToken = {
+            header: [base64url.encode(JSON.stringify(header))],
+            payload: JSON.stringify(payload),
+            signature: [signature]
+          };
+          return signedToken;
+        } else {
+          return [signingInput, signature].join(".");
+        }
+      }
+    };
+    exports.TokenSigner = TokenSigner;
+  }
+});
+
+// node_modules/jsontokens/lib/verifier.js
+var require_verifier = __commonJS({
+  "node_modules/jsontokens/lib/verifier.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.TokenVerifier = void 0;
+    var base64url = require_base64Url();
+    var cryptoClients_1 = require_cryptoClients();
+    var errors_1 = require_errors();
+    var sha256_1 = require_sha2562();
+    var TokenVerifier = class {
+      constructor(signingAlgorithm, rawPublicKey) {
+        if (!(signingAlgorithm && rawPublicKey)) {
+          throw new errors_1.MissingParametersError("a signing algorithm and public key are required");
+        }
+        if (typeof signingAlgorithm !== "string") {
+          throw "signing algorithm parameter must be a string";
+        }
+        signingAlgorithm = signingAlgorithm.toUpperCase();
+        if (!cryptoClients_1.cryptoClients.hasOwnProperty(signingAlgorithm)) {
+          throw "invalid signing algorithm";
+        }
+        this.tokenType = "JWT";
+        this.cryptoClient = cryptoClients_1.cryptoClients[signingAlgorithm];
+        this.rawPublicKey = rawPublicKey;
+      }
+      verify(token) {
+        if (typeof token === "string") {
+          return this.verifyCompact(token, false);
+        } else if (typeof token === "object") {
+          return this.verifyExpanded(token, false);
+        } else {
+          return false;
+        }
+      }
+      verifyAsync(token) {
+        if (typeof token === "string") {
+          return this.verifyCompact(token, true);
+        } else if (typeof token === "object") {
+          return this.verifyExpanded(token, true);
+        } else {
+          return Promise.resolve(false);
+        }
+      }
+      verifyCompact(token, async) {
+        const tokenParts = token.split(".");
+        const signingInput = tokenParts[0] + "." + tokenParts[1];
+        const performVerify = (signingInputHash) => {
+          const derSignatureBytes = this.cryptoClient.loadSignature(tokenParts[2]);
+          return this.cryptoClient.verifyHash(signingInputHash, derSignatureBytes, this.rawPublicKey);
+        };
+        if (async) {
+          return (0, sha256_1.hashSha256Async)(signingInput).then((signingInputHash) => performVerify(signingInputHash));
+        } else {
+          const signingInputHash = (0, sha256_1.hashSha256)(signingInput);
+          return performVerify(signingInputHash);
+        }
+      }
+      verifyExpanded(token, async) {
+        const signingInput = [token["header"].join("."), base64url.encode(token["payload"])].join(".");
+        let verified = true;
+        const performVerify = (signingInputHash) => {
+          token["signature"].map((signature) => {
+            const derSignatureBytes = this.cryptoClient.loadSignature(signature);
+            const signatureVerified = this.cryptoClient.verifyHash(signingInputHash, derSignatureBytes, this.rawPublicKey);
+            if (!signatureVerified) {
+              verified = false;
+            }
+          });
+          return verified;
+        };
+        if (async) {
+          return (0, sha256_1.hashSha256Async)(signingInput).then((signingInputHash) => performVerify(signingInputHash));
+        } else {
+          const signingInputHash = (0, sha256_1.hashSha256)(signingInput);
+          return performVerify(signingInputHash);
+        }
+      }
+    };
+    exports.TokenVerifier = TokenVerifier;
+  }
+});
+
+// node_modules/jsontokens/lib/decode.js
+var require_decode = __commonJS({
+  "node_modules/jsontokens/lib/decode.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.decodeToken = void 0;
+    var base64url = require_base64Url();
+    function decodeToken(token) {
+      if (typeof token === "string") {
+        const tokenParts = token.split(".");
+        const header = JSON.parse(base64url.decode(tokenParts[0]));
+        const payload = JSON.parse(base64url.decode(tokenParts[1]));
+        const signature = tokenParts[2];
+        return {
+          header,
+          payload,
+          signature
+        };
+      } else if (typeof token === "object") {
+        if (typeof token.payload !== "string") {
+          throw new Error("Expected token payload to be a base64 or json string");
+        }
+        let payload = token.payload;
+        if (token.payload[0] !== "{") {
+          payload = base64url.decode(payload);
+        }
+        const allHeaders = [];
+        token.header.map((headerValue) => {
+          const header = JSON.parse(base64url.decode(headerValue));
+          allHeaders.push(header);
+        });
+        return {
+          header: allHeaders,
+          payload: JSON.parse(payload),
+          signature: token.signature
+        };
+      }
+    }
+    exports.decodeToken = decodeToken;
+  }
+});
+
+// node_modules/jsontokens/lib/index.js
+var require_lib2 = __commonJS({
+  "node_modules/jsontokens/lib/index.js"(exports) {
+    "use strict";
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __exportStar = exports && exports.__exportStar || function(m, exports2) {
+      for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p)) __createBinding(exports2, m, p);
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    __exportStar(require_signer(), exports);
+    __exportStar(require_verifier(), exports);
+    __exportStar(require_decode(), exports);
+    __exportStar(require_errors(), exports);
+    __exportStar(require_cryptoClients(), exports);
+  }
+});
+
+// node_modules/@scure/base/index.js
+var freeze = (fn) => Object.freeze(fn());
 function isBytes(a) {
   return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array" && "BYTES_PER_ELEMENT" in a && a.BYTES_PER_ELEMENT === 1;
 }
-function anumber(n, title = "") {
+function abytes(b) {
+  if (!isBytes(b))
+    throw new TypeError("Uint8Array expected");
+}
+function afn(input) {
+  if (typeof input !== "function")
+    throw new TypeError("function expected");
+  return true;
+}
+function astr(label, input) {
+  if (typeof input !== "string")
+    throw new TypeError(`${label}: string expected`);
+  return true;
+}
+function anumber(n, title = "number") {
+  if (typeof n !== "number")
+    throw new TypeError(`${title}: expected number, got ${typeof n}`);
+  if (!Number.isSafeInteger(n))
+    throw new RangeError(`${title}: expected safe integer, got ${n}`);
+}
+function chain(...args) {
+  const id = (a) => a;
+  const wrap2 = (a, b) => (c) => a(b(c));
+  const encode3 = args.map((x) => x.encode).reduceRight(wrap2, id);
+  const decode = args.map((x) => x.decode).reduce(wrap2, id);
+  return { encode: encode3, decode };
+}
+function normalize(fn) {
+  afn(fn);
+  return { encode: (from) => from, decode: (to) => fn(to) };
+}
+var powers = /* @__PURE__ */ (() => {
+  let res = [];
+  for (let i = 0; i < 40; i++)
+    res.push(2 ** i);
+  return res;
+})();
+var asciiDecoder = /* @__PURE__ */ (() => {
+  try {
+    const decoder = new TextDecoder();
+    return decoder.decode(Uint8Array.of(65, 48, 43, 127)) === "A0+\x7F" ? decoder : void 0;
+  } catch (e) {
+    return void 0;
+  }
+})();
+var B2S_CHUNK = 8192;
+function charcodesToString(codes) {
+  const len = codes.length;
+  if (asciiDecoder !== void 0 && len >= 12)
+    return asciiDecoder.decode(codes);
+  if (len <= B2S_CHUNK)
+    return String.fromCharCode.apply(null, codes);
+  let res = "";
+  for (let i = 0; i < len; i += B2S_CHUNK)
+    res += String.fromCharCode.apply(null, codes.subarray(i, i + B2S_CHUNK));
+  return res;
+}
+function radix2(bits2) {
+  anumber(bits2);
+  if (bits2 <= 0 || bits2 > 8)
+    throw new RangeError("radix2: bits should be in (0..8]");
+  const mask = powers[bits2] - 1;
+  return {
+    encode: (bytes) => {
+      abytes(bytes);
+      const len = bytes.length;
+      const res = new Uint8Array(Math.ceil(len * 8 / bits2));
+      let carry = 0;
+      let pos = 0;
+      let j = 0;
+      for (let i = 0; i < len; ) {
+        if (i + 2 < len) {
+          carry = carry << 24 | bytes[i] << 16 | bytes[i + 1] << 8 | bytes[i + 2];
+          pos += 24;
+          i += 3;
+        } else {
+          carry = (carry << 8 | bytes[i]) & 65535;
+          pos += 8;
+          i++;
+        }
+        for (; ; ) {
+          pos -= bits2;
+          res[j++] = carry >> pos & mask;
+          if (pos < bits2)
+            break;
+        }
+      }
+      if (pos > 0)
+        res[j] = carry << bits2 - pos & mask;
+      return res;
+    },
+    decode: (digits) => {
+      const len = digits.length;
+      const res = new Uint8Array(Math.floor(len * bits2 / 8));
+      let carry = 0;
+      let pos = 0;
+      let j = 0;
+      for (let i = 0; i < len; i++) {
+        carry = (carry << bits2 | digits[i]) & 65535;
+        pos += bits2;
+        for (; pos >= 8; pos -= 8)
+          res[j++] = carry >> pos - 8 & 255;
+      }
+      carry = carry << 8 - pos & 255;
+      if (pos >= bits2)
+        throw new Error("Excess padding");
+      if (carry > 0)
+        throw new Error(`Non-zero padding: ${carry}`);
+      return res;
+    }
+  };
+}
+function alphabet(letters, aliases) {
+  const len = letters.length;
+  if (len > 128)
+    throw new Error("alphabet: max 128 letters");
+  const encTable = new Uint8Array(len);
+  const decTable = new Int8Array(128).fill(-1);
+  for (let i = 0; i < len; i++) {
+    const code = letters.charCodeAt(i);
+    if (letters.codePointAt(i) !== code || code > 127)
+      throw new Error("alphabet: single-char ASCII letters only");
+    encTable[i] = code;
+    decTable[code] = i;
+  }
+  if (aliases !== void 0) {
+    for (const alias of Object.keys(aliases)) {
+      const code = alias.charCodeAt(0);
+      const target = decTable[aliases[alias].charCodeAt(0)];
+      if (alias.length !== 1 || code > 127 || target === void 0 || target === -1)
+        throw new Error(`alphabet: invalid alias ${alias}`);
+      decTable[code] = target;
+    }
+  }
+  return {
+    encode: (digits) => {
+      const codes = new Uint8Array(digits.length);
+      for (let i = 0; i < digits.length; i++) {
+        const d = digits[i];
+        const code = encTable[d];
+        if (code === void 0)
+          throw new Error(`alphabet.encode: invalid digit ${d}`);
+        codes[i] = code;
+      }
+      return charcodesToString(codes);
+    },
+    decode: (input) => {
+      astr("decode", input);
+      const slen = input.length;
+      const digits = new Uint8Array(slen);
+      for (let i = 0; i < slen; i++) {
+        const code = input.charCodeAt(i);
+        const digit = code < 128 ? decTable[code] : -1;
+        if (digit === -1)
+          throw new Error(`Unknown letter "${input[i]}". Allowed: ${letters}`);
+        digits[i] = digit;
+      }
+      return digits;
+    }
+  };
+}
+var _isWellFormedShim = (str) => {
+  try {
+    return encodeURI(str) !== null;
+  } catch {
+    return false;
+  }
+};
+var _isWellFormed = /* @__PURE__ */ (() => (
+  // Pick the native check once so utf8.decode doesn't re-probe String.prototype on every call.
+  typeof "".isWellFormed === "function" ? (str) => str.isWellFormed() : _isWellFormedShim
+))();
+var utf8err = (i) => new TypeError(`invalid utf8 at byte ${i}`);
+var utf8Fallback = /* @__PURE__ */ freeze(() => ({
+  encode(data) {
+    abytes(data);
+    let res = "";
+    for (let i = 0; i < data.length; ) {
+      const a = data[i++];
+      if (a < 128) {
+        res += String.fromCharCode(a);
+        continue;
+      }
+      if (a < 194 || i >= data.length)
+        throw utf8err(i - 1);
+      const b = data[i++];
+      if ((b & 192) !== 128)
+        throw utf8err(i - 1);
+      let cp = (a & 31) << 6 | b & 63;
+      if (a >= 224) {
+        if (i >= data.length)
+          throw utf8err(i - 1);
+        const c = data[i++];
+        if ((c & 192) !== 128 || a === 224 && b < 160 || a === 237 && b >= 160)
+          throw utf8err(i - 1);
+        cp = (a & 15) << 12 | (b & 63) << 6 | c & 63;
+        if (a >= 240) {
+          if (i >= data.length)
+            throw utf8err(i - 1);
+          const d = data[i++];
+          if (a > 244 || (d & 192) !== 128 || a === 240 && b < 144 || a === 244 && b >= 144)
+            throw utf8err(i - 1);
+          cp = (a & 7) << 18 | (b & 63) << 12 | (c & 63) << 6 | d & 63;
+        }
+      }
+      if (cp < 65536)
+        res += String.fromCharCode(cp);
+      else {
+        cp -= 65536;
+        res += String.fromCharCode((cp >> 10) + 55296, (cp & 1023) + 56320);
+      }
+    }
+    return res;
+  },
+  decode(str) {
+    astr("utf8", str);
+    if (!_isWellFormed(str))
+      throw new TypeError("utf8 expected well-formed string");
+    const res = new Uint8Array(str.length * 3);
+    let pos = 0;
+    for (let i = 0; i < str.length; i++) {
+      let c = str.charCodeAt(i);
+      if (c < 128) {
+        res[pos++] = c;
+        continue;
+      }
+      if (c >= 55296 && c <= 57343) {
+        const d = str.charCodeAt(++i);
+        c = 65536 + (c - 55296 << 10) + d - 56320;
+      }
+      if (c >= 65536) {
+        res[pos++] = c >> 18 | 240;
+        res[pos++] = c >> 12 & 63 | 128;
+      } else if (c >= 2048)
+        res[pos++] = c >> 12 | 224;
+      else
+        res[pos++] = c >> 6 | 192;
+      if (c >= 2048)
+        res[pos++] = c >> 6 & 63 | 128;
+      res[pos++] = c & 63 | 128;
+    }
+    return res.subarray(0, pos);
+  }
+}));
+var utf8 = /* @__PURE__ */ freeze(() => {
+  let _utf8Encoder;
+  let _utf8Decoder;
+  const utf8Builtin = {
+    // ignoreBOM preserves an explicit leading U+FEFF;
+    // fatal rejects invalid UTF-8 bytes instead of replacing them.
+    encode(data) {
+      abytes(data);
+      return (_utf8Decoder || (_utf8Decoder = new TextDecoder("utf-8", { ignoreBOM: true, fatal: true }))).decode(data);
+    },
+    decode(str) {
+      astr("utf8", str);
+      if (!_isWellFormed(str))
+        throw new TypeError("utf8 expected well-formed string");
+      return (_utf8Encoder || (_utf8Encoder = new TextEncoder())).encode(str);
+    }
+  };
+  return {
+    // Select each direction once at module init, since
+    // TextEncoder and TextDecoder can exist independently.
+    encode: typeof TextDecoder === "function" ? utf8Builtin.encode : utf8Fallback.encode,
+    decode: typeof TextEncoder === "function" ? utf8Builtin.decode : utf8Fallback.decode
+  };
+});
+var hexFallback = /* @__PURE__ */ freeze(() => chain(
+  radix2(4),
+  // Case-insensitive decode via table aliases instead of a toLowerCase pass.
+  alphabet("0123456789abcdef", { A: "a", B: "b", C: "c", D: "d", E: "e", F: "f" }),
+  normalize((s) => {
+    astr("hex", s);
+    if (s.length % 2 !== 0)
+      throw new TypeError(`hex.decode: odd-length string (${s.length})`);
+    return s;
+  })
+));
+var hasHexBuiltin = /* @__PURE__ */ (() => (
+  // Require both directions before enabling the native hex path so encode/decode stay symmetric.
+  typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function"
+))();
+var hexBuiltin = {
+  // Keep local type guards so the native path preserves library-level input errors.
+  // Native toHex emits lowercase hex, matching the fallback alphabet and Node's hex strings.
+  encode(data) {
+    abytes(data);
+    return data.toHex();
+  },
+  // Native fromHex accepts either hex case and rejects odd-length / non-hex syntax.
+  decode(s) {
+    astr("hex", s);
+    return Uint8Array.fromHex(s);
+  }
+};
+var hex = /* @__PURE__ */ freeze(() => hasHexBuiltin ? hexBuiltin : hexFallback);
+
+// node_modules/@noble/hashes/utils.js
+function isBytes2(a) {
+  return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array" && "BYTES_PER_ELEMENT" in a && a.BYTES_PER_ELEMENT === 1;
+}
+function anumber2(n, title = "") {
   if (typeof n !== "number") {
     const prefix2 = title && `"${title}" `;
     throw new TypeError(`${prefix2}expected number, got ${typeof n}`);
@@ -14,13 +5220,13 @@ function anumber(n, title = "") {
     throw new RangeError(`${prefix2}expected integer >= 0, got ${n}`);
   }
 }
-function abytes(value, length, title = "") {
-  const bytes = isBytes(value);
+function abytes2(value, length2, title = "") {
+  const bytes = isBytes2(value);
   const len = value?.length;
-  const needsLen = length !== void 0;
-  if (!bytes || needsLen && len !== length) {
+  const needsLen = length2 !== void 0;
+  if (!bytes || needsLen && len !== length2) {
     const prefix2 = title && `"${title}" `;
-    const ofLen = needsLen ? ` of length ${length}` : "";
+    const ofLen = needsLen ? ` of length ${length2}` : "";
     const got = bytes ? `length=${len}` : `type=${typeof value}`;
     const message = prefix2 + "expected Uint8Array" + ofLen + ", got " + got;
     if (!bytes)
@@ -32,8 +5238,8 @@ function abytes(value, length, title = "") {
 function ahash(h) {
   if (typeof h !== "function" || typeof h.create !== "function")
     throw new TypeError("Hash must wrapped by utils.createHasher");
-  anumber(h.outputLen);
-  anumber(h.blockLen);
+  anumber2(h.outputLen);
+  anumber2(h.blockLen);
   if (h.outputLen < 1)
     throw new Error('"outputLen" must be >= 1');
   if (h.blockLen < 1)
@@ -46,7 +5252,7 @@ function aexists(instance, checkFinished = true) {
     throw new Error("Hash#digest() has already been called");
 }
 function aoutput(out, instance) {
-  abytes(out, void 0, "digestInto() output");
+  abytes2(out, void 0, "digestInto() output");
   const min = instance.outputLen;
   if (out.length < min) {
     throw new RangeError('"digestInto() output" expected to be of length >=' + min);
@@ -66,14 +5272,14 @@ function rotr(word, shift) {
 function rotl(word, shift) {
   return word << shift | word >>> 32 - shift >>> 0;
 }
-var hasHexBuiltin = /* @__PURE__ */ (() => (
+var hasHexBuiltin2 = /* @__PURE__ */ (() => (
   // @ts-ignore
   typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function"
 ))();
 var hexes = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
 function bytesToHex(bytes) {
-  abytes(bytes);
-  if (hasHexBuiltin)
+  abytes2(bytes);
+  if (hasHexBuiltin2)
     return bytes.toHex();
   let hex4 = "";
   for (let i = 0; i < bytes.length; i++) {
@@ -82,19 +5288,19 @@ function bytesToHex(bytes) {
   return hex4;
 }
 var asciis = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 };
-function asciiToBase16(ch) {
-  if (ch >= asciis._0 && ch <= asciis._9)
-    return ch - asciis._0;
-  if (ch >= asciis.A && ch <= asciis.F)
-    return ch - (asciis.A - 10);
-  if (ch >= asciis.a && ch <= asciis.f)
-    return ch - (asciis.a - 10);
+function asciiToBase16(ch2) {
+  if (ch2 >= asciis._0 && ch2 <= asciis._9)
+    return ch2 - asciis._0;
+  if (ch2 >= asciis.A && ch2 <= asciis.F)
+    return ch2 - (asciis.A - 10);
+  if (ch2 >= asciis.a && ch2 <= asciis.f)
+    return ch2 - (asciis.a - 10);
   return;
 }
 function hexToBytes(hex4) {
   if (typeof hex4 !== "string")
     throw new TypeError("hex string expected, got " + typeof hex4);
-  if (hasHexBuiltin) {
+  if (hasHexBuiltin2) {
     try {
       return Uint8Array.fromHex(hex4);
     } catch (error) {
@@ -107,7 +5313,7 @@ function hexToBytes(hex4) {
   const al = hl / 2;
   if (hl % 2)
     throw new RangeError("hex string expected, got unpadded hex of length " + hl);
-  const array2 = new Uint8Array(al);
+  const array3 = new Uint8Array(al);
   for (let ai = 0, hi = 0; ai < al; ai++, hi += 2) {
     const n1 = asciiToBase16(hex4.charCodeAt(hi));
     const n2 = asciiToBase16(hex4.charCodeAt(hi + 1));
@@ -115,15 +5321,15 @@ function hexToBytes(hex4) {
       const char = hex4[hi] + hex4[hi + 1];
       throw new RangeError('hex string expected, got non-hex character "' + char + '" at index ' + hi);
     }
-    array2[ai] = n1 * 16 + n2;
+    array3[ai] = n1 * 16 + n2;
   }
-  return array2;
+  return array3;
 }
 function concatBytes(...arrays) {
   let sum = 0;
   for (let i = 0; i < arrays.length; i++) {
     const a = arrays[i];
-    abytes(a);
+    abytes2(a);
     sum += a.length;
   }
   const res = new Uint8Array(sum);
@@ -145,7 +5351,7 @@ function createHasher(hashCons, info = {}) {
   return Object.freeze(hashC);
 }
 function randomBytes(bytesLength = 32) {
-  anumber(bytesLength, "bytesLength");
+  anumber2(bytesLength, "bytesLength");
   const cr = typeof globalThis === "object" ? globalThis.crypto : null;
   if (typeof cr?.getRandomValues !== "function")
     throw new Error("crypto.getRandomValues must be defined");
@@ -189,7 +5395,7 @@ var HashMD = class {
   }
   update(data) {
     aexists(this);
-    abytes(data);
+    abytes2(data);
     const { view: view2, buffer, blockLen } = this;
     const len = data.length;
     for (let pos = 0; pos < len; ) {
@@ -249,12 +5455,12 @@ var HashMD = class {
   _cloneInto(to) {
     to ||= new this.constructor();
     to.set(...this.get());
-    const { blockLen, buffer, length, finished, destroyed, pos } = this;
+    const { blockLen, buffer, length: length2, finished, destroyed, pos } = this;
     to.destroyed = destroyed;
     to.finished = finished;
-    to.length = length;
+    to.length = length2;
     to.pos = pos;
-    if (length % blockLen)
+    if (length2 % blockLen)
       to.buffer.set(buffer);
     return to;
   }
@@ -346,18 +5552,18 @@ var SHA2_32B = class extends HashMD {
     super(64, outputLen, 8, false);
   }
   get() {
-    const { A, B, C, D, E, F, G, H } = this;
-    return [A, B, C, D, E, F, G, H];
+    const { A, B, C, D, E, F, G: G2, H } = this;
+    return [A, B, C, D, E, F, G2, H];
   }
   // prettier-ignore
-  set(A, B, C, D, E, F, G, H) {
+  set(A, B, C, D, E, F, G2, H) {
     this.A = A | 0;
     this.B = B | 0;
     this.C = C | 0;
     this.D = D | 0;
     this.E = E | 0;
     this.F = F | 0;
-    this.G = G | 0;
+    this.G = G2 | 0;
     this.H = H | 0;
   }
   process(view2, offset) {
@@ -370,14 +5576,14 @@ var SHA2_32B = class extends HashMD {
       const s1 = rotr(W2, 17) ^ rotr(W2, 19) ^ W2 >>> 10;
       SHA256_W[i] = s1 + SHA256_W[i - 7] + s0 + SHA256_W[i - 16] | 0;
     }
-    let { A, B, C, D, E, F, G, H } = this;
+    let { A, B, C, D, E, F, G: G2, H } = this;
     for (let i = 0; i < 64; i++) {
-      const sigma1 = rotr(E, 6) ^ rotr(E, 11) ^ rotr(E, 25);
-      const T1 = H + sigma1 + Chi(E, F, G) + SHA256_K[i] + SHA256_W[i] | 0;
-      const sigma0 = rotr(A, 2) ^ rotr(A, 13) ^ rotr(A, 22);
-      const T2 = sigma0 + Maj(A, B, C) | 0;
-      H = G;
-      G = F;
+      const sigma12 = rotr(E, 6) ^ rotr(E, 11) ^ rotr(E, 25);
+      const T1 = H + sigma12 + Chi(E, F, G2) + SHA256_K[i] + SHA256_W[i] | 0;
+      const sigma02 = rotr(A, 2) ^ rotr(A, 13) ^ rotr(A, 22);
+      const T2 = sigma02 + Maj(A, B, C) | 0;
+      H = G2;
+      G2 = F;
       F = E;
       E = D + T1 | 0;
       D = C;
@@ -391,9 +5597,9 @@ var SHA2_32B = class extends HashMD {
     D = D + this.D | 0;
     E = E + this.E | 0;
     F = F + this.F | 0;
-    G = G + this.G | 0;
+    G2 = G2 + this.G | 0;
     H = H + this.H | 0;
-    this.set(A, B, C, D, E, F, G, H);
+    this.set(A, B, C, D, E, F, G2, H);
   }
   roundClean() {
     clean(SHA256_W);
@@ -425,12 +5631,12 @@ var sha256 = /* @__PURE__ */ createHasher(
 );
 
 // node_modules/@noble/curves/utils.js
-var abytes2 = (value, length, title) => abytes(value, length, title);
-var anumber2 = anumber;
+var abytes3 = (value, length2, title) => abytes2(value, length2, title);
+var anumber3 = anumber2;
 var bytesToHex2 = bytesToHex;
 var concatBytes2 = (...arrays) => concatBytes(...arrays);
 var hexToBytes2 = (hex4) => hexToBytes(hex4);
-var isBytes2 = isBytes;
+var isBytes3 = isBytes2;
 var randomBytes2 = (bytesLength) => randomBytes(bytesLength);
 var _0n = /* @__PURE__ */ BigInt(0);
 var _1n = /* @__PURE__ */ BigInt(1);
@@ -446,7 +5652,7 @@ function abignumber(n) {
     if (!isPosBig(n))
       throw new RangeError("positive bigint expected, got " + n);
   } else
-    anumber2(n);
+    anumber3(n);
   return n;
 }
 function asafenumber(value, title = "") {
@@ -472,10 +5678,10 @@ function bytesToNumberBE(bytes) {
   return hexToNumber(bytesToHex(bytes));
 }
 function bytesToNumberLE(bytes) {
-  return hexToNumber(bytesToHex(copyBytes(abytes(bytes)).reverse()));
+  return hexToNumber(bytesToHex(copyBytes(abytes2(bytes)).reverse()));
 }
 function numberToBytesBE(n, len) {
-  anumber(len);
+  anumber2(len);
   if (len === 0)
     throw new RangeError("zero length");
   n = abignumber(n);
@@ -488,7 +5694,7 @@ function numberToBytesLE(n, len) {
   return numberToBytesBE(n, len).reverse();
 }
 function copyBytes(bytes) {
-  return Uint8Array.from(abytes2(bytes));
+  return Uint8Array.from(abytes3(bytes));
 }
 function asciiToBytes(ascii) {
   if (typeof ascii !== "string")
@@ -519,8 +5725,8 @@ function bitLen(n) {
 }
 var bitMask = (n) => (_1n << BigInt(n)) - _1n;
 function createHmacDrbg(hashLen, qByteLen, hmacFn) {
-  anumber(hashLen, "hashLen");
-  anumber(qByteLen, "qByteLen");
+  anumber2(hashLen, "hashLen");
+  anumber2(qByteLen, "qByteLen");
   if (typeof hmacFn !== "function")
     throw new TypeError("hmacFn must be a function");
   const u8n = (len) => new Uint8Array(len);
@@ -569,13 +5775,13 @@ function createHmacDrbg(hashLen, qByteLen, hmacFn) {
   };
   return genUntil;
 }
-function validateObject(object, fields = {}, optFields = {}) {
-  if (Object.prototype.toString.call(object) !== "[object Object]")
+function validateObject(object2, fields = {}, optFields = {}) {
+  if (Object.prototype.toString.call(object2) !== "[object Object]")
     throw new TypeError("expected valid options object");
   function checkField(fieldName, expectedType, isOpt) {
-    if (!isOpt && expectedType !== "function" && !Object.hasOwn(object, fieldName))
+    if (!isOpt && expectedType !== "function" && !Object.hasOwn(object2, fieldName))
       throw new TypeError(`param "${fieldName}" is invalid: expected own property`);
-    const val = object[fieldName];
+    const val = object2[fieldName];
     if (isOpt && val === void 0)
       return;
     const current = typeof val;
@@ -614,12 +5820,12 @@ function pow2(x, power, modulo) {
   }
   return res;
 }
-function invert(number, modulo) {
-  if (number === _0n2)
+function invert(number2, modulo) {
+  if (number2 === _0n2)
     throw new Error("invert: expected non-zero number");
   if (modulo <= _0n2)
     throw new Error("invert: expected positive modulus, got " + modulo);
-  let a = mod(number, modulo);
+  let a = mod(number2, modulo);
   let b = modulo;
   let x = _0n2, y = _1n2, u = _1n2, v = _0n2;
   while (a !== _0n2) {
@@ -826,7 +6032,7 @@ function FpLegendre(Fp, n) {
 }
 function nLength(n, nBitLength) {
   if (nBitLength !== void 0)
-    anumber2(nBitLength);
+    anumber3(nBitLength);
   if (n <= _0n2)
     throw new Error("invalid n length: expected positive n, got " + n);
   if (nBitLength !== void 0 && nBitLength < 1)
@@ -941,7 +6147,7 @@ var _Field = class {
     return this.isLE ? numberToBytesLE(num2, this.BYTES) : numberToBytesBE(num2, this.BYTES);
   }
   fromBytes(bytes, skipValidation = false) {
-    abytes2(bytes);
+    abytes3(bytes);
     const { _lengths: allowedLengths, BYTES, isLE, ORDER, _mod: modFromBytes } = this;
     if (allowedLengths) {
       if (bytes.length < 1 || !allowedLengths.includes(bytes.length) || bytes.length > BYTES) {
@@ -986,11 +6192,11 @@ function getFieldBytesLength(fieldOrder) {
   return Math.ceil(bitLength / 8);
 }
 function getMinHashLength(fieldOrder) {
-  const length = getFieldBytesLength(fieldOrder);
-  return length + Math.ceil(length / 2);
+  const length2 = getFieldBytesLength(fieldOrder);
+  return length2 + Math.ceil(length2 / 2);
 }
 function mapHashToField(key, fieldOrder, isLE = false) {
-  abytes2(key);
+  abytes3(key);
   const len = key.length;
   const fieldLen = getFieldBytesLength(fieldOrder);
   const minLen = Math.max(getMinHashLength(fieldOrder), 16);
@@ -1012,20 +6218,20 @@ function normalizeZ(c, points) {
   const invertedZs = FpInvertBatch(c.Fp, points.map((p) => p.Z));
   return points.map((p, i) => c.fromAffine(p.toAffine(invertedZs[i])));
 }
-function validateW(W, bits2) {
-  if (!Number.isSafeInteger(W) || W <= 0 || W > bits2)
-    throw new Error("invalid window size, expected [1.." + bits2 + "], got W=" + W);
+function validateW(W2, bits2) {
+  if (!Number.isSafeInteger(W2) || W2 <= 0 || W2 > bits2)
+    throw new Error("invalid window size, expected [1.." + bits2 + "], got W=" + W2);
 }
-function calcWOpts(W, scalarBits) {
-  validateW(W, scalarBits);
-  const windows = Math.ceil(scalarBits / W) + 1;
-  const windowSize = 2 ** (W - 1);
-  const maxNumber = 2 ** W;
-  const mask = bitMask(W);
-  const shiftBy = BigInt(W);
+function calcWOpts(W2, scalarBits) {
+  validateW(W2, scalarBits);
+  const windows = Math.ceil(scalarBits / W2) + 1;
+  const windowSize = 2 ** (W2 - 1);
+  const maxNumber = 2 ** W2;
+  const mask = bitMask(W2);
+  const shiftBy = BigInt(W2);
   return { windows, windowSize, mask, maxNumber, shiftBy };
 }
-function calcOffsets(n, window, wOpts) {
+function calcOffsets(n, window2, wOpts) {
   const { windowSize, mask, maxNumber, shiftBy } = wOpts;
   let wbits = Number(n & mask);
   let nextN = n >> shiftBy;
@@ -1033,11 +6239,11 @@ function calcOffsets(n, window, wOpts) {
     wbits -= maxNumber;
     nextN += _1n3;
   }
-  const offsetStart = window * windowSize;
+  const offsetStart = window2 * windowSize;
   const offset = offsetStart + Math.abs(wbits) - 1;
   const isZero = wbits === 0;
   const isNeg = wbits < 0;
-  const isNegF = window % 2 !== 0;
+  const isNegF = window2 % 2 !== 0;
   const offsetF = offsetStart;
   return { nextN, offset, isZero, isNeg, isNegF, offsetF };
 }
@@ -1085,12 +6291,12 @@ var wNAF = class {
    * @param W - window size
    * @returns precomputed point tables flattened to a single array
    */
-  precomputeWindow(point, W) {
-    const { windows, windowSize } = calcWOpts(W, this.bits);
+  precomputeWindow(point, W2) {
+    const { windows, windowSize } = calcWOpts(W2, this.bits);
     const points = [];
     let p = point;
     let base = p;
-    for (let window = 0; window < windows; window++) {
+    for (let window2 = 0; window2 < windows; window2++) {
       base = p;
       points.push(base);
       for (let i = 1; i < windowSize; i++) {
@@ -1107,14 +6313,14 @@ var wNAF = class {
    * https://github.com/paulmillr/noble-secp256k1/blob/47cb1669b6e506ad66b35fe7d76132ae97465da2/index.ts#L502-L541
    * @returns real and fake (for const-time) points
    */
-  wNAF(W, precomputes, n) {
+  wNAF(W2, precomputes, n) {
     if (!this.Fn.isValid(n))
       throw new Error("invalid scalar");
     let p = this.ZERO;
     let f = this.BASE;
-    const wo = calcWOpts(W, this.bits);
-    for (let window = 0; window < wo.windows; window++) {
-      const { nextN, offset, isZero, isNeg, isNegF, offsetF } = calcOffsets(n, window, wo);
+    const wo = calcWOpts(W2, this.bits);
+    for (let window2 = 0; window2 < wo.windows; window2++) {
+      const { nextN, offset, isZero, isNeg, isNegF, offsetF } = calcOffsets(n, window2, wo);
       n = nextN;
       if (isZero) {
         f = f.add(negateCt(isNegF, precomputes[offsetF]));
@@ -1131,12 +6337,12 @@ var wNAF = class {
    * @param acc - accumulator point to add result of multiplication
    * @returns point
    */
-  wNAFUnsafe(W, precomputes, n, acc = this.ZERO) {
-    const wo = calcWOpts(W, this.bits);
-    for (let window = 0; window < wo.windows; window++) {
+  wNAFUnsafe(W2, precomputes, n, acc = this.ZERO) {
+    const wo = calcWOpts(W2, this.bits);
+    for (let window2 = 0; window2 < wo.windows; window2++) {
       if (n === _0n3)
         break;
-      const { nextN, offset, isZero, isNeg } = calcOffsets(n, window, wo);
+      const { nextN, offset, isZero, isNeg } = calcOffsets(n, window2, wo);
       n = nextN;
       if (isZero) {
         continue;
@@ -1148,34 +6354,34 @@ var wNAF = class {
     assert0(n);
     return acc;
   }
-  getPrecomputes(W, point, transform) {
+  getPrecomputes(W2, point, transform2) {
     let comp = pointPrecomputes.get(point);
     if (!comp) {
-      comp = this.precomputeWindow(point, W);
-      if (W !== 1) {
-        if (typeof transform === "function")
-          comp = transform(comp);
+      comp = this.precomputeWindow(point, W2);
+      if (W2 !== 1) {
+        if (typeof transform2 === "function")
+          comp = transform2(comp);
         pointPrecomputes.set(point, comp);
       }
     }
     return comp;
   }
-  cached(point, scalar, transform) {
-    const W = getW(point);
-    return this.wNAF(W, this.getPrecomputes(W, point, transform), scalar);
+  cached(point, scalar, transform2) {
+    const W2 = getW(point);
+    return this.wNAF(W2, this.getPrecomputes(W2, point, transform2), scalar);
   }
-  unsafe(point, scalar, transform, prev) {
-    const W = getW(point);
-    if (W === 1)
+  unsafe(point, scalar, transform2, prev) {
+    const W2 = getW(point);
+    if (W2 === 1)
       return this._unsafeLadder(point, scalar, prev);
-    return this.wNAFUnsafe(W, this.getPrecomputes(W, point, transform), scalar, prev);
+    return this.wNAFUnsafe(W2, this.getPrecomputes(W2, point, transform2), scalar, prev);
   }
   // We calculate precomputes for elliptic curve point multiplication
   // using windowed method. This specifies window size and
   // stores precomputed values. Usually only base point would be precomputed.
-  createCache(P, W) {
-    validateW(W, this.bits);
-    pointWindowSizes.set(P, W);
+  createCache(P, W2) {
+    validateW(W2, this.bits);
+    pointWindowSizes.set(P, W2);
     pointPrecomputes.delete(P);
   }
   hasCache(elm) {
@@ -1246,7 +6452,7 @@ var _HMAC = class {
   destroyed = false;
   constructor(hash, key) {
     ahash(hash);
-    abytes(key, void 0, "key");
+    abytes2(key, void 0, "key");
     this.iHash = hash.create();
     if (typeof this.iHash.update !== "function")
       throw new Error("Expected instance of class which extends utils.Hash");
@@ -1379,7 +6585,7 @@ var DER = {
     // v - value, l - left bytes (unparsed)
     decode(tag2, data) {
       const { Err: E } = DER;
-      data = abytes2(data, void 0, "DER data");
+      data = abytes3(data, void 0, "DER data");
       let pos = 0;
       if (tag2 < 0 || tag2 > 255)
         throw new E("tlv.encode: wrong tag");
@@ -1387,9 +6593,9 @@ var DER = {
         throw new E("tlv.decode: wrong tlv");
       const first = data[pos++];
       const isLong = !!(first & 128);
-      let length = 0;
+      let length2 = 0;
       if (!isLong)
-        length = first;
+        length2 = first;
       else {
         const lenLen = first & 127;
         if (!lenLen)
@@ -1402,15 +6608,15 @@ var DER = {
         if (lengthBytes[0] === 0)
           throw new E("tlv.decode(long): zero leftmost byte");
         for (const b of lengthBytes)
-          length = length << 8 | b;
+          length2 = length2 << 8 | b;
         pos += lenLen;
-        if (length < 128)
+        if (length2 < 128)
           throw new E("tlv.decode(long): not minimal encoding");
       }
-      const v = data.subarray(pos, pos + length);
-      if (v.length !== length)
+      const v = data.subarray(pos, pos + length2);
+      if (v.length !== length2)
         throw new E("tlv.decode: wrong value length");
-      return { v, l: data.subarray(pos + length) };
+      return { v, l: data.subarray(pos + length2) };
     }
   },
   // https://crypto.stackexchange.com/a/57734 Leftmost bit of first byte is 'negative' flag,
@@ -1443,7 +6649,7 @@ var DER = {
   },
   toSig(bytes) {
     const { Err: E, _int: int, _tlv: tlv } = DER;
-    const data = abytes2(bytes, void 0, "signature");
+    const data = abytes3(bytes, void 0, "signature");
     const { v: seqBytes, l: seqLeftBytes } = tlv.decode(48, data);
     if (seqLeftBytes.length)
       throw new E("invalid signature: left bytes after parsing");
@@ -1509,14 +6715,14 @@ function weierstrass(params, extraOpts = {}) {
     }
   }
   function pointFromBytes(bytes) {
-    abytes2(bytes, void 0, "Point");
+    abytes3(bytes, void 0, "Point");
     const { publicKey: comp, publicKeyUncompressed: uncomp } = lengths;
-    const length = bytes.length;
+    const length2 = bytes.length;
     const head = bytes[0];
     const tail = bytes.subarray(1);
-    if (allowInfinityPoint && length === 1 && head === 0)
+    if (allowInfinityPoint && length2 === 1 && head === 0)
       return { x: Fp.ZERO, y: Fp.ZERO };
-    if (length === comp && (head === 2 || head === 3)) {
+    if (length2 === comp && (head === 2 || head === 3)) {
       const x = Fp.fromBytes(tail);
       if (!Fp.isValid(x))
         throw new Error("bad point: is not on curve, wrong x");
@@ -1534,7 +6740,7 @@ function weierstrass(params, extraOpts = {}) {
       if (evenH !== evenY)
         y = Fp.neg(y);
       return { x, y };
-    } else if (length === uncomp && head === 4) {
+    } else if (length2 === uncomp && head === 4) {
       const L = Fp.BYTES;
       const x = Fp.fromBytes(tail.subarray(0, L));
       const y = Fp.fromBytes(tail.subarray(L, L * 2));
@@ -1542,7 +6748,7 @@ function weierstrass(params, extraOpts = {}) {
         throw new Error("bad point: is not on curve");
       return { x, y };
     } else {
-      throw new Error(`bad point: got length ${length}, expected compressed=${comp} or uncompressed=${uncomp}`);
+      throw new Error(`bad point: got length ${length2}, expected compressed=${comp} or uncompressed=${uncomp}`);
     }
   }
   const encodePoint = extraOpts.toBytes === void 0 ? pointToBytes2 : extraOpts.toBytes;
@@ -1618,7 +6824,7 @@ function weierstrass(params, extraOpts = {}) {
       return new Point2(x, y, Fp.ONE);
     }
     static fromBytes(bytes) {
-      const P = Point2.fromAffine(decodePoint(abytes2(bytes, void 0, "point")));
+      const P = Point2.fromAffine(decodePoint(abytes3(bytes, void 0, "point")));
       P.assertValidity();
       return P;
     }
@@ -1945,7 +7151,7 @@ function ecdh(Point2, ecdhOpts = {}) {
   }
   function randomSecretKey(seed) {
     seed = seed === void 0 ? randomBytes_(lengths.seed) : seed;
-    return mapHashToField(abytes2(seed, lengths.seed, "seed"), Fn2.ORDER);
+    return mapHashToField(abytes3(seed, lengths.seed, "seed"), Fn2.ORDER);
   }
   function getPublicKey(secretKey, isCompressed = true) {
     return Point2.BASE.multiply(Fn2.fromBytes(secretKey)).toBytes(isCompressed);
@@ -1953,9 +7159,9 @@ function ecdh(Point2, ecdhOpts = {}) {
   function isProbPub(item) {
     const { secretKey, publicKey, publicKeyUncompressed } = lengths;
     const allowedLengths = Fn2._lengths;
-    if (!isBytes2(item))
+    if (!isBytes3(item))
       return void 0;
-    const l = abytes2(item, void 0, "key").length;
+    const l = abytes3(item, void 0, "key").length;
     const isPub = l === publicKey || l === publicKeyUncompressed;
     const isSec = l === secretKey || !!allowedLengths?.includes(l);
     if (isPub && isSec)
@@ -2004,9 +7210,9 @@ function ecdsa(Point2, hash, ecdsaOpts = {}) {
     extraEntropy: false
   };
   const hasLargeRecoveryLifts = CURVE_ORDER2 * _2n2 + _1n4 < Fp.ORDER;
-  function isBiggerThanHalfOrder(number) {
+  function isBiggerThanHalfOrder(number2) {
     const HALF = CURVE_ORDER2 >> _1n4;
-    return number > HALF;
+    return number2 > HALF;
   }
   function validateRS(title, num2) {
     if (!Fn2.isValidNot0(num2))
@@ -2021,7 +7227,7 @@ function ecdsa(Point2, hash, ecdsaOpts = {}) {
     validateSigFormat(format);
     const size = lengths.signature;
     const sizer = format === "compact" ? size : format === "recovered" ? size + 1 : void 0;
-    return abytes2(bytes, sizer);
+    return abytes3(bytes, sizer);
   }
   class Signature {
     r;
@@ -2042,7 +7248,7 @@ function ecdsa(Point2, hash, ecdsaOpts = {}) {
       validateSigLength(bytes, format);
       let recid;
       if (format === "der") {
-        const { r: r2, s: s2 } = DER.toSig(abytes2(bytes));
+        const { r: r2, s: s2 } = DER.toSig(abytes3(bytes));
         return new Signature(r2, s2);
       }
       if (format === "recovered") {
@@ -2078,7 +7284,7 @@ function ecdsa(Point2, hash, ecdsaOpts = {}) {
       const x = Fp.toBytes(radj);
       const R = Point2.fromBytes(concatBytes2(pprefix((recovery & 1) === 0), x));
       const ir = Fn2.inv(radj);
-      const h = bits2int_modN(abytes2(messageHash, void 0, "msgHash"));
+      const h = bits2int_modN(abytes3(messageHash, void 0, "msgHash"));
       const u1 = Fn2.create(-h * ir);
       const u2 = Fn2.create(s * ir);
       const Q = Point2.BASE.multiplyUnsafe(u1).add(R.multiplyUnsafe(u2));
@@ -2126,8 +7332,8 @@ function ecdsa(Point2, hash, ecdsaOpts = {}) {
     return Fn2.toBytes(num2);
   }
   function validateMsgAndHash(message, prehash) {
-    abytes2(message, void 0, "message");
-    return prehash ? abytes2(hash_(message), void 0, "prehashed message") : message;
+    abytes3(message, void 0, "message");
+    return prehash ? abytes3(hash_(message), void 0, "prehashed message") : message;
   }
   function prepSig(message, secretKey, opts) {
     const { lowS, prehash, extraEntropy } = validateSigOpts(opts, defaultSigOpts);
@@ -2139,7 +7345,7 @@ function ecdsa(Point2, hash, ecdsaOpts = {}) {
     const seedArgs = [int2octets(d), int2octets(h1int)];
     if (extraEntropy != null && extraEntropy !== false) {
       const e = extraEntropy === true ? randomBytes3(lengths.secretKey) : extraEntropy;
-      seedArgs.push(abytes2(e, void 0, "extraEntropy"));
+      seedArgs.push(abytes3(e, void 0, "extraEntropy"));
     }
     const seed = concatBytes2(...seedArgs);
     const m = h1int;
@@ -2173,9 +7379,9 @@ function ecdsa(Point2, hash, ecdsaOpts = {}) {
   }
   function verify(signature, message, publicKey, opts = {}) {
     const { lowS, prehash, format } = validateSigOpts(opts, defaultSigOpts);
-    publicKey = abytes2(publicKey, void 0, "publicKey");
+    publicKey = abytes3(publicKey, void 0, "publicKey");
     message = validateMsgAndHash(message, prehash);
-    if (!isBytes2(signature)) {
+    if (!isBytes3(signature)) {
       const end = signature instanceof Signature ? ", use sig.toBytes()" : "";
       throw new Error("verify expects Uint8Array signature" + end);
     }
@@ -2187,9 +7393,9 @@ function ecdsa(Point2, hash, ecdsaOpts = {}) {
         return false;
       const { r, s } = sig;
       const h = bits2int_modN(message);
-      const is = Fn2.inv(s);
-      const u1 = Fn2.create(h * is);
-      const u2 = Fn2.create(r * is);
+      const is2 = Fn2.inv(s);
+      const u1 = Fn2.create(h * is2);
+      const u2 = Fn2.create(r * is2);
       const R = Point2.BASE.multiplyUnsafe(u1).add(P.multiplyUnsafe(u2));
       if (R.is0())
         return false;
@@ -2307,9 +7513,9 @@ function schnorrGetPublicKey(secretKey) {
 }
 function schnorrSign(message, secretKey, auxRand = randomBytes(32)) {
   const { Fn: Fn2, BASE } = Pointk1;
-  const m = abytes2(message, void 0, "message");
+  const m = abytes3(message, void 0, "message");
   const { bytes: px, scalar: d } = schnorrGetExtPubKey(secretKey);
-  const a = abytes2(auxRand, 32, "auxRand");
+  const a = abytes3(auxRand, 32, "auxRand");
   const t = Fn2.toBytes(d ^ num(taggedHash("BIP0340/aux", a)));
   const rand = taggedHash("BIP0340/nonce", t, px, m);
   const k_ = Fn2.create(num(rand));
@@ -2328,9 +7534,9 @@ function schnorrSign(message, secretKey, auxRand = randomBytes(32)) {
 }
 function schnorrVerify(signature, message, publicKey) {
   const { Fp, Fn: Fn2, BASE } = Pointk1;
-  const sig = abytes2(signature, 64, "signature");
-  const m = abytes2(message, void 0, "message");
-  const pub = abytes2(publicKey, 32, "publicKey");
+  const sig = abytes3(signature, 64, "signature");
+  const m = abytes3(message, void 0, "message");
+  const pub = abytes3(publicKey, 32, "publicKey");
   try {
     const P = lift_x(num(pub));
     const r = num(sig.subarray(0, 32));
@@ -2497,35 +7703,35 @@ var _RIPEMD160 = class extends HashMD {
 var ripemd160 = /* @__PURE__ */ createHasher(() => new _RIPEMD160());
 
 // node_modules/micro-packed/node_modules/@scure/base/index.js
-function isBytes3(a) {
+function isBytes4(a) {
   return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array" && "BYTES_PER_ELEMENT" in a && a.BYTES_PER_ELEMENT === 1;
 }
-function abytes3(b) {
-  if (!isBytes3(b))
+function abytes4(b) {
+  if (!isBytes4(b))
     throw new TypeError("Uint8Array expected");
 }
-function isArrayOf(isString, arr) {
+function isArrayOf(isString2, arr) {
   if (!Array.isArray(arr))
     return false;
   if (arr.length === 0)
     return true;
-  if (isString) {
+  if (isString2) {
     return arr.every((item) => typeof item === "string");
   } else {
     return arr.every((item) => Number.isSafeInteger(item));
   }
 }
-function afn(input) {
+function afn2(input) {
   if (typeof input !== "function")
     throw new TypeError("function expected");
   return true;
 }
-function astr(label, input) {
+function astr2(label, input) {
   if (typeof input !== "string")
     throw new TypeError(`${label}: string expected`);
   return true;
 }
-function anumber3(n) {
+function anumber4(n) {
   if (typeof n !== "number")
     throw new TypeError(`number expected, got ${typeof n}`);
   if (!Number.isSafeInteger(n))
@@ -2544,15 +7750,15 @@ function anumArr(label, input) {
     throw new TypeError(`${label}: array of numbers expected`);
 }
 // @__NO_SIDE_EFFECTS__
-function chain(...args) {
+function chain2(...args) {
   const id = (a) => a;
   const wrap2 = (a, b) => (c) => a(b(c));
-  const encode = args.map((x) => x.encode).reduceRight(wrap2, id);
+  const encode3 = args.map((x) => x.encode).reduceRight(wrap2, id);
   const decode = args.map((x) => x.decode).reduce(wrap2, id);
-  return { encode, decode };
+  return { encode: encode3, decode };
 }
 // @__NO_SIDE_EFFECTS__
-function alphabet(letters) {
+function alphabet2(letters) {
   const lettersA = typeof letters === "string" ? letters.split("") : letters;
   const len = lettersA.length;
   astrArr("alphabet", lettersA);
@@ -2569,7 +7775,7 @@ function alphabet(letters) {
     decode: (input) => {
       aArr(input);
       return input.map((letter) => {
-        astr("alphabet.decode", letter);
+        astr2("alphabet.decode", letter);
         const i = indexes.get(letter);
         if (i === void 0)
           throw new Error(`Unknown letter: "${letter}". Allowed: ${letters}`);
@@ -2580,26 +7786,26 @@ function alphabet(letters) {
 }
 // @__NO_SIDE_EFFECTS__
 function join(separator = "") {
-  astr("join", separator);
+  astr2("join", separator);
   return {
     encode: (from) => {
       astrArr("join.decode", from);
       return from.join(separator);
     },
     decode: (to) => {
-      astr("join.decode", to);
+      astr2("join.decode", to);
       return to.split(separator);
     }
   };
 }
 // @__NO_SIDE_EFFECTS__
-function normalize(fn) {
-  afn(fn);
+function normalize2(fn) {
+  afn2(fn);
   return { encode: (from) => from, decode: (to) => fn(to) };
 }
 var gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
 var radix2carry = /* @__NO_SIDE_EFFECTS__ */ (from, to) => from + (to - gcd(from, to));
-var powers = /* @__PURE__ */ (() => {
+var powers2 = /* @__PURE__ */ (() => {
   let res = [];
   for (let i = 0; i < 40; i++)
     res.push(2 ** i);
@@ -2616,11 +7822,11 @@ function convertRadix2(data, from, to, padding) {
   }
   let carry = 0;
   let pos = 0;
-  const max = powers[from];
-  const mask = powers[to] - 1;
+  const max = powers2[from];
+  const mask = powers2[to] - 1;
   const res = [];
   for (const n of data) {
-    anumber3(n);
+    anumber4(n);
     if (n >= max)
       throw new Error(`convertRadix2: invalid data word=${n} from=${from}`);
     carry = carry << from | n;
@@ -2629,7 +7835,7 @@ function convertRadix2(data, from, to, padding) {
     pos += from;
     for (; pos >= to; pos -= to)
       res.push((carry >> pos - to & mask) >>> 0);
-    const pow = powers[pos];
+    const pow = powers2[pos];
     if (pow === void 0)
       throw new Error("invalid carry");
     carry &= pow - 1;
@@ -2644,15 +7850,15 @@ function convertRadix2(data, from, to, padding) {
   return res;
 }
 // @__NO_SIDE_EFFECTS__
-function radix2(bits2, revPadding = false) {
-  anumber3(bits2);
+function radix22(bits2, revPadding = false) {
+  anumber4(bits2);
   if (bits2 <= 0 || bits2 > 32)
     throw new RangeError("radix2: bits should be in (0..32]");
   if (/* @__PURE__ */ radix2carry(8, bits2) > 32 || /* @__PURE__ */ radix2carry(bits2, 8) > 32)
     throw new RangeError("radix2: carry overflow");
   return {
     encode: (bytes) => {
-      if (!isBytes3(bytes))
+      if (!isBytes4(bytes))
         throw new TypeError("radix2.encode input should be Uint8Array");
       return convertRadix2(Array.from(bytes), 8, bits2, !revPadding);
     },
@@ -2662,20 +7868,20 @@ function radix2(bits2, revPadding = false) {
     }
   };
 }
-var _isWellFormedShim = (str) => {
+var _isWellFormedShim2 = (str) => {
   try {
     return encodeURI(str) !== null;
   } catch {
     return false;
   }
 };
-var _isWellFormed = /* @__PURE__ */ (() => (
+var _isWellFormed2 = /* @__PURE__ */ (() => (
   // Pick the native check once so utf8.decode doesn't re-probe String.prototype on every call.
-  typeof "".isWellFormed === "function" ? (str) => str.isWellFormed() : _isWellFormedShim
+  typeof "".isWellFormed === "function" ? (str) => str.isWellFormed() : _isWellFormedShim2
 ))();
-var utf8Fallback = /* @__PURE__ */ Object.freeze({
+var utf8Fallback2 = /* @__PURE__ */ Object.freeze({
   encode(data) {
-    abytes3(data);
+    abytes4(data);
     let res = "";
     for (let i = 0; i < data.length; ) {
       const a = data[i++];
@@ -2715,8 +7921,8 @@ var utf8Fallback = /* @__PURE__ */ Object.freeze({
     return res;
   },
   decode(str) {
-    astr("utf8", str);
-    if (!_isWellFormed(str))
+    astr2("utf8", str);
+    if (!_isWellFormed2(str))
       throw new TypeError("utf8 expected well-formed string");
     const res = new Uint8Array(str.length * 3);
     let pos = 0;
@@ -2744,19 +7950,19 @@ var utf8Fallback = /* @__PURE__ */ Object.freeze({
     return res.subarray(0, pos);
   }
 });
-var utf8 = /* @__PURE__ */ (() => {
+var utf82 = /* @__PURE__ */ (() => {
   let _utf8Encoder;
   let _utf8Decoder;
   const utf8Builtin = {
     // ignoreBOM preserves an explicit leading U+FEFF;
     // fatal rejects invalid UTF-8 bytes instead of replacing them.
     encode(data) {
-      abytes3(data);
+      abytes4(data);
       return (_utf8Decoder || (_utf8Decoder = new TextDecoder("utf-8", { ignoreBOM: true, fatal: true }))).decode(data);
     },
     decode(str) {
-      astr("utf8", str);
-      if (!_isWellFormed(str))
+      astr2("utf8", str);
+      if (!_isWellFormed2(str))
         throw new TypeError("utf8 expected well-formed string");
       return (_utf8Encoder || (_utf8Encoder = new TextEncoder())).encode(str);
     }
@@ -2764,28 +7970,28 @@ var utf8 = /* @__PURE__ */ (() => {
   return Object.freeze({
     // Select each direction once at module init, since
     // TextEncoder and TextDecoder can exist independently.
-    encode: typeof TextDecoder === "function" ? utf8Builtin.encode : utf8Fallback.encode,
-    decode: typeof TextEncoder === "function" ? utf8Builtin.decode : utf8Fallback.decode
+    encode: typeof TextDecoder === "function" ? utf8Builtin.encode : utf8Fallback2.encode,
+    decode: typeof TextEncoder === "function" ? utf8Builtin.decode : utf8Fallback2.decode
   });
 })();
-var hasHexBuiltin2 = /* @__PURE__ */ (() => (
+var hasHexBuiltin3 = /* @__PURE__ */ (() => (
   // Require both directions before enabling the native hex path so encode/decode stay symmetric.
   typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function"
 ))();
-var hexBuiltin = {
+var hexBuiltin2 = {
   // Keep local type guards so the native path preserves library-level input errors.
   // Native toHex emits lowercase hex, matching the fallback alphabet and Node's hex strings.
   encode(data) {
-    abytes3(data);
+    abytes4(data);
     return data.toHex();
   },
   // Native fromHex accepts either hex case and rejects odd-length / non-hex syntax.
   decode(s) {
-    astr("hex", s);
+    astr2("hex", s);
     return Uint8Array.fromHex(s);
   }
 };
-var hex = /* @__PURE__ */ Object.freeze(hasHexBuiltin2 ? hexBuiltin : /* @__PURE__ */ chain(/* @__PURE__ */ radix2(4), /* @__PURE__ */ alphabet("0123456789abcdef"), /* @__PURE__ */ join(""), /* @__PURE__ */ normalize((s) => {
+var hex2 = /* @__PURE__ */ Object.freeze(hasHexBuiltin3 ? hexBuiltin2 : /* @__PURE__ */ chain2(/* @__PURE__ */ radix22(4), /* @__PURE__ */ alphabet2("0123456789abcdef"), /* @__PURE__ */ join(""), /* @__PURE__ */ normalize2((s) => {
   if (typeof s !== "string" || s.length % 2 !== 0)
     throw new TypeError(`hex.decode: expected string, got ${typeof s} with length ${s.length}`);
   return s.toLowerCase();
@@ -2842,20 +8048,20 @@ function createFindBytes(needle) {
 }
 var findBytes = (needle, data, pos = 0) => createFindBytes(needle)(data, pos);
 function equal(a, b) {
-  const aBytes = isBytes4(a);
-  const bBytes = isBytes4(b);
+  const aBytes = isBytes5(a);
+  const bBytes = isBytes5(b);
   if (aBytes || bBytes)
     return aBytes && bBytes && equalBytes(a, b);
   return a === b;
 }
-function isBytes4(a) {
+function isBytes5(a) {
   return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array" && "BYTES_PER_ELEMENT" in a && a.BYTES_PER_ELEMENT === 1;
 }
 function concatBytes3(...arrays) {
   let sum = 0;
   for (let i = 0; i < arrays.length; i++) {
     const a = arrays[i];
-    if (!isBytes4(a))
+    if (!isBytes5(a))
       throw new Error("Uint8Array expected");
     sum += a.length;
   }
@@ -2883,7 +8089,7 @@ function isNum(num2) {
 var hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 var utils = /* @__PURE__ */ Object.freeze({
   equalBytes,
-  isBytes: isBytes4,
+  isBytes: isBytes5,
   isCoder,
   checkBounds,
   concatBytes: concatBytes3,
@@ -2891,12 +8097,12 @@ var utils = /* @__PURE__ */ Object.freeze({
   isPlainObject
 });
 var lengthCoder = (len) => {
-  if (len !== null && typeof len !== "string" && !isCoder(len) && !isBytes4(len) && !isNum(len)) {
+  if (len !== null && typeof len !== "string" && !isCoder(len) && !isBytes5(len) && !isNum(len)) {
     throw new TypeError(`lengthCoder: expected null | number | Uint8Array | CoderType, got ${len} (${typeof len})`);
   }
   if (typeof len === "number" && len < 0)
     throw new Error(`lengthCoder: wrong length=${len}`);
-  if (isBytes4(len) && !len.length)
+  if (isBytes5(len) && !len.length)
     throw new Error("lengthCoder: empty terminator");
   return {
     encodeStream(w, value) {
@@ -3172,18 +8378,18 @@ var _Reader = class __Reader {
     if (this.opts.allowUnreadBytes)
       return;
     if (this.bitPos) {
-      throw this.err(`${this.bitPos} bits left after unpack: ${hex.encode(this.data.subarray(this.pos))}`);
+      throw this.err(`${this.bitPos} bits left after unpack: ${hex2.encode(this.data.subarray(this.pos))}`);
     }
     if (this.bs && !this.parent) {
       const notRead = Bitset.indices(this.bs, this.data.length, true);
       if (notRead.length) {
-        const formatted = Bitset.range(notRead).map(({ pos, length }) => `(${pos}/${length})[${hex.encode(this.data.subarray(pos, pos + length))}]`).join(", ");
+        const formatted = Bitset.range(notRead).map(({ pos, length: length2 }) => `(${pos}/${length2})[${hex2.encode(this.data.subarray(pos, pos + length2))}]`).join(", ");
         throw this.err(`unread byte ranges: ${formatted} (total=${this.data.length})`);
       } else
         return;
     }
     if (!this.isEnd()) {
-      throw this.err(`${this.leftBytes} bytes ${this.bitPos} bits left after unpack: ${hex.encode(this.data.subarray(this.pos))}`);
+      throw this.err(`${this.leftBytes} bytes ${this.bitPos} bits left after unpack: ${hex2.encode(this.data.subarray(this.pos))}`);
     }
   }
   // User methods
@@ -3250,7 +8456,7 @@ var _Reader = class __Reader {
     return out >>> 0;
   }
   find(needle, pos = this.pos) {
-    if (!isBytes4(needle))
+    if (!isBytes5(needle))
       throw this.err(`find: needle is not bytes! ${needle}`);
     if (this.bitPos)
       throw this.err("find: bitPos not empty");
@@ -3794,7 +9000,7 @@ var createBytes = (len, le = false) => {
   if (typeof le !== "boolean")
     throw new TypeError(`bytes/le: expected boolean, got ${typeof le}`);
   const _length = lengthCoder(len);
-  const _isb = isBytes4(len);
+  const _isb = isBytes5(len);
   const terminator = _isb ? Uint8Array.from(len) : void 0;
   const findTerminator = terminator && terminator.length ? createFindBytes(terminator) : void 0;
   return wrap({
@@ -3820,7 +9026,7 @@ var createBytes = (len, le = false) => {
       return le ? swapEndianness(bytes) : bytes;
     },
     validate: (value) => {
-      if (!isBytes4(value))
+      if (!isBytes5(value))
         throw new TypeError(`bytes: invalid value ${value}`);
       if (findTerminator) {
         const data = le ? swapEndianness(value) : value;
@@ -3836,7 +9042,7 @@ function prefix(len, inner) {
     throw new Error(`prefix: invalid inner value ${inner}`);
   return apply(createBytes(len), reverse(inner));
 }
-var string = (len, le = false) => validate(apply(createBytes(len, le), utf8), (value) => {
+var string = (len, le = false) => validate(apply(createBytes(len, le), utf82), (value) => {
   if (typeof value !== "string")
     throw new Error(`expected string, got ${typeof value}`);
   return value;
@@ -3876,7 +9082,7 @@ function lazy(fn) {
   });
 }
 var flag = (flagValue, xor = false) => {
-  if (!isBytes4(flagValue))
+  if (!isBytes5(flagValue))
     throw new TypeError(`flag/flagValue: expected Uint8Array, got ${typeof flagValue}`);
   if (flagValue.length === 0)
     throw new Error("flag/flagValue: empty marker");
@@ -3941,20 +9147,20 @@ function flagged(path, inner, def2) {
     }
   });
 }
-function magic(inner, constant, check = true) {
+function magic(inner, constant, check2 = true) {
   if (!isCoder(inner))
     throw new TypeError(`magic: invalid inner value ${inner}`);
-  if (typeof check !== "boolean")
-    throw new TypeError(`magic: expected boolean, got ${typeof check}`);
+  if (typeof check2 !== "boolean")
+    throw new TypeError(`magic: expected boolean, got ${typeof check2}`);
   return wrap({
     size: inner.size,
     encodeStream: (w, _value) => inner.encodeStream(w, constant),
     decodeStream: (r) => {
       const value = inner.decodeStream(r);
-      const valueObj = value !== null && typeof value === "object" && !isBytes4(value);
-      const constantObj = constant !== null && typeof constant === "object" && !isBytes4(constant);
+      const valueObj = value !== null && typeof value === "object" && !isBytes5(value);
+      const constantObj = constant !== null && typeof constant === "object" && !isBytes5(constant);
       const canCompare = !valueObj || !constantObj;
-      if (check && canCompare && !equal(value, constant)) {
+      if (check2 && canCompare && !equal(value, constant)) {
         throw r.err(`magic: invalid value: ${value} !== ${constant}`);
       }
       return;
@@ -4056,14 +9262,14 @@ function array(len, inner) {
     encodeStream: (w, value) => {
       const _w = w;
       _w.pushObj(value, (fieldFn) => {
-        if (!isBytes4(len))
+        if (!isBytes5(len))
           _length.encodeStream(w, value.length);
         for (let i = 0; i < value.length; i++) {
           fieldFn(`${i}`, () => {
             const elm = value[i];
             const startPos = w.pos;
             inner.encodeStream(w, elm);
-            if (isBytes4(len)) {
+            if (isBytes5(len)) {
               if (len.length > _w.pos - startPos)
                 return;
               const data = _w.finish(false).subarray(startPos, _w.pos);
@@ -4073,7 +9279,7 @@ function array(len, inner) {
           });
         }
       });
-      if (isBytes4(len))
+      if (isBytes5(len))
         w.bytes(len);
     },
     decodeStream: (r) => {
@@ -4091,7 +9297,7 @@ function array(len, inner) {
             if (inner.size && r.leftBytes < inner.size)
               break;
           }
-        } else if (isBytes4(len)) {
+        } else if (isBytes5(len)) {
           for (let i = 0; ; i++) {
             if (equalBytes(r.bytes(len.length, true), len)) {
               r.bytes(len.length);
@@ -4105,9 +9311,9 @@ function array(len, inner) {
             });
           }
         } else {
-          let length;
-          fieldFn("arrayLen", () => length = _length.decodeStream(r));
-          for (let i = 0; i < length; i++)
+          let length2;
+          fieldFn("arrayLen", () => length2 = _length.decodeStream(r));
+          for (let i = 0; i < length2; i++)
             fieldFn(`${i}`, () => res.push(inner.decodeStream(r)));
         }
       });
@@ -4145,10 +9351,10 @@ function map(inner, variants) {
       inner.encodeStream(w, variantValues.get(value));
     },
     decodeStream: (r) => {
-      const variant = inner.decodeStream(r);
-      const name = variantNames.get(variant);
+      const variant2 = inner.decodeStream(r);
+      const name = variantNames.get(variant2);
       if (name === void 0)
-        throw r.err(`Enum: unknown value: ${variant} ${Array.from(variantNames.keys())}`);
+        throw r.err(`Enum: unknown value: ${variant2} ${Array.from(variantNames.keys())}`);
       return name;
     },
     validate: (value) => {
@@ -4233,7 +9439,7 @@ var Point = /* @__PURE__ */ (() => secp256k1.Point)();
 var Fn = /* @__PURE__ */ (() => Point.Fn)();
 var CURVE_ORDER = /* @__PURE__ */ (() => Point.Fn.ORDER)();
 var hasEven2 = (y) => y % 2n === 0n;
-var isBytes5 = /* @__PURE__ */ (() => utils.isBytes)();
+var isBytes6 = /* @__PURE__ */ (() => utils.isBytes)();
 var concatBytes4 = /* @__PURE__ */ (() => utils.concatBytes)();
 var equalBytes2 = /* @__PURE__ */ (() => utils.equalBytes)();
 var sha2562 = /* @__PURE__ */ (() => sha256)();
@@ -4244,7 +9450,7 @@ var pubSchnorr = (priv) => schnorr.getPublicKey(priv);
 var pubECDSA = (privateKey, isCompressed) => secp256k1.getPublicKey(privateKey, isCompressed);
 var hasLowR = (sig) => sig.r < CURVE_ORDER / 2n;
 function signECDSA(hash, privateKey, lowR = false) {
-  abytes2(hash, 32, "hash");
+  abytes3(hash, 32, "hash");
   let sig = secp256k1.Signature.fromBytes(secp256k1.sign(hash, privateKey, { prehash: false }));
   if (lowR && !hasLowR(sig)) {
     const extraEntropy = new Uint8Array(32);
@@ -4290,7 +9496,7 @@ function tapTweak(a, b) {
 }
 function taprootTweakPrivKey(privKey, merkleRoot = Uint8Array.of()) {
   const u = schnorr.utils;
-  abytes2(privKey, 32, "privKey");
+  abytes3(privKey, 32, "privKey");
   const seckey0 = bytesToNumberBE(privKey);
   const P = Point.BASE.multiply(seckey0);
   const seckey = hasEven2(P.y) ? seckey0 : Fn.neg(seckey0);
@@ -4300,7 +9506,7 @@ function taprootTweakPrivKey(privKey, merkleRoot = Uint8Array.of()) {
 }
 function taprootTweakPubkey(pubKey, h) {
   const u = schnorr.utils;
-  abytes2(pubKey, 32, "pubKey");
+  abytes3(pubKey, 32, "pubKey");
   const t = tapTweak(pubKey, h);
   const P = u.lift_x(bytesToNumberBE(pubKey));
   const Q = P.add(Point.BASE.multiply(t));
@@ -4321,7 +9527,7 @@ var TEST_NETWORK = /* @__PURE__ */ Object.freeze({
   wif: 239
 });
 function compareBytes(a, b) {
-  if (!isBytes5(a) || !isBytes5(b))
+  if (!isBytes6(a) || !isBytes6(b))
     throw new TypeError(`cmp: wrong type a=${typeof a} b=${typeof b}`);
   const len = Math.min(a.length, b.length);
   for (let i = 0; i < len; i++)
@@ -4340,35 +9546,35 @@ function reverseObject(obj) {
 }
 
 // node_modules/@scure/btc-signer/node_modules/@scure/base/index.js
-function isBytes6(a) {
+function isBytes7(a) {
   return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array" && "BYTES_PER_ELEMENT" in a && a.BYTES_PER_ELEMENT === 1;
 }
-function abytes4(b) {
-  if (!isBytes6(b))
+function abytes5(b) {
+  if (!isBytes7(b))
     throw new TypeError("Uint8Array expected");
 }
-function isArrayOf2(isString, arr) {
+function isArrayOf2(isString2, arr) {
   if (!Array.isArray(arr))
     return false;
   if (arr.length === 0)
     return true;
-  if (isString) {
+  if (isString2) {
     return arr.every((item) => typeof item === "string");
   } else {
     return arr.every((item) => Number.isSafeInteger(item));
   }
 }
-function afn2(input) {
+function afn3(input) {
   if (typeof input !== "function")
     throw new TypeError("function expected");
   return true;
 }
-function astr2(label, input) {
+function astr3(label, input) {
   if (typeof input !== "string")
     throw new TypeError(`${label}: string expected`);
   return true;
 }
-function anumber4(n) {
+function anumber5(n) {
   if (typeof n !== "number")
     throw new TypeError(`number expected, got ${typeof n}`);
   if (!Number.isSafeInteger(n))
@@ -4387,15 +9593,15 @@ function anumArr2(label, input) {
     throw new TypeError(`${label}: array of numbers expected`);
 }
 // @__NO_SIDE_EFFECTS__
-function chain2(...args) {
+function chain3(...args) {
   const id = (a) => a;
   const wrap2 = (a, b) => (c) => a(b(c));
-  const encode = args.map((x) => x.encode).reduceRight(wrap2, id);
+  const encode3 = args.map((x) => x.encode).reduceRight(wrap2, id);
   const decode = args.map((x) => x.decode).reduce(wrap2, id);
-  return { encode, decode };
+  return { encode: encode3, decode };
 }
 // @__NO_SIDE_EFFECTS__
-function alphabet2(letters) {
+function alphabet3(letters) {
   const lettersA = typeof letters === "string" ? letters.split("") : letters;
   const len = lettersA.length;
   astrArr2("alphabet", lettersA);
@@ -4412,7 +9618,7 @@ function alphabet2(letters) {
     decode: (input) => {
       aArr2(input);
       return input.map((letter) => {
-        astr2("alphabet.decode", letter);
+        astr3("alphabet.decode", letter);
         const i = indexes.get(letter);
         if (i === void 0)
           throw new Error(`Unknown letter: "${letter}". Allowed: ${letters}`);
@@ -4423,21 +9629,21 @@ function alphabet2(letters) {
 }
 // @__NO_SIDE_EFFECTS__
 function join2(separator = "") {
-  astr2("join", separator);
+  astr3("join", separator);
   return {
     encode: (from) => {
       astrArr2("join.decode", from);
       return from.join(separator);
     },
     decode: (to) => {
-      astr2("join.decode", to);
+      astr3("join.decode", to);
       return to.split(separator);
     }
   };
 }
 // @__NO_SIDE_EFFECTS__
-function normalize2(fn) {
-  afn2(fn);
+function normalize3(fn) {
+  afn3(fn);
   return { encode: (from) => from, decode: (to) => fn(to) };
 }
 function convertRadix(data, from, to) {
@@ -4451,7 +9657,7 @@ function convertRadix(data, from, to) {
   let pos = 0;
   const res = [];
   const digits = Array.from(data, (d) => {
-    anumber4(d);
+    anumber5(d);
     if (d < 0 || d >= from)
       throw new Error(`invalid integer: ${d}`);
     return d;
@@ -4490,7 +9696,7 @@ function convertRadix(data, from, to) {
 }
 var gcd2 = (a, b) => b === 0 ? a : gcd2(b, a % b);
 var radix2carry2 = /* @__NO_SIDE_EFFECTS__ */ (from, to) => from + (to - gcd2(from, to));
-var powers2 = /* @__PURE__ */ (() => {
+var powers3 = /* @__PURE__ */ (() => {
   let res = [];
   for (let i = 0; i < 40; i++)
     res.push(2 ** i);
@@ -4507,11 +9713,11 @@ function convertRadix22(data, from, to, padding) {
   }
   let carry = 0;
   let pos = 0;
-  const max = powers2[from];
-  const mask = powers2[to] - 1;
+  const max = powers3[from];
+  const mask = powers3[to] - 1;
   const res = [];
   for (const n of data) {
-    anumber4(n);
+    anumber5(n);
     if (n >= max)
       throw new Error(`convertRadix2: invalid data word=${n} from=${from}`);
     carry = carry << from | n;
@@ -4520,7 +9726,7 @@ function convertRadix22(data, from, to, padding) {
     pos += from;
     for (; pos >= to; pos -= to)
       res.push((carry >> pos - to & mask) >>> 0);
-    const pow = powers2[pos];
+    const pow = powers3[pos];
     if (pow === void 0)
       throw new Error("invalid carry");
     carry &= pow - 1;
@@ -4536,11 +9742,11 @@ function convertRadix22(data, from, to, padding) {
 }
 // @__NO_SIDE_EFFECTS__
 function radix(num2) {
-  anumber4(num2);
+  anumber5(num2);
   const _256 = 2 ** 8;
   return {
     encode: (bytes) => {
-      if (!isBytes6(bytes))
+      if (!isBytes7(bytes))
         throw new TypeError("radix.encode input should be Uint8Array");
       return convertRadix(Array.from(bytes), _256, num2);
     },
@@ -4551,15 +9757,15 @@ function radix(num2) {
   };
 }
 // @__NO_SIDE_EFFECTS__
-function radix22(bits2, revPadding = false) {
-  anumber4(bits2);
+function radix23(bits2, revPadding = false) {
+  anumber5(bits2);
   if (bits2 <= 0 || bits2 > 32)
     throw new RangeError("radix2: bits should be in (0..32]");
   if (/* @__PURE__ */ radix2carry2(8, bits2) > 32 || /* @__PURE__ */ radix2carry2(bits2, 8) > 32)
     throw new RangeError("radix2: carry overflow");
   return {
     encode: (bytes) => {
-      if (!isBytes6(bytes))
+      if (!isBytes7(bytes))
         throw new TypeError("radix2.encode input should be Uint8Array");
       return convertRadix22(Array.from(bytes), 8, bits2, !revPadding);
     },
@@ -4570,7 +9776,7 @@ function radix22(bits2, revPadding = false) {
   };
 }
 function unsafeWrapper(fn) {
-  afn2(fn);
+  afn3(fn);
   return function(...args) {
     try {
       return fn.apply(null, args);
@@ -4579,14 +9785,14 @@ function unsafeWrapper(fn) {
   };
 }
 function checksum(len, fn) {
-  anumber4(len);
+  anumber5(len);
   if (len <= 0)
     throw new RangeError(`checksum length must be positive: ${len}`);
-  afn2(fn);
+  afn3(fn);
   const _fn = fn;
   return {
     encode(data) {
-      if (!isBytes6(data))
+      if (!isBytes7(data))
         throw new TypeError("checksum.encode: input should be Uint8Array");
       const sum = _fn(data).slice(0, len);
       const res = new Uint8Array(data.length + len);
@@ -4595,7 +9801,7 @@ function checksum(len, fn) {
       return res;
     },
     decode(data) {
-      if (!isBytes6(data))
+      if (!isBytes7(data))
         throw new TypeError("checksum.decode: input should be Uint8Array");
       const payload = data.slice(0, -len);
       const oldChecksum = data.slice(-len);
@@ -4607,14 +9813,14 @@ function checksum(len, fn) {
     }
   };
 }
-var genBase58 = /* @__NO_SIDE_EFFECTS__ */ (abc) => /* @__PURE__ */ chain2(/* @__PURE__ */ radix(58), /* @__PURE__ */ alphabet2(abc), /* @__PURE__ */ join2(""));
+var genBase58 = /* @__NO_SIDE_EFFECTS__ */ (abc) => /* @__PURE__ */ chain3(/* @__PURE__ */ radix(58), /* @__PURE__ */ alphabet3(abc), /* @__PURE__ */ join2(""));
 var base58 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ genBase58("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"));
-var createBase58check = (sha2563) => {
-  afn2(sha2563);
-  const _sha256 = sha2563;
-  return /* @__PURE__ */ chain2(checksum(4, (data) => _sha256(_sha256(data))), base58);
+var createBase58check = (sha2564) => {
+  afn3(sha2564);
+  const _sha256 = sha2564;
+  return /* @__PURE__ */ chain3(checksum(4, (data) => _sha256(_sha256(data))), base58);
 };
-var BECH_ALPHABET = /* @__PURE__ */ chain2(/* @__PURE__ */ alphabet2("qpzry9x8gf2tvdw0s3jn54khce6mua7l"), /* @__PURE__ */ join2(""));
+var BECH_ALPHABET = /* @__PURE__ */ chain3(/* @__PURE__ */ alphabet3("qpzry9x8gf2tvdw0s3jn54khce6mua7l"), /* @__PURE__ */ join2(""));
 var POLYMOD_GENERATORS = [996825010, 642813549, 513874426, 1027748829, 705979059];
 function bech32Polymod(pre) {
   const b = pre >> 25;
@@ -4642,18 +9848,18 @@ function bechChecksum(prefix2, words, encodingConst = 1) {
   for (let i = 0; i < 6; i++)
     chk = bech32Polymod(chk);
   chk ^= encodingConst;
-  return BECH_ALPHABET.encode(convertRadix22([chk % powers2[30]], 30, 5, false));
+  return BECH_ALPHABET.encode(convertRadix22([chk % powers3[30]], 30, 5, false));
 }
 // @__NO_SIDE_EFFECTS__
 function genBech32(encoding) {
   const ENCODING_CONST = encoding === "bech32" ? 1 : 734539939;
-  const _words = /* @__PURE__ */ radix22(5);
+  const _words = /* @__PURE__ */ radix23(5);
   const fromWords = _words.decode;
   const toWords = _words.encode;
   const fromWordsUnsafe = unsafeWrapper(fromWords);
-  function encode(prefix2, words, limit = 90) {
-    astr2("bech32.encode prefix", prefix2);
-    if (isBytes6(words))
+  function encode3(prefix2, words, limit = 90) {
+    astr3("bech32.encode prefix", prefix2);
+    if (isBytes7(words))
       words = Array.from(words);
     anumArr2("bech32.encode", words);
     const plen = prefix2.length;
@@ -4667,7 +9873,7 @@ function genBech32(encoding) {
     return `${lowered}1${BECH_ALPHABET.encode(words)}${sum}`;
   }
   function decode(str, limit = 90) {
-    astr2("bech32.decode input", str);
+    astr3("bech32.decode input", str);
     const slen = str.length;
     if (slen < 8 || limit !== false && slen > limit)
       throw new TypeError(`invalid string length: ${slen} (${str}). Expected (8..${limit})`);
@@ -4697,10 +9903,10 @@ function genBech32(encoding) {
     };
   }
   function encodeFromBytes(prefix2, bytes) {
-    return encode(prefix2, toWords(bytes));
+    return encode3(prefix2, toWords(bytes));
   }
   return {
-    encode,
+    encode: encode3,
     decode,
     encodeFromBytes,
     decodeToBytes,
@@ -4712,24 +9918,24 @@ function genBech32(encoding) {
 }
 var bech32 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ genBech32("bech32"));
 var bech32m = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ genBech32("bech32m"));
-var hasHexBuiltin3 = /* @__PURE__ */ (() => (
+var hasHexBuiltin4 = /* @__PURE__ */ (() => (
   // Require both directions before enabling the native hex path so encode/decode stay symmetric.
   typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function"
 ))();
-var hexBuiltin2 = {
+var hexBuiltin3 = {
   // Keep local type guards so the native path preserves library-level input errors.
   // Native toHex emits lowercase hex, matching the fallback alphabet and Node's hex strings.
   encode(data) {
-    abytes4(data);
+    abytes5(data);
     return data.toHex();
   },
   // Native fromHex accepts either hex case and rejects odd-length / non-hex syntax.
   decode(s) {
-    astr2("hex", s);
+    astr3("hex", s);
     return Uint8Array.fromHex(s);
   }
 };
-var hex2 = /* @__PURE__ */ Object.freeze(hasHexBuiltin3 ? hexBuiltin2 : /* @__PURE__ */ chain2(/* @__PURE__ */ radix22(4), /* @__PURE__ */ alphabet2("0123456789abcdef"), /* @__PURE__ */ join2(""), /* @__PURE__ */ normalize2((s) => {
+var hex3 = /* @__PURE__ */ Object.freeze(hasHexBuiltin4 ? hexBuiltin3 : /* @__PURE__ */ chain3(/* @__PURE__ */ radix23(4), /* @__PURE__ */ alphabet3("0123456789abcdef"), /* @__PURE__ */ join2(""), /* @__PURE__ */ normalize3((s) => {
   if (typeof s !== "string" || s.length % 2 !== 0)
     throw new TypeError(`hex.decode: expected string, got ${typeof s} with length ${s.length}`);
   return s.toLowerCase();
@@ -4908,7 +10114,7 @@ function ScriptNum(bytesLimit = 6, forceMinimal = false) {
 function OpToNum(op, bytesLimit = 4, forceMinimal = true) {
   if (typeof op === "number")
     return op;
-  if (isBytes5(op)) {
+  if (isBytes6(op)) {
     try {
       const val = ScriptNum(bytesLimit, forceMinimal).decode(op);
       if (val > Number.MAX_SAFE_INTEGER)
@@ -4955,7 +10161,7 @@ var Script = /* @__PURE__ */ (() => Object.freeze(wrap({
       }
       if (typeof o === "number")
         o = ScriptNum().encode(BigInt(o));
-      if (!isBytes5(o))
+      if (!isBytes6(o))
         throw new Error(`Wrong Script OP=${o} (${typeof o})`);
       const len = o.length;
       if (len < OP.PUSHDATA1)
@@ -5279,7 +10485,7 @@ function PSBTKeyMap(psbtEnum) {
       const seen = {};
       const add = (key, value2) => {
         const _value2 = value2;
-        const kStr = hex2.encode(PSBTUnknownKey.encode(key));
+        const kStr = hex3.encode(PSBTUnknownKey.encode(key));
         if (seen[kStr])
           throw new Error(`PSBT: duplicate key=${kStr}`);
         seen[kStr] = true;
@@ -5315,7 +10521,7 @@ function PSBTKeyMap(psbtEnum) {
       const noKey = {};
       const seen = {};
       for (const elm of raw) {
-        const kStr = hex2.encode(PSBTUnknownKey.encode(elm.key));
+        const kStr = hex3.encode(PSBTUnknownKey.encode(elm.key));
         if (seen[kStr])
           throw new Error(`PSBT: duplicate key=${kStr}`);
         seen[kStr] = true;
@@ -5326,7 +10532,7 @@ function PSBTKeyMap(psbtEnum) {
           const [_name, kc, vc] = byType[elm.key.type];
           name = _name;
           if (!kc && key.length) {
-            throw new Error(`PSBT: Non-empty key for ${name} (key=${hex2.encode(key)} value=${hex2.encode(value)}`);
+            throw new Error(`PSBT: Non-empty key for ${name} (key=${hex3.encode(key)} value=${hex3.encode(value)}`);
           }
           key = kc ? kc.decode(key) : void 0;
           value = vc.decode(value);
@@ -5494,8 +10700,8 @@ function mergeKeyMap(psbtEnum, val, cur, allowedFields, allowUnknown) {
           if (val2.length !== 2)
             throw new Error(`keyMap(${k}): KV pairs should be [k, v][]`);
           return [
-            typeof val2[0] === "string" ? kC.decode(hex2.decode(val2[0])) : val2[0],
-            typeof val2[1] === "string" ? vC.decode(hex2.decode(val2[1])) : val2[1]
+            typeof val2[0] === "string" ? kC.decode(hex3.decode(val2[0])) : val2[0],
+            typeof val2[1] === "string" ? vC.decode(hex3.decode(val2[1])) : val2[1]
           ];
         });
         const map2 = {};
@@ -5504,17 +10710,17 @@ function mergeKeyMap(psbtEnum, val, cur, allowedFields, allowUnknown) {
             map2[kStr] = [k2, v];
             return;
           }
-          const oldVal = hex2.encode(vC.encode(map2[kStr][1]));
-          const newVal = hex2.encode(vC.encode(v));
+          const oldVal = hex3.encode(vC.encode(map2[kStr][1]));
+          const newVal = hex3.encode(vC.encode(v));
           if (oldVal !== newVal)
             throw new Error(`keyMap(${key}): same key=${kStr} oldVal=${oldVal} newVal=${newVal}`);
         };
         for (const [k2, v] of oldKV) {
-          const kStr = hex2.encode(kC.encode(k2));
+          const kStr = hex3.encode(kC.encode(k2));
           add(kStr, k2, v);
         }
         for (const [k2, v] of newKV) {
-          const kStr = hex2.encode(kC.encode(k2));
+          const kStr = hex3.encode(kC.encode(k2));
           if (v === void 0) {
             if (cannotChange)
               throw new Error(`Cannot remove signed field=${key}/${k2}`);
@@ -5525,7 +10731,7 @@ function mergeKeyMap(psbtEnum, val, cur, allowedFields, allowUnknown) {
         res[key] = Object.values(map2);
       }
     } else if (typeof res[k] === "string") {
-      res[k] = vC.decode(hex2.decode(res[k]));
+      res[k] = vC.decode(hex3.decode(res[k]));
     } else if (cannotChange && k in _val && _cur && _cur[k] !== void 0) {
       if (!equalBytes2(vC.encode(_val[k]), vC.encode(_cur[k])))
         throw new Error(`Cannot change signed field=${k}`);
@@ -5534,15 +10740,15 @@ function mergeKeyMap(psbtEnum, val, cur, allowedFields, allowUnknown) {
   if (allowUnknown && _val.unknown) {
     const map2 = {};
     for (const [k, v] of _cur?.unknown || [])
-      map2[hex2.encode(PSBTUnknownKey.encode(k))] = [k, v];
+      map2[hex3.encode(PSBTUnknownKey.encode(k))] = [k, v];
     for (const [k, v] of _val.unknown) {
-      const kStr = hex2.encode(PSBTUnknownKey.encode(k));
+      const kStr = hex3.encode(PSBTUnknownKey.encode(k));
       if (map2[kStr] === void 0) {
         map2[kStr] = [k, v];
         continue;
       }
-      const oldVal = hex2.encode(BytesInf.encode(map2[kStr][1]));
-      const newVal = hex2.encode(BytesInf.encode(v));
+      const oldVal = hex3.encode(BytesInf.encode(map2[kStr][1]));
+      const newVal = hex3.encode(BytesInf.encode(v));
       if (oldVal !== newVal)
         throw new Error(`keyMap(unknown): same key=${kStr} oldVal=${oldVal} newVal=${newVal}`);
     }
@@ -5563,14 +10769,14 @@ var RawPSBTV2 = /* @__PURE__ */ (() => Object.freeze(validate(_RawPSBTV2, valida
 // node_modules/@scure/btc-signer/payment.js
 var OutP2A = {
   encode(from) {
-    if (from.length !== 2 || from[0] !== 1 || !isBytes5(from[1]) || hex2.encode(from[1]) !== "4e73")
+    if (from.length !== 2 || from[0] !== 1 || !isBytes6(from[1]) || hex3.encode(from[1]) !== "4e73")
       return;
     return { type: "p2a", script: Script.encode(from) };
   },
   decode: (to) => {
     if (to.type !== "p2a")
       return;
-    return [1, hex2.decode("4e73")];
+    return [1, hex3.decode("4e73")];
   }
 };
 function isValidPubkey(pub, type) {
@@ -5583,7 +10789,7 @@ function isValidPubkey(pub, type) {
 }
 var OutPK = {
   encode(from) {
-    if (from.length !== 2 || !isBytes5(from[0]) || !isValidPubkey(from[0], PubT.ecdsa) || from[1] !== "CHECKSIG")
+    if (from.length !== 2 || !isBytes6(from[0]) || !isValidPubkey(from[0], PubT.ecdsa) || from[1] !== "CHECKSIG")
       return;
     return { type: "pk", pubkey: from[0] };
   },
@@ -5595,7 +10801,7 @@ var OutPK = {
 };
 var OutPKH = {
   encode(from) {
-    if (from.length !== 5 || from[0] !== "DUP" || from[1] !== "HASH160" || !isBytes5(from[2]))
+    if (from.length !== 5 || from[0] !== "DUP" || from[1] !== "HASH160" || !isBytes6(from[2]))
       return;
     if (from[3] !== "EQUALVERIFY" || from[4] !== "CHECKSIG")
       return;
@@ -5607,7 +10813,7 @@ var OutPKH = {
 };
 var OutSH = {
   encode(from) {
-    if (from.length !== 3 || from[0] !== "HASH160" || !isBytes5(from[1]) || from[2] !== "EQUAL")
+    if (from.length !== 3 || from[0] !== "HASH160" || !isBytes6(from[1]) || from[2] !== "EQUAL")
       return;
     return { type: "sh", hash: from[1] };
   },
@@ -5617,7 +10823,7 @@ var OutSH = {
 };
 var OutWSH = {
   encode(from) {
-    if (from.length !== 2 || from[0] !== 0 || !isBytes5(from[1]))
+    if (from.length !== 2 || from[0] !== 0 || !isBytes6(from[1]))
       return;
     if (from[1].length !== 32)
       return;
@@ -5629,7 +10835,7 @@ var OutWSH = {
 };
 var OutWPKH = {
   encode(from) {
-    if (from.length !== 2 || from[0] !== 0 || !isBytes5(from[1]))
+    if (from.length !== 2 || from[0] !== 0 || !isBytes6(from[1]))
       return;
     if (from[1].length !== 20)
       return;
@@ -5652,7 +10858,7 @@ var OutMS = {
     if (n !== pubkeys.length)
       return;
     for (const pub of pubkeys)
-      if (!isBytes5(pub))
+      if (!isBytes6(pub))
         return;
     return { type: "ms", m, pubkeys };
   },
@@ -5666,7 +10872,7 @@ var OutMS = {
 };
 var OutTR = {
   encode(from) {
-    if (from.length !== 2 || from[0] !== 1 || !isBytes5(from[1]) || from[1].length !== 32)
+    if (from.length !== 2 || from[0] !== 1 || !isBytes6(from[1]) || from[1].length !== 32)
       return;
     return { type: "tr", pubkey: from[1] };
   },
@@ -5687,7 +10893,7 @@ var OutTRNS = {
           return;
         continue;
       }
-      if (!isBytes5(elm) || !isValidPubkey(elm, PubT.schnorr))
+      if (!isBytes6(elm) || !isValidPubkey(elm, PubT.schnorr))
         return;
       pubkeys.push(elm);
     }
@@ -5721,7 +10927,7 @@ var OutTRMS = {
           return;
         continue;
       }
-      if (!isBytes5(elm))
+      if (!isBytes6(elm))
         return;
       pubkeys.push(elm);
     }
@@ -5766,11 +10972,11 @@ var _OutScript = /* @__PURE__ */ (() => apply(Script, coders.match(OutScripts)))
 var OutScript = /* @__PURE__ */ (() => Object.freeze(validate(_OutScript, (i) => {
   if (i.type === "pk" && !isValidPubkey(i.pubkey, PubT.ecdsa))
     throw new Error("OutScript/pk: wrong key");
-  if ((i.type === "pkh" || i.type === "sh" || i.type === "wpkh") && (!isBytes5(i.hash) || i.hash.length !== 20))
+  if ((i.type === "pkh" || i.type === "sh" || i.type === "wpkh") && (!isBytes6(i.hash) || i.hash.length !== 20))
     throw new Error(`OutScript/${i.type}: wrong hash`);
-  if (i.type === "wsh" && (!isBytes5(i.hash) || i.hash.length !== 32))
+  if (i.type === "wsh" && (!isBytes6(i.hash) || i.hash.length !== 32))
     throw new Error(`OutScript/wsh: wrong hash`);
-  if (i.type === "tr" && (!isBytes5(i.pubkey) || !isValidPubkey(i.pubkey, PubT.schnorr)))
+  if (i.type === "tr" && (!isBytes6(i.pubkey) || !isValidPubkey(i.pubkey, PubT.schnorr)))
     throw new Error("OutScript/tr: wrong taproot public key");
   if (i.type === "ms" || i.type === "tr_ns" || i.type === "tr_ms") {
     if (!Array.isArray(i.pubkeys))
@@ -5781,7 +10987,7 @@ var OutScript = /* @__PURE__ */ (() => Object.freeze(validate(_OutScript, (i) =>
     for (const p of i.pubkeys)
       if (!isValidPubkey(p, PubT.ecdsa))
         throw new Error("OutScript/multisig: wrong pubkey");
-    anumber(i.m, "m");
+    anumber2(i.m, "m");
     if (i.m <= 0 || n > 16 || i.m > n)
       throw new Error("OutScript/multisig: invalid params");
   }
@@ -5792,7 +10998,7 @@ var OutScript = /* @__PURE__ */ (() => Object.freeze(validate(_OutScript, (i) =>
   }
   if (i.type === "tr_ms") {
     const n = i.pubkeys.length;
-    anumber(i.m, "m");
+    anumber2(i.m, "m");
     if (i.m <= 0 || n > 999 || i.m > n)
       throw new Error("OutScript/tr_ms: invalid params");
   }
@@ -5938,8 +11144,8 @@ function taprootHashTree(tree, internalPubKey, allowUnknownOutputs = false, cust
     const { script: leafScript } = tree;
     if (tree.tapLeafScript || tree.tapMerkleRoot && !equalBytes2(tree.tapMerkleRoot, EMPTY))
       throw new Error("P2TR: tapRoot leafScript cannot have tree");
-    const script = typeof leafScript === "string" ? hex2.decode(leafScript) : leafScript;
-    if (!isBytes5(script))
+    const script = typeof leafScript === "string" ? hex3.decode(leafScript) : leafScript;
+    if (!isBytes6(script))
       throw new Error(`checkScript: wrong script type=${script}`);
     checkTaprootScript(script, internalPubKey, allowUnknownOutputs, customScripts2);
     return {
@@ -5969,7 +11175,7 @@ var TAP_LEAF_VERSION = 192;
 var tapLeafVersion = (version) => {
   if (version === void 0)
     return TAP_LEAF_VERSION;
-  anumber(version, "leafVersion");
+  anumber2(version, "leafVersion");
   if (version > 254 || version === 80 || !!(version & 1))
     throw new Error(`P2TR: invalid leafVersion=${version}`);
   return version;
@@ -5978,7 +11184,7 @@ var tapLeafHash = (script, version = TAP_LEAF_VERSION) => tagSchnorr("TapLeaf", 
 function p2tr(internalPubKey, tree, network = NETWORK, allowUnknownOutputs = false, customScripts2) {
   if (!internalPubKey && !tree)
     throw new Error("p2tr: should have pubKey or scriptTree (or both)");
-  const pubKey = typeof internalPubKey === "string" ? hex2.decode(internalPubKey) : internalPubKey || TAPROOT_UNSPENDABLE_KEY;
+  const pubKey = typeof internalPubKey === "string" ? hex3.decode(internalPubKey) : internalPubKey || TAPROOT_UNSPENDABLE_KEY;
   if (!isValidPubkey(pubKey, PubT.schnorr))
     throw new Error("p2tr: non-schnorr pubkey");
   if (tree) {
@@ -6046,7 +11252,7 @@ function formatKey(hashed, prefix2) {
 function WIF(network = NETWORK) {
   return {
     encode(privKey) {
-      abytes2(privKey, 32, "privKey");
+      abytes3(privKey, 32, "privKey");
       const compressed = concatBytes4(privKey, new Uint8Array([1]));
       return formatKey(compressed.subarray(0, 33), [network.wif]);
     },
@@ -6170,7 +11376,7 @@ var def = (value, def2) => value === void 0 ? def2 : value;
 function cloneDeep(obj) {
   if (Array.isArray(obj))
     return obj.map((i) => cloneDeep(i));
-  else if (isBytes5(obj))
+  else if (isBytes6(obj))
     return Uint8Array.from(obj);
   else if (["number", "bigint", "boolean", "string", "undefined"].includes(typeof obj))
     return obj;
@@ -6315,7 +11521,7 @@ function validateInput(i) {
         disableScriptCheck: true,
         allowUnknownInputs: true
       });
-      const txid = hex2.encode(_i.txid);
+      const txid = hex3.encode(_i.txid);
       if (tx.id !== txid)
         throw new Error(`nonWitnessUtxo: wrong txid, exp=${txid} got=${tx.id}`);
     }
@@ -6341,13 +11547,13 @@ function normalizeInput(i, cur, allowedFields, disableScriptCheck = false, allow
   const _allowedFields = allowedFields;
   let { nonWitnessUtxo, txid } = _i;
   if (typeof nonWitnessUtxo === "string")
-    nonWitnessUtxo = hex2.decode(nonWitnessUtxo);
-  if (isBytes5(nonWitnessUtxo))
+    nonWitnessUtxo = hex3.decode(nonWitnessUtxo);
+  if (isBytes6(nonWitnessUtxo))
     nonWitnessUtxo = RawTx.decode(nonWitnessUtxo);
   if (!("nonWitnessUtxo" in _i) && nonWitnessUtxo === void 0)
     nonWitnessUtxo = _cur?.nonWitnessUtxo;
   if (typeof txid === "string")
-    txid = hex2.decode(txid);
+    txid = hex3.decode(txid);
   if (txid === void 0)
     txid = _cur?.txid;
   let res = { ..._cur, ..._i, nonWitnessUtxo, txid };
@@ -6509,9 +11715,9 @@ var Transaction = class _Transaction {
         delete inp.finalScriptWitness;
     }
     const outputs = this.outputs.map((i) => cleanPSBTFields(PSBTVersion, PSBTOutput, i));
-    const global = { ...this.global };
+    const global2 = { ...this.global };
     if (PSBTVersion === 0) {
-      global.unsignedTx = RawOldTx.decode(RawOldTx.encode({
+      global2.unsignedTx = RawOldTx.decode(RawOldTx.encode({
         version: this.version,
         lockTime: this.lockTime,
         inputs: this.inputs.map((i) => inputBeforeSign(i)).map((i) => ({
@@ -6520,19 +11726,19 @@ var Transaction = class _Transaction {
         })),
         outputs: this.outputs.map((o) => outputBeforeSign(o))
       }));
-      delete global.fallbackLocktime;
-      delete global.txVersion;
-      delete global.inputCount;
-      delete global.outputCount;
-      delete global.version;
+      delete global2.fallbackLocktime;
+      delete global2.txVersion;
+      delete global2.inputCount;
+      delete global2.outputCount;
+      delete global2.version;
     } else {
-      delete global.unsignedTx;
-      global.version = PSBTVersion;
-      global.txVersion = this.version;
-      global.inputCount = this.inputs.length;
-      global.outputCount = this.outputs.length;
-      if (global.fallbackLocktime && global.fallbackLocktime === DEFAULT_LOCKTIME)
-        delete global.fallbackLocktime;
+      delete global2.unsignedTx;
+      global2.version = PSBTVersion;
+      global2.txVersion = this.version;
+      global2.inputCount = this.inputs.length;
+      global2.outputCount = this.outputs.length;
+      if (global2.fallbackLocktime && global2.fallbackLocktime === DEFAULT_LOCKTIME)
+        delete global2.fallbackLocktime;
     }
     if (this.opts.bip174jsCompat) {
       if (!inputs.length)
@@ -6540,7 +11746,7 @@ var Transaction = class _Transaction {
       if (!outputs.length)
         outputs.push({});
     }
-    const raw = { global, inputs, outputs };
+    const raw = { global: global2, inputs, outputs };
     return PSBTVersion === 0 ? RawPSBTV0.encode(raw) : RawPSBTV2.encode(raw);
   }
   // BIP370 lockTime (https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki#determining-lock-time)
@@ -6672,13 +11878,13 @@ var Transaction = class _Transaction {
     return this.toBytes(false, false);
   }
   get hex() {
-    return hex2.encode(this.toBytes(true, this.hasWitnesses));
+    return hex3.encode(this.toBytes(true, this.hasWitnesses));
   }
   get hash() {
-    return hex2.encode(sha256x2(this.toBytes(true)));
+    return hex3.encode(sha256x2(this.toBytes(true)));
   }
   get id() {
-    return hex2.encode(sha256x2(this.toBytes(true)).reverse());
+    return hex3.encode(sha256x2(this.toBytes(true)).reverse());
   }
   // Input stuff
   checkInputIdx(idx) {
@@ -6734,7 +11940,7 @@ var Transaction = class _Transaction {
     if (typeof amount !== "bigint")
       throw new Error(`Wrong amount type, should be of type bigint in sats, but got ${amount} of type ${typeof amount}`);
     if (typeof script === "string")
-      script = hex2.decode(script);
+      script = hex3.decode(script);
     if (script === void 0)
       script = cur?.script;
     let res = { ...cur, ...o, amount, script };
@@ -6903,7 +12109,7 @@ var Transaction = class _Transaction {
           return false;
         for (const [_, leaf] of input.tapLeafScript) {
           for (const op of Script.decode(leaf.subarray(0, -1))) {
-            if (isBytes5(op) && equalBytes2(op, pubKey2))
+            if (isBytes6(op) && equalBytes2(op, pubKey2))
               return true;
           }
         }
@@ -6912,12 +12118,12 @@ var Transaction = class _Transaction {
       const pubKey = pubECDSA(privateKey2);
       const pubKeyHash = hash160(pubKey);
       for (const op of Script.decode(inputType.lastScript)) {
-        if (isBytes5(op) && (equalBytes2(op, pubKey) || equalBytes2(op, pubKeyHash)))
+        if (isBytes6(op) && (equalBytes2(op, pubKey) || equalBytes2(op, pubKeyHash)))
           return true;
       }
       return false;
     };
-    if (!isBytes5(privateKey)) {
+    if (!isBytes6(privateKey)) {
       const root = privateKey;
       const deriveSigners = (label, rows, pubKey) => {
         if (!rows || !rows.length)
@@ -6999,7 +12205,7 @@ var Transaction = class _Transaction {
           const scriptDecoded = Script.decode(script);
           const ver = _script[_script.length - 1];
           const hash = tapLeafHash(script, ver);
-          const pos = scriptDecoded.findIndex((i) => isBytes5(i) && equalBytes2(i, schnorrPub));
+          const pos = scriptDecoded.findIndex((i) => isBytes6(i) && equalBytes2(i, schnorrPub));
           if (pos === -1)
             continue;
           const msg = this.preimageWitnessV1(idx, prevOutScript, sighash, amount, void 0, script, ver);
@@ -7016,7 +12222,7 @@ var Transaction = class _Transaction {
       let hasPubkey = false;
       const pubKeyHash = hash160(pubKey);
       for (const i of Script.decode(inputType.lastScript)) {
-        if (isBytes5(i) && (equalBytes2(i, pubKey) || equalBytes2(i, pubKeyHash)))
+        if (isBytes6(i) && (equalBytes2(i, pubKey) || equalBytes2(i, pubKeyHash)))
           hasPubkey = true;
       }
       if (!hasPubkey)
@@ -7103,7 +12309,7 @@ var Transaction = class _Transaction {
           } else if (outScript.type === "unknown" && this.opts.allowUnknownInputs) {
             const scriptDecoded = Script.decode(script);
             signatures = scriptSig.map(([{ pubKey }, signature]) => {
-              const pos = scriptDecoded.findIndex((i) => isBytes5(i) && equalBytes2(i, pubKey));
+              const pos = scriptDecoded.findIndex((i) => isBytes6(i) && equalBytes2(i, pubKey));
               if (pos === -1)
                 throw new Error("finalize/taproot: cannot find position of pubkey in script");
               return { signature, pos };
@@ -7176,7 +12382,7 @@ var Transaction = class _Transaction {
         witness = Script.decode(inputScript).map((i) => {
           if (i === 0)
             return EMPTY;
-          if (isBytes5(i))
+          if (isBytes6(i))
             return i;
           throw new Error(`Wrong witness op=${i}`);
         });
@@ -7243,316 +12449,13 @@ var Transaction = class _Transaction {
 
 // node_modules/@scure/btc-signer/index.js
 var utils2 = /* @__PURE__ */ (() => Object.freeze({
-  isBytes: isBytes5,
+  isBytes: isBytes6,
   concatBytes: concatBytes4,
   compareBytes,
   pubSchnorr,
   randomPrivateKeyBytes,
   taprootTweakPubkey
 }))();
-
-// node_modules/@scure/base/index.js
-var freeze = (fn) => Object.freeze(fn());
-function isBytes7(a) {
-  return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array" && "BYTES_PER_ELEMENT" in a && a.BYTES_PER_ELEMENT === 1;
-}
-function abytes5(b) {
-  if (!isBytes7(b))
-    throw new TypeError("Uint8Array expected");
-}
-function afn3(input) {
-  if (typeof input !== "function")
-    throw new TypeError("function expected");
-  return true;
-}
-function astr3(label, input) {
-  if (typeof input !== "string")
-    throw new TypeError(`${label}: string expected`);
-  return true;
-}
-function anumber5(n, title = "number") {
-  if (typeof n !== "number")
-    throw new TypeError(`${title}: expected number, got ${typeof n}`);
-  if (!Number.isSafeInteger(n))
-    throw new RangeError(`${title}: expected safe integer, got ${n}`);
-}
-function chain3(...args) {
-  const id = (a) => a;
-  const wrap2 = (a, b) => (c) => a(b(c));
-  const encode = args.map((x) => x.encode).reduceRight(wrap2, id);
-  const decode = args.map((x) => x.decode).reduce(wrap2, id);
-  return { encode, decode };
-}
-function normalize3(fn) {
-  afn3(fn);
-  return { encode: (from) => from, decode: (to) => fn(to) };
-}
-var powers3 = /* @__PURE__ */ (() => {
-  let res = [];
-  for (let i = 0; i < 40; i++)
-    res.push(2 ** i);
-  return res;
-})();
-var asciiDecoder = /* @__PURE__ */ (() => {
-  try {
-    const decoder = new TextDecoder();
-    return decoder.decode(Uint8Array.of(65, 48, 43, 127)) === "A0+\x7F" ? decoder : void 0;
-  } catch (e) {
-    return void 0;
-  }
-})();
-var B2S_CHUNK = 8192;
-function charcodesToString(codes) {
-  const len = codes.length;
-  if (asciiDecoder !== void 0 && len >= 12)
-    return asciiDecoder.decode(codes);
-  if (len <= B2S_CHUNK)
-    return String.fromCharCode.apply(null, codes);
-  let res = "";
-  for (let i = 0; i < len; i += B2S_CHUNK)
-    res += String.fromCharCode.apply(null, codes.subarray(i, i + B2S_CHUNK));
-  return res;
-}
-function radix23(bits2) {
-  anumber5(bits2);
-  if (bits2 <= 0 || bits2 > 8)
-    throw new RangeError("radix2: bits should be in (0..8]");
-  const mask = powers3[bits2] - 1;
-  return {
-    encode: (bytes) => {
-      abytes5(bytes);
-      const len = bytes.length;
-      const res = new Uint8Array(Math.ceil(len * 8 / bits2));
-      let carry = 0;
-      let pos = 0;
-      let j = 0;
-      for (let i = 0; i < len; ) {
-        if (i + 2 < len) {
-          carry = carry << 24 | bytes[i] << 16 | bytes[i + 1] << 8 | bytes[i + 2];
-          pos += 24;
-          i += 3;
-        } else {
-          carry = (carry << 8 | bytes[i]) & 65535;
-          pos += 8;
-          i++;
-        }
-        for (; ; ) {
-          pos -= bits2;
-          res[j++] = carry >> pos & mask;
-          if (pos < bits2)
-            break;
-        }
-      }
-      if (pos > 0)
-        res[j] = carry << bits2 - pos & mask;
-      return res;
-    },
-    decode: (digits) => {
-      const len = digits.length;
-      const res = new Uint8Array(Math.floor(len * bits2 / 8));
-      let carry = 0;
-      let pos = 0;
-      let j = 0;
-      for (let i = 0; i < len; i++) {
-        carry = (carry << bits2 | digits[i]) & 65535;
-        pos += bits2;
-        for (; pos >= 8; pos -= 8)
-          res[j++] = carry >> pos - 8 & 255;
-      }
-      carry = carry << 8 - pos & 255;
-      if (pos >= bits2)
-        throw new Error("Excess padding");
-      if (carry > 0)
-        throw new Error(`Non-zero padding: ${carry}`);
-      return res;
-    }
-  };
-}
-function alphabet3(letters, aliases) {
-  const len = letters.length;
-  if (len > 128)
-    throw new Error("alphabet: max 128 letters");
-  const encTable = new Uint8Array(len);
-  const decTable = new Int8Array(128).fill(-1);
-  for (let i = 0; i < len; i++) {
-    const code = letters.charCodeAt(i);
-    if (letters.codePointAt(i) !== code || code > 127)
-      throw new Error("alphabet: single-char ASCII letters only");
-    encTable[i] = code;
-    decTable[code] = i;
-  }
-  if (aliases !== void 0) {
-    for (const alias of Object.keys(aliases)) {
-      const code = alias.charCodeAt(0);
-      const target = decTable[aliases[alias].charCodeAt(0)];
-      if (alias.length !== 1 || code > 127 || target === void 0 || target === -1)
-        throw new Error(`alphabet: invalid alias ${alias}`);
-      decTable[code] = target;
-    }
-  }
-  return {
-    encode: (digits) => {
-      const codes = new Uint8Array(digits.length);
-      for (let i = 0; i < digits.length; i++) {
-        const d = digits[i];
-        const code = encTable[d];
-        if (code === void 0)
-          throw new Error(`alphabet.encode: invalid digit ${d}`);
-        codes[i] = code;
-      }
-      return charcodesToString(codes);
-    },
-    decode: (input) => {
-      astr3("decode", input);
-      const slen = input.length;
-      const digits = new Uint8Array(slen);
-      for (let i = 0; i < slen; i++) {
-        const code = input.charCodeAt(i);
-        const digit = code < 128 ? decTable[code] : -1;
-        if (digit === -1)
-          throw new Error(`Unknown letter "${input[i]}". Allowed: ${letters}`);
-        digits[i] = digit;
-      }
-      return digits;
-    }
-  };
-}
-var _isWellFormedShim2 = (str) => {
-  try {
-    return encodeURI(str) !== null;
-  } catch {
-    return false;
-  }
-};
-var _isWellFormed2 = /* @__PURE__ */ (() => (
-  // Pick the native check once so utf8.decode doesn't re-probe String.prototype on every call.
-  typeof "".isWellFormed === "function" ? (str) => str.isWellFormed() : _isWellFormedShim2
-))();
-var utf8err = (i) => new TypeError(`invalid utf8 at byte ${i}`);
-var utf8Fallback2 = /* @__PURE__ */ freeze(() => ({
-  encode(data) {
-    abytes5(data);
-    let res = "";
-    for (let i = 0; i < data.length; ) {
-      const a = data[i++];
-      if (a < 128) {
-        res += String.fromCharCode(a);
-        continue;
-      }
-      if (a < 194 || i >= data.length)
-        throw utf8err(i - 1);
-      const b = data[i++];
-      if ((b & 192) !== 128)
-        throw utf8err(i - 1);
-      let cp = (a & 31) << 6 | b & 63;
-      if (a >= 224) {
-        if (i >= data.length)
-          throw utf8err(i - 1);
-        const c = data[i++];
-        if ((c & 192) !== 128 || a === 224 && b < 160 || a === 237 && b >= 160)
-          throw utf8err(i - 1);
-        cp = (a & 15) << 12 | (b & 63) << 6 | c & 63;
-        if (a >= 240) {
-          if (i >= data.length)
-            throw utf8err(i - 1);
-          const d = data[i++];
-          if (a > 244 || (d & 192) !== 128 || a === 240 && b < 144 || a === 244 && b >= 144)
-            throw utf8err(i - 1);
-          cp = (a & 7) << 18 | (b & 63) << 12 | (c & 63) << 6 | d & 63;
-        }
-      }
-      if (cp < 65536)
-        res += String.fromCharCode(cp);
-      else {
-        cp -= 65536;
-        res += String.fromCharCode((cp >> 10) + 55296, (cp & 1023) + 56320);
-      }
-    }
-    return res;
-  },
-  decode(str) {
-    astr3("utf8", str);
-    if (!_isWellFormed2(str))
-      throw new TypeError("utf8 expected well-formed string");
-    const res = new Uint8Array(str.length * 3);
-    let pos = 0;
-    for (let i = 0; i < str.length; i++) {
-      let c = str.charCodeAt(i);
-      if (c < 128) {
-        res[pos++] = c;
-        continue;
-      }
-      if (c >= 55296 && c <= 57343) {
-        const d = str.charCodeAt(++i);
-        c = 65536 + (c - 55296 << 10) + d - 56320;
-      }
-      if (c >= 65536) {
-        res[pos++] = c >> 18 | 240;
-        res[pos++] = c >> 12 & 63 | 128;
-      } else if (c >= 2048)
-        res[pos++] = c >> 12 | 224;
-      else
-        res[pos++] = c >> 6 | 192;
-      if (c >= 2048)
-        res[pos++] = c >> 6 & 63 | 128;
-      res[pos++] = c & 63 | 128;
-    }
-    return res.subarray(0, pos);
-  }
-}));
-var utf82 = /* @__PURE__ */ freeze(() => {
-  let _utf8Encoder;
-  let _utf8Decoder;
-  const utf8Builtin = {
-    // ignoreBOM preserves an explicit leading U+FEFF;
-    // fatal rejects invalid UTF-8 bytes instead of replacing them.
-    encode(data) {
-      abytes5(data);
-      return (_utf8Decoder || (_utf8Decoder = new TextDecoder("utf-8", { ignoreBOM: true, fatal: true }))).decode(data);
-    },
-    decode(str) {
-      astr3("utf8", str);
-      if (!_isWellFormed2(str))
-        throw new TypeError("utf8 expected well-formed string");
-      return (_utf8Encoder || (_utf8Encoder = new TextEncoder())).encode(str);
-    }
-  };
-  return {
-    // Select each direction once at module init, since
-    // TextEncoder and TextDecoder can exist independently.
-    encode: typeof TextDecoder === "function" ? utf8Builtin.encode : utf8Fallback2.encode,
-    decode: typeof TextEncoder === "function" ? utf8Builtin.decode : utf8Fallback2.decode
-  };
-});
-var hexFallback = /* @__PURE__ */ freeze(() => chain3(
-  radix23(4),
-  // Case-insensitive decode via table aliases instead of a toLowerCase pass.
-  alphabet3("0123456789abcdef", { A: "a", B: "b", C: "c", D: "d", E: "e", F: "f" }),
-  normalize3((s) => {
-    astr3("hex", s);
-    if (s.length % 2 !== 0)
-      throw new TypeError(`hex.decode: odd-length string (${s.length})`);
-    return s;
-  })
-));
-var hasHexBuiltin4 = /* @__PURE__ */ (() => (
-  // Require both directions before enabling the native hex path so encode/decode stay symmetric.
-  typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function"
-))();
-var hexBuiltin3 = {
-  // Keep local type guards so the native path preserves library-level input errors.
-  // Native toHex emits lowercase hex, matching the fallback alphabet and Node's hex strings.
-  encode(data) {
-    abytes5(data);
-    return data.toHex();
-  },
-  // Native fromHex accepts either hex case and rejects odd-length / non-hex syntax.
-  decode(s) {
-    astr3("hex", s);
-    return Uint8Array.fromHex(s);
-  }
-};
-var hex3 = /* @__PURE__ */ freeze(() => hasHexBuiltin4 ? hexBuiltin3 : hexFallback);
 
 // node_modules/micro-ordinals/cbor.js
 var _0n7 = /* @__PURE__ */ BigInt(0);
@@ -7813,7 +12716,7 @@ var CBOR = /* @__PURE__ */ Object.freeze(apply(cborValue, {
 }));
 
 // node_modules/micro-ordinals/index.js
-var PROTOCOL_ID = /* @__PURE__ */ utf82.decode("ord");
+var PROTOCOL_ID = /* @__PURE__ */ utf8.decode("ord");
 function splitChunks(buf) {
   const res = [];
   for (let i = 0; i < buf.length; i += MAX_SCRIPT_BYTE_LENGTH)
@@ -7832,11 +12735,11 @@ var InscriptionId = /* @__PURE__ */ Object.freeze({
     const parsed = Number(index);
     if (`${parsed}` !== index || !Number.isSafeInteger(parsed) || parsed < 0)
       throw new RangeError(`InscriptionId wrong index: ${index}`);
-    return RawInscriptionId.encode([hex3.decode(txId), parsed]);
+    return RawInscriptionId.encode([hex.decode(txId), parsed]);
   },
   decode(data) {
     const [txId, index] = RawInscriptionId.decode(data);
-    return `${hex3.encode(txId)}i${index}`;
+    return `${hex.encode(txId)}i${index}`;
   }
 });
 var TagEnum = {
@@ -7875,7 +12778,7 @@ var TagCoders = /* @__PURE__ */ (() => Object.freeze({
 var TagCoder = /* @__PURE__ */ Object.freeze({
   encode(from) {
     const tmp = {};
-    const unknown = [];
+    const unknown2 = [];
     for (const { tag: tag2, data } of from) {
       try {
         const tagName = TagCoderInternal.decode(tag2);
@@ -7883,12 +12786,12 @@ var TagCoder = /* @__PURE__ */ Object.freeze({
           tmp[tagName] = [];
         tmp[tagName].push(data);
       } catch (e) {
-        unknown.push([tag2, data]);
+        unknown2.push([tag2, data]);
       }
     }
     const res = {};
-    if (unknown.length)
-      res.unknown = unknown;
+    if (unknown2.length)
+      res.unknown = unknown2;
     for (const field in tmp) {
       if (field === "parent" && tmp[field].length > 1) {
         res[field] = tmp[field].map((i) => TagCoders.parent.decode(i));
@@ -8117,8 +13020,8 @@ function assertSignetAddress(address) {
   if (mainnetDecoded) throw new Error("Mainnet address refused. This page is signet only.");
   return addr.toLowerCase();
 }
-function assertSignetUrl(url) {
-  const u = new URL(url);
+function assertSignetUrl(url2) {
+  const u = new URL(url2);
   if (u.protocol !== "https:") throw new Error("Refused non-HTTPS endpoint.");
   if (u.hostname !== "mempool.space") throw new Error("Refused endpoint. Only mempool.space signet is allowed.");
   if (!u.pathname.startsWith("/signet/")) throw new Error("Refused non-signet endpoint.");
@@ -8136,7 +13039,7 @@ function createKey() {
   return describeKey(priv);
 }
 function keyFromHex(keyHex) {
-  const priv = hex3.decode(String(keyHex || "").trim());
+  const priv = hex.decode(String(keyHex || "").trim());
   if (priv.length !== 32) throw new Error("Key must be 32 bytes.");
   return describeKey(priv);
 }
@@ -8145,7 +13048,7 @@ function describeKey(priv) {
   const pay = p2wpkh(pub, NET);
   return {
     priv,
-    hex: hex3.encode(priv),
+    hex: hex.encode(priv),
     wif: WIF(NET).encode(priv),
     address: pay.address,
     script: pay.script,
@@ -8280,7 +13183,7 @@ function finishCommit(tx, plan2, inputSum, change) {
   if (out.amount !== plan2.commitValue) throw new Error("Commit output amount mismatch.");
   return {
     tx,
-    hex: hex3.encode(raw),
+    hex: hex.encode(raw),
     txid: tx.id,
     vbytes: tx.vsize,
     bytes: raw.length,
@@ -8306,7 +13209,7 @@ function buildReveal({ plan: plan2, commitTxid, commitVout = 0, commitValue }) {
   if (!parsed || !parsed.length) throw new Error("Reveal witness has no inscription.");
   return {
     tx,
-    hex: hex3.encode(raw),
+    hex: hex.encode(raw),
     txid: tx.id,
     vbytes: tx.vsize,
     bytes: raw.length,
@@ -8317,27 +13220,30 @@ function buildReveal({ plan: plan2, commitTxid, commitVout = 0, commitValue }) {
   };
 }
 function recoveryFile(plan2, funding2) {
-  return {
+  const file = {
     network: NETWORK_NAME,
     keyWif: WIF(NET).encode(plan2.revealPriv),
-    keyHex: hex3.encode(plan2.revealPriv),
-    fundingKeyWif: funding2.wif,
-    fundingKeyHex: funding2.hex,
-    revealScript: hex3.encode(plan2.revealScript),
+    keyHex: hex.encode(plan2.revealPriv),
+    revealScript: hex.encode(plan2.revealScript),
     commitAddress: plan2.commitAddress,
     destination: plan2.destination,
     contentType: plan2.contentType,
-    bodyHex: hex3.encode(plan2.body),
+    bodyHex: hex.encode(plan2.body),
     feeRate: plan2.feeRate,
     postage: Number(plan2.postage),
     commitValue: Number(plan2.commitValue)
   };
+  if (funding2?.wif && funding2?.hex) {
+    file.fundingKeyWif = funding2.wif;
+    file.fundingKeyHex = funding2.hex;
+  }
+  return file;
 }
 function planFromRecovery(file) {
   if (!file || file.network !== NETWORK_NAME) throw new Error("Recovery file is not for signet.");
   const reveal = keyFromHex(file.keyHex);
   if (reveal.wif !== file.keyWif) throw new Error("Recovery WIF does not match the hex key.");
-  const body = hex3.decode(file.bodyHex || "");
+  const body = hex.decode(file.bodyHex || "");
   assertBody(body);
   const plan2 = preparePlan({
     body,
@@ -8347,13 +13253,8016 @@ function planFromRecovery(file) {
     feeRate: file.feeRate
   });
   if (plan2.commitAddress !== file.commitAddress) throw new Error("Commit address does not match this key and content.");
-  if (hex3.encode(plan2.revealScript) !== String(file.revealScript || "").toLowerCase()) {
+  if (hex.encode(plan2.revealScript) !== String(file.revealScript || "").toLowerCase()) {
     throw new Error("Reveal script does not match this key and content.");
   }
   return { plan: plan2, reveal };
 }
+var INPUT_VBYTES = { wpkh: 68, sh: 91, tr: 57.5, pkh: 148, wsh: 100 };
+var OUT_VBYTES = { wpkh: 31, sh: 32, tr: 43, pkh: 34, wsh: 43 };
+function scriptPubKey(address) {
+  const decoded = Address(NET).decode(assertSignetAddress(address));
+  return { type: decoded.type, script: OutScript.encode(decoded) };
+}
+function estimateCommitVbytes(nIn, withChange, type) {
+  const outputs = OUT_VBYTES.tr + (withChange ? OUT_VBYTES[type] || 31 : 0);
+  return Math.ceil(10.5 + nIn * (INPUT_VBYTES[type] || 68) + outputs);
+}
+function pubkeyBytes(pubkeyHex2) {
+  const s = String(pubkeyHex2 || "").replace(/^0x/, "");
+  if (!s || !/^[0-9a-fA-F]+$/.test(s) || s.length % 2) return null;
+  return hex.decode(s);
+}
+function unsignedCommit({ inputs, script, type, pubkey, commitAddress, commitValue, changeAddress, change }) {
+  const tx = new Transaction();
+  for (const u of inputs) {
+    const input = {
+      txid: u.txid,
+      index: u.vout,
+      witnessUtxo: { script, amount: u.value }
+    };
+    if (type === "tr") {
+      if (!pubkey || pubkey.length !== 32) throw new Error("A 32-byte taproot key is required to spend this payment address.");
+      input.tapInternalKey = pubkey;
+    } else if (type === "sh") {
+      if (!pubkey || pubkey.length !== 33) throw new Error("A 33-byte compressed key is required to spend this nested segwit address.");
+      input.redeemScript = p2wpkh(pubkey, NET).script;
+    }
+    tx.addInput(input);
+  }
+  tx.addOutputAddress(commitAddress, commitValue, NET);
+  if (change >= 546n) tx.addOutputAddress(changeAddress, change, NET);
+  return tx;
+}
+function bytesToBase64(bytes) {
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+function base64ToBytes(b64) {
+  const s = atob(b64);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+function buildCommitPsbt({ paymentAddress, paymentPubkey, utxos, plan: plan2 }) {
+  const { script, type } = scriptPubKey(paymentAddress);
+  assertSignetAddress(plan2.commitAddress);
+  assertSignetAddress(paymentAddress);
+  const pubkey = pubkeyBytes(paymentPubkey);
+  const clean2 = (utxos || []).map((u) => ({ txid: String(u.txid), vout: Number(u.vout), value: BigInt(u.value) })).filter((u) => u.txid && Number.isInteger(u.vout) && u.value > 0n).sort((a, b) => a.value > b.value ? -1 : 1);
+  if (!clean2.length) throw new Error("No signet UTXOs on the payment address yet.");
+  const spend = { script, type, pubkey, commitAddress: plan2.commitAddress, commitValue: plan2.commitValue, changeAddress: paymentAddress };
+  let sum = 0n;
+  const picked = [];
+  for (const u of clean2) {
+    picked.push(u);
+    sum += u.value;
+    if (sum < plan2.commitValue) continue;
+    const bareV = estimateCommitVbytes(picked.length, false, type);
+    const bareFee = feeFor(bareV, plan2.feeRate);
+    const bareChange = sum - plan2.commitValue - bareFee;
+    if (bareChange < 0n) continue;
+    if (bareChange < 546n) {
+      const tx2 = unsignedCommit({ ...spend, inputs: picked, change: 0n });
+      return psbtResult(tx2, plan2, sum, 0n, bareFee, picked);
+    }
+    const withV = estimateCommitVbytes(picked.length, true, type);
+    const fee = feeFor(withV, plan2.feeRate);
+    const change = sum - plan2.commitValue - fee;
+    if (change >= 546n) {
+      const tx2 = unsignedCommit({ ...spend, inputs: picked, change });
+      return psbtResult(tx2, plan2, sum, change, fee, picked);
+    }
+    const tx = unsignedCommit({ ...spend, inputs: picked, change: 0n });
+    return psbtResult(tx, plan2, sum, 0n, bareFee, picked);
+  }
+  throw new Error(`Not enough signet coins. Found ${sum} sats. The commit output needs ${plan2.commitValue} sats plus the commit fee.`);
+}
+function psbtResult(tx, plan2, inputSum, change, fee, inputs) {
+  const psbt = tx.toPSBT();
+  return {
+    psbtBase64: bytesToBase64(psbt),
+    fee,
+    change,
+    inputSum,
+    inputs,
+    commitValue: plan2.commitValue
+  };
+}
+function finalizeCommitPsbt(psbtBase64, plan2) {
+  const tx = Transaction.fromPSBT(base64ToBytes(psbtBase64));
+  tx.finalize();
+  const raw = tx.extract();
+  const out = tx.getOutput(0);
+  if (out.amount !== plan2.commitValue) throw new Error("Signed commit does not pay the expected amount to the commit address.");
+  const script = scriptPubKey(plan2.commitAddress).script;
+  if (!sameBytes(out.script, script)) throw new Error("Signed commit does not pay the commit address.");
+  const fee = tx.fee;
+  if (fee < feeFor(tx.vsize, plan2.feeRate)) {
+    throw new Error(`Signed commit fee is ${fee} sats, under ${plan2.feeRate} sat/vB.`);
+  }
+  return {
+    tx,
+    hex: hex.encode(raw),
+    txid: tx.id,
+    vbytes: tx.vsize,
+    bytes: raw.length,
+    fee,
+    change: tx.outputs.length > 1 ? tx.getOutput(1).amount : 0n,
+    inputSum: tx.inputs.reduce((s, i) => s + i.witnessUtxo.amount, 0n)
+  };
+}
+function utxoCreatedByInscription(rawTx, vout) {
+  try {
+    const tx = Transaction.fromRaw(rawTx, { allowUnknownOutputs: true });
+    if (Number(vout) !== 0) return false;
+    for (let i = 0; i < tx.inputs.length; i++) {
+      const witness = tx.getInput(i).finalScriptWitness;
+      if (!witness) continue;
+      const parsed = parseWitness(witness);
+      if (parsed && parsed.length) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
 function textBody(text) {
-  return utf82.decode(String(text ?? ""));
+  return utf8.decode(String(text ?? ""));
+}
+function sameBytes(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+// node_modules/valibot/dist/index.mjs
+var store$4;
+// @__NO_SIDE_EFFECTS__
+function getGlobalConfig(config$1) {
+  return {
+    lang: config$1?.lang ?? store$4?.lang,
+    message: config$1?.message,
+    abortEarly: config$1?.abortEarly ?? store$4?.abortEarly,
+    abortPipeEarly: config$1?.abortPipeEarly ?? store$4?.abortPipeEarly
+  };
+}
+var store$3;
+// @__NO_SIDE_EFFECTS__
+function getGlobalMessage(lang) {
+  return store$3?.get(lang);
+}
+var store$2;
+// @__NO_SIDE_EFFECTS__
+function getSchemaMessage(lang) {
+  return store$2?.get(lang);
+}
+var store$1;
+// @__NO_SIDE_EFFECTS__
+function getSpecificMessage(reference, lang) {
+  return store$1?.get(reference)?.get(lang);
+}
+// @__NO_SIDE_EFFECTS__
+function _stringify(input) {
+  const type = typeof input;
+  if (type === "string") return `"${input}"`;
+  if (type === "number" || type === "bigint" || type === "boolean") return `${input}`;
+  if (type === "object" || type === "function") return (input && Object.getPrototypeOf(input)?.constructor?.name) ?? "null";
+  return type;
+}
+function _addIssue(context, label, dataset, config$1, other) {
+  const input = other && "input" in other ? other.input : dataset.value;
+  const expected = other?.expected ?? context.expects ?? null;
+  const received = other?.received ?? /* @__PURE__ */ _stringify(input);
+  const issue = {
+    kind: context.kind,
+    type: context.type,
+    input,
+    expected,
+    received,
+    message: `Invalid ${label}: ${expected ? `Expected ${expected} but r` : "R"}eceived ${received}`,
+    requirement: context.requirement,
+    path: other?.path,
+    issues: other?.issues,
+    lang: config$1.lang,
+    abortEarly: config$1.abortEarly,
+    abortPipeEarly: config$1.abortPipeEarly
+  };
+  const isSchema = context.kind === "schema";
+  const message$1 = other?.message ?? context.message ?? /* @__PURE__ */ getSpecificMessage(context.reference, issue.lang) ?? (isSchema ? /* @__PURE__ */ getSchemaMessage(issue.lang) : null) ?? config$1.message ?? /* @__PURE__ */ getGlobalMessage(issue.lang);
+  if (message$1 !== void 0) issue.message = typeof message$1 === "function" ? message$1(issue) : message$1;
+  if (isSchema) dataset.typed = false;
+  if (dataset.issues) dataset.issues.push(issue);
+  else dataset.issues = [issue];
+}
+// @__NO_SIDE_EFFECTS__
+function _getStandardProps(context) {
+  return {
+    version: 1,
+    vendor: "valibot",
+    validate(value$1) {
+      return context["~run"]({ value: value$1 }, /* @__PURE__ */ getGlobalConfig());
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function _isValidObjectKey(object$1, key) {
+  return Object.hasOwn(object$1, key) && key !== "__proto__" && key !== "prototype" && key !== "constructor";
+}
+// @__NO_SIDE_EFFECTS__
+function _joinExpects(values$1, separator) {
+  const list = [...new Set(values$1)];
+  if (list.length > 1) return `(${list.join(` ${separator} `)})`;
+  return list[0] ?? "never";
+}
+var ISO_DATE_REGEX = /^\d{4}-(?:0[1-9]|1[0-2])-(?:[12]\d|0[1-9]|3[01])$/u;
+// @__NO_SIDE_EFFECTS__
+function check(requirement, message$1) {
+  return {
+    kind: "validation",
+    type: "check",
+    reference: check,
+    async: false,
+    expects: null,
+    requirement,
+    message: message$1,
+    "~run"(dataset, config$1) {
+      if (dataset.typed && !this.requirement(dataset.value)) _addIssue(this, "input", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function integer(message$1) {
+  return {
+    kind: "validation",
+    type: "integer",
+    reference: integer,
+    async: false,
+    expects: null,
+    requirement: Number.isInteger,
+    message: message$1,
+    "~run"(dataset, config$1) {
+      if (dataset.typed && !this.requirement(dataset.value)) _addIssue(this, "integer", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function isoDate(message$1) {
+  return {
+    kind: "validation",
+    type: "iso_date",
+    reference: isoDate,
+    async: false,
+    expects: null,
+    requirement: ISO_DATE_REGEX,
+    message: message$1,
+    "~run"(dataset, config$1) {
+      if (dataset.typed && !this.requirement.test(dataset.value)) _addIssue(this, "date", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function length(requirement, message$1) {
+  return {
+    kind: "validation",
+    type: "length",
+    reference: length,
+    async: false,
+    expects: `${requirement}`,
+    requirement,
+    message: message$1,
+    "~run"(dataset, config$1) {
+      if (dataset.typed && dataset.value.length !== this.requirement) _addIssue(this, "length", dataset, config$1, { received: `${dataset.value.length}` });
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function maxLength(requirement, message$1) {
+  return {
+    kind: "validation",
+    type: "max_length",
+    reference: maxLength,
+    async: false,
+    expects: `<=${requirement}`,
+    requirement,
+    message: message$1,
+    "~run"(dataset, config$1) {
+      if (dataset.typed && dataset.value.length > this.requirement) _addIssue(this, "length", dataset, config$1, { received: `${dataset.value.length}` });
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function minLength(requirement, message$1) {
+  return {
+    kind: "validation",
+    type: "min_length",
+    reference: minLength,
+    async: false,
+    expects: `>=${requirement}`,
+    requirement,
+    message: message$1,
+    "~run"(dataset, config$1) {
+      if (dataset.typed && dataset.value.length < this.requirement) _addIssue(this, "length", dataset, config$1, { received: `${dataset.value.length}` });
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function minValue(requirement, message$1) {
+  return {
+    kind: "validation",
+    type: "min_value",
+    reference: minValue,
+    async: false,
+    expects: `>=${requirement instanceof Date ? requirement.toJSON() : /* @__PURE__ */ _stringify(requirement)}`,
+    requirement,
+    message: message$1,
+    "~run"(dataset, config$1) {
+      if (dataset.typed && !(dataset.value >= this.requirement)) _addIssue(this, "value", dataset, config$1, { received: dataset.value instanceof Date ? dataset.value.toJSON() : /* @__PURE__ */ _stringify(dataset.value) });
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function regex(requirement, message$1) {
+  return {
+    kind: "validation",
+    type: "regex",
+    reference: regex,
+    async: false,
+    expects: `${requirement}`,
+    requirement,
+    message: message$1,
+    "~run"(dataset, config$1) {
+      if (dataset.typed && !this.requirement.test(dataset.value)) _addIssue(this, "format", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function transform(operation) {
+  return {
+    kind: "transformation",
+    type: "transform",
+    reference: transform,
+    async: false,
+    operation,
+    "~run"(dataset) {
+      dataset.value = this.operation(dataset.value);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function url(message$1) {
+  return {
+    kind: "validation",
+    type: "url",
+    reference: url,
+    async: false,
+    expects: null,
+    requirement(input) {
+      try {
+        new URL(input);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    message: message$1,
+    "~run"(dataset, config$1) {
+      if (dataset.typed && !this.requirement(dataset.value)) _addIssue(this, "URL", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function getFallback(schema, dataset, config$1) {
+  return typeof schema.fallback === "function" ? schema.fallback(dataset, config$1) : schema.fallback;
+}
+// @__NO_SIDE_EFFECTS__
+function getDefault(schema, dataset, config$1) {
+  return typeof schema.default === "function" ? schema.default(dataset, config$1) : schema.default;
+}
+// @__NO_SIDE_EFFECTS__
+function is(schema, input) {
+  return !schema["~run"]({ value: input }, { abortEarly: true }).issues;
+}
+// @__NO_SIDE_EFFECTS__
+function array2(item, message$1) {
+  return {
+    kind: "schema",
+    type: "array",
+    reference: array2,
+    expects: "Array",
+    async: false,
+    item,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      const input = dataset.value;
+      if (Array.isArray(input)) {
+        dataset.typed = true;
+        dataset.value = [];
+        for (let key = 0; key < input.length; key++) {
+          const value$1 = input[key];
+          const itemDataset = this.item["~run"]({ value: value$1 }, config$1);
+          if (itemDataset.issues) {
+            const pathItem = {
+              type: "array",
+              origin: "value",
+              input,
+              key,
+              value: value$1
+            };
+            for (const issue of itemDataset.issues) {
+              if (issue.path) issue.path.unshift(pathItem);
+              else issue.path = [pathItem];
+              dataset.issues?.push(issue);
+            }
+            if (!dataset.issues) dataset.issues = itemDataset.issues;
+            if (config$1.abortEarly) {
+              dataset.typed = false;
+              break;
+            }
+          }
+          if (!itemDataset.typed) dataset.typed = false;
+          dataset.value.push(itemDataset.value);
+        }
+      } else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function boolean(message$1) {
+  return {
+    kind: "schema",
+    type: "boolean",
+    reference: boolean,
+    expects: "boolean",
+    async: false,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (typeof dataset.value === "boolean") dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function enum_(enum__, message$1) {
+  const options = [];
+  for (const key in enum__) if (`${+key}` !== key || typeof enum__[key] !== "string" || !Object.is(enum__[enum__[key]], +key)) options.push(enum__[key]);
+  return {
+    kind: "schema",
+    type: "enum",
+    reference: enum_,
+    expects: /* @__PURE__ */ _joinExpects(options.map(_stringify), "|"),
+    async: false,
+    enum: enum__,
+    options,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (this.options.includes(dataset.value)) dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function literal(literal_, message$1) {
+  return {
+    kind: "schema",
+    type: "literal",
+    reference: literal,
+    expects: /* @__PURE__ */ _stringify(literal_),
+    async: false,
+    literal: literal_,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (dataset.value === this.literal) dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function looseObject(entries$1, message$1) {
+  return {
+    kind: "schema",
+    type: "loose_object",
+    reference: looseObject,
+    expects: "Object",
+    async: false,
+    entries: entries$1,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      const input = dataset.value;
+      if (input && typeof input === "object") {
+        dataset.typed = true;
+        dataset.value = {};
+        for (const key in this.entries) {
+          const valueSchema = this.entries[key];
+          if (key in input || (valueSchema.type === "exact_optional" || valueSchema.type === "optional" || valueSchema.type === "nullish") && valueSchema.default !== void 0) {
+            const value$1 = key in input ? input[key] : /* @__PURE__ */ getDefault(valueSchema);
+            const valueDataset = valueSchema["~run"]({ value: value$1 }, config$1);
+            if (valueDataset.issues) {
+              const pathItem = {
+                type: "object",
+                origin: "value",
+                input,
+                key,
+                value: value$1
+              };
+              for (const issue of valueDataset.issues) {
+                if (issue.path) issue.path.unshift(pathItem);
+                else issue.path = [pathItem];
+                dataset.issues?.push(issue);
+              }
+              if (!dataset.issues) dataset.issues = valueDataset.issues;
+              if (config$1.abortEarly) {
+                dataset.typed = false;
+                break;
+              }
+            }
+            if (!valueDataset.typed) dataset.typed = false;
+            dataset.value[key] = valueDataset.value;
+          } else if (valueSchema.fallback !== void 0) dataset.value[key] = /* @__PURE__ */ getFallback(valueSchema);
+          else if (valueSchema.type !== "exact_optional" && valueSchema.type !== "optional" && valueSchema.type !== "nullish") {
+            _addIssue(this, "key", dataset, config$1, {
+              input: void 0,
+              expected: `"${key}"`,
+              path: [{
+                type: "object",
+                origin: "key",
+                input,
+                key,
+                value: input[key]
+              }]
+            });
+            if (config$1.abortEarly) break;
+          }
+        }
+        if (!dataset.issues || !config$1.abortEarly) {
+          for (const key in input) if (/* @__PURE__ */ _isValidObjectKey(input, key) && !(key in this.entries)) dataset.value[key] = input[key];
+        }
+      } else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function null_(message$1) {
+  return {
+    kind: "schema",
+    type: "null",
+    reference: null_,
+    expects: "null",
+    async: false,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (dataset.value === null) dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function nullish(wrapped, default_) {
+  return {
+    kind: "schema",
+    type: "nullish",
+    reference: nullish,
+    expects: `(${wrapped.expects} | null | undefined)`,
+    async: false,
+    wrapped,
+    default: default_,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (dataset.value === null || dataset.value === void 0) {
+        if (this.default !== void 0) dataset.value = /* @__PURE__ */ getDefault(this, dataset, config$1);
+        if (dataset.value === null || dataset.value === void 0) {
+          dataset.typed = true;
+          return dataset;
+        }
+      }
+      return this.wrapped["~run"](dataset, config$1);
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function number(message$1) {
+  return {
+    kind: "schema",
+    type: "number",
+    reference: number,
+    expects: "number",
+    async: false,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (typeof dataset.value === "number" && !isNaN(dataset.value)) dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function object(entries$1, message$1) {
+  return {
+    kind: "schema",
+    type: "object",
+    reference: object,
+    expects: "Object",
+    async: false,
+    entries: entries$1,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      const input = dataset.value;
+      if (input && typeof input === "object") {
+        dataset.typed = true;
+        dataset.value = {};
+        for (const key in this.entries) {
+          const valueSchema = this.entries[key];
+          if (key in input || (valueSchema.type === "exact_optional" || valueSchema.type === "optional" || valueSchema.type === "nullish") && valueSchema.default !== void 0) {
+            const value$1 = key in input ? input[key] : /* @__PURE__ */ getDefault(valueSchema);
+            const valueDataset = valueSchema["~run"]({ value: value$1 }, config$1);
+            if (valueDataset.issues) {
+              const pathItem = {
+                type: "object",
+                origin: "value",
+                input,
+                key,
+                value: value$1
+              };
+              for (const issue of valueDataset.issues) {
+                if (issue.path) issue.path.unshift(pathItem);
+                else issue.path = [pathItem];
+                dataset.issues?.push(issue);
+              }
+              if (!dataset.issues) dataset.issues = valueDataset.issues;
+              if (config$1.abortEarly) {
+                dataset.typed = false;
+                break;
+              }
+            }
+            if (!valueDataset.typed) dataset.typed = false;
+            dataset.value[key] = valueDataset.value;
+          } else if (valueSchema.fallback !== void 0) dataset.value[key] = /* @__PURE__ */ getFallback(valueSchema);
+          else if (valueSchema.type !== "exact_optional" && valueSchema.type !== "optional" && valueSchema.type !== "nullish") {
+            _addIssue(this, "key", dataset, config$1, {
+              input: void 0,
+              expected: `"${key}"`,
+              path: [{
+                type: "object",
+                origin: "key",
+                input,
+                key,
+                value: input[key]
+              }]
+            });
+            if (config$1.abortEarly) break;
+          }
+        }
+      } else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function optional(wrapped, default_) {
+  return {
+    kind: "schema",
+    type: "optional",
+    reference: optional,
+    expects: `(${wrapped.expects} | undefined)`,
+    async: false,
+    wrapped,
+    default: default_,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (dataset.value === void 0) {
+        if (this.default !== void 0) dataset.value = /* @__PURE__ */ getDefault(this, dataset, config$1);
+        if (dataset.value === void 0) {
+          dataset.typed = true;
+          return dataset;
+        }
+      }
+      return this.wrapped["~run"](dataset, config$1);
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function picklist(options, message$1) {
+  return {
+    kind: "schema",
+    type: "picklist",
+    reference: picklist,
+    expects: /* @__PURE__ */ _joinExpects(options.map(_stringify), "|"),
+    async: false,
+    options,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (this.options.includes(dataset.value)) dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function record(key, value$1, message$1) {
+  return {
+    kind: "schema",
+    type: "record",
+    reference: record,
+    expects: "Object",
+    async: false,
+    key,
+    value: value$1,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      const input = dataset.value;
+      if (input && typeof input === "object") {
+        dataset.typed = true;
+        dataset.value = {};
+        for (const entryKey in input) if (/* @__PURE__ */ _isValidObjectKey(input, entryKey)) {
+          const entryValue = input[entryKey];
+          const keyDataset = this.key["~run"]({ value: entryKey }, config$1);
+          if (keyDataset.issues) {
+            const pathItem = {
+              type: "object",
+              origin: "key",
+              input,
+              key: entryKey,
+              value: entryValue
+            };
+            for (const issue of keyDataset.issues) {
+              issue.path = [pathItem];
+              dataset.issues?.push(issue);
+            }
+            if (!dataset.issues) dataset.issues = keyDataset.issues;
+            if (config$1.abortEarly) {
+              dataset.typed = false;
+              break;
+            }
+          }
+          const valueDataset = this.value["~run"]({ value: entryValue }, config$1);
+          if (valueDataset.issues) {
+            const pathItem = {
+              type: "object",
+              origin: "value",
+              input,
+              key: entryKey,
+              value: entryValue
+            };
+            for (const issue of valueDataset.issues) {
+              if (issue.path) issue.path.unshift(pathItem);
+              else issue.path = [pathItem];
+              dataset.issues?.push(issue);
+            }
+            if (!dataset.issues) dataset.issues = valueDataset.issues;
+            if (config$1.abortEarly) {
+              dataset.typed = false;
+              break;
+            }
+          }
+          if (!keyDataset.typed || !valueDataset.typed) dataset.typed = false;
+          if (keyDataset.typed) dataset.value[keyDataset.value] = valueDataset.value;
+        }
+      } else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function strictObject(entries$1, message$1) {
+  return {
+    kind: "schema",
+    type: "strict_object",
+    reference: strictObject,
+    expects: "Object",
+    async: false,
+    entries: entries$1,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      const input = dataset.value;
+      if (input && typeof input === "object") {
+        dataset.typed = true;
+        dataset.value = {};
+        for (const key in this.entries) {
+          const valueSchema = this.entries[key];
+          if (key in input || (valueSchema.type === "exact_optional" || valueSchema.type === "optional" || valueSchema.type === "nullish") && valueSchema.default !== void 0) {
+            const value$1 = key in input ? input[key] : /* @__PURE__ */ getDefault(valueSchema);
+            const valueDataset = valueSchema["~run"]({ value: value$1 }, config$1);
+            if (valueDataset.issues) {
+              const pathItem = {
+                type: "object",
+                origin: "value",
+                input,
+                key,
+                value: value$1
+              };
+              for (const issue of valueDataset.issues) {
+                if (issue.path) issue.path.unshift(pathItem);
+                else issue.path = [pathItem];
+                dataset.issues?.push(issue);
+              }
+              if (!dataset.issues) dataset.issues = valueDataset.issues;
+              if (config$1.abortEarly) {
+                dataset.typed = false;
+                break;
+              }
+            }
+            if (!valueDataset.typed) dataset.typed = false;
+            dataset.value[key] = valueDataset.value;
+          } else if (valueSchema.fallback !== void 0) dataset.value[key] = /* @__PURE__ */ getFallback(valueSchema);
+          else if (valueSchema.type !== "exact_optional" && valueSchema.type !== "optional" && valueSchema.type !== "nullish") {
+            _addIssue(this, "key", dataset, config$1, {
+              input: void 0,
+              expected: `"${key}"`,
+              path: [{
+                type: "object",
+                origin: "key",
+                input,
+                key,
+                value: input[key]
+              }]
+            });
+            if (config$1.abortEarly) break;
+          }
+        }
+        if (!dataset.issues || !config$1.abortEarly) {
+          for (const key in input) if (!(key in this.entries)) {
+            _addIssue(this, "key", dataset, config$1, {
+              input: key,
+              expected: "never",
+              path: [{
+                type: "object",
+                origin: "key",
+                input,
+                key,
+                value: input[key]
+              }]
+            });
+            break;
+          }
+        }
+      } else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function string2(message$1) {
+  return {
+    kind: "schema",
+    type: "string",
+    reference: string2,
+    expects: "string",
+    async: false,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      if (typeof dataset.value === "string") dataset.typed = true;
+      else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function _subIssues(datasets) {
+  let issues;
+  if (datasets) for (const dataset of datasets) if (issues) issues.push(...dataset.issues);
+  else issues = dataset.issues;
+  return issues;
+}
+// @__NO_SIDE_EFFECTS__
+function union(options, message$1) {
+  return {
+    kind: "schema",
+    type: "union",
+    reference: union,
+    expects: /* @__PURE__ */ _joinExpects(options.map((option) => option.expects), "|"),
+    async: false,
+    options,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      let validDataset;
+      let typedDatasets;
+      let untypedDatasets;
+      for (const schema of this.options) {
+        const optionDataset = schema["~run"]({ value: dataset.value }, config$1);
+        if (optionDataset.typed) if (optionDataset.issues) if (typedDatasets) typedDatasets.push(optionDataset);
+        else typedDatasets = [optionDataset];
+        else {
+          validDataset = optionDataset;
+          break;
+        }
+        else if (untypedDatasets) untypedDatasets.push(optionDataset);
+        else untypedDatasets = [optionDataset];
+      }
+      if (validDataset) return validDataset;
+      if (typedDatasets) {
+        if (typedDatasets.length === 1) return typedDatasets[0];
+        _addIssue(this, "type", dataset, config$1, { issues: /* @__PURE__ */ _subIssues(typedDatasets) });
+        dataset.typed = true;
+      } else if (untypedDatasets?.length === 1) return untypedDatasets[0];
+      else _addIssue(this, "type", dataset, config$1, { issues: /* @__PURE__ */ _subIssues(untypedDatasets) });
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function unknown() {
+  return {
+    kind: "schema",
+    type: "unknown",
+    reference: unknown,
+    expects: "unknown",
+    async: false,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset) {
+      dataset.typed = true;
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function variant(key, options, message$1) {
+  return {
+    kind: "schema",
+    type: "variant",
+    reference: variant,
+    expects: "Object",
+    async: false,
+    key,
+    options,
+    message: message$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      const input = dataset.value;
+      if (input && typeof input === "object") {
+        let outputDataset;
+        let maxDiscriminatorPriority = 0;
+        let invalidDiscriminatorKey = this.key;
+        let expectedDiscriminators = [];
+        const parseOptions = (variant$1, allKeys) => {
+          for (const schema of variant$1.options) {
+            if (schema.type === "variant") parseOptions(schema, new Set(allKeys).add(schema.key));
+            else {
+              let keysAreValid = true;
+              let currentPriority = 0;
+              for (const currentKey of allKeys) {
+                const discriminatorSchema = schema.entries[currentKey];
+                if (currentKey in input ? discriminatorSchema["~run"]({
+                  typed: false,
+                  value: input[currentKey]
+                }, { abortEarly: true }).issues : discriminatorSchema.type !== "exact_optional" && discriminatorSchema.type !== "optional" && discriminatorSchema.type !== "nullish") {
+                  keysAreValid = false;
+                  if (invalidDiscriminatorKey !== currentKey && (maxDiscriminatorPriority < currentPriority || maxDiscriminatorPriority === currentPriority && currentKey in input && !(invalidDiscriminatorKey in input))) {
+                    maxDiscriminatorPriority = currentPriority;
+                    invalidDiscriminatorKey = currentKey;
+                    expectedDiscriminators = [];
+                  }
+                  if (invalidDiscriminatorKey === currentKey) expectedDiscriminators.push(schema.entries[currentKey].expects);
+                  break;
+                }
+                currentPriority++;
+              }
+              if (keysAreValid) {
+                const optionDataset = schema["~run"]({ value: input }, config$1);
+                if (!outputDataset || !outputDataset.typed && optionDataset.typed) outputDataset = optionDataset;
+              }
+            }
+            if (outputDataset && !outputDataset.issues) break;
+          }
+        };
+        parseOptions(this, /* @__PURE__ */ new Set([this.key]));
+        if (outputDataset) return outputDataset;
+        _addIssue(this, "type", dataset, config$1, {
+          input: input[invalidDiscriminatorKey],
+          expected: /* @__PURE__ */ _joinExpects(expectedDiscriminators, "|"),
+          path: [{
+            type: "object",
+            origin: "value",
+            input,
+            key: invalidDiscriminatorKey,
+            value: input[invalidDiscriminatorKey]
+          }]
+        });
+      } else _addIssue(this, "type", dataset, config$1);
+      return dataset;
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function omit(schema, keys) {
+  const entries$1 = { ...schema.entries };
+  for (const key of keys) delete entries$1[key];
+  return {
+    ...schema,
+    entries: entries$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    }
+  };
+}
+// @__NO_SIDE_EFFECTS__
+function pipe(...pipe$1) {
+  return {
+    ...pipe$1[0],
+    pipe: pipe$1,
+    get "~standard"() {
+      return /* @__PURE__ */ _getStandardProps(this);
+    },
+    "~run"(dataset, config$1) {
+      for (const item of pipe$1) if (item.kind !== "metadata") {
+        if (dataset.issues && (item.kind === "schema" || item.kind === "transformation")) {
+          dataset.typed = false;
+          break;
+        }
+        if (!dataset.issues || !config$1.abortEarly && !config$1.abortPipeEarly) dataset = item["~run"](dataset, config$1);
+      }
+      return dataset;
+    }
+  };
+}
+
+// node_modules/axios/lib/helpers/bind.js
+function bind(fn, thisArg) {
+  return function wrap2() {
+    return fn.apply(thisArg, arguments);
+  };
+}
+
+// node_modules/axios/lib/utils.js
+var { toString } = Object.prototype;
+var { getPrototypeOf } = Object;
+var { iterator, toStringTag } = Symbol;
+var hasOwnProperty = (({ hasOwnProperty: hasOwnProperty2 }) => (obj, prop) => hasOwnProperty2.call(obj, prop))(Object.prototype);
+var isUnsafeObjectKey = (prop) => typeof prop === "string" && (prop === "__proto__" || prop === "constructor" || prop === "prototype");
+var isPrototypeBoundary = (obj, prototype2, source) => obj === Object.prototype || !source && prototype2 === null;
+var isSafeAndFullyMutable = (obj) => {
+  if (!Object.isExtensible(obj)) {
+    return false;
+  }
+  const props = Object.getOwnPropertyNames(obj);
+  if (Object.getOwnPropertySymbols) {
+    props.push(...Object.getOwnPropertySymbols(obj));
+  }
+  return props.every((prop) => {
+    if (isUnsafeObjectKey(prop)) {
+      return false;
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(obj, prop);
+    return !!descriptor && descriptor.configurable && descriptor.writable === true;
+  });
+};
+var hasOwnInPrototypeChain = (thing, prop) => {
+  let obj = thing;
+  const seen = [];
+  while (obj != null) {
+    if (seen.indexOf(obj) !== -1) {
+      return false;
+    }
+    seen.push(obj);
+    const prototype2 = getPrototypeOf(obj);
+    if (isPrototypeBoundary(obj, prototype2, obj === thing)) {
+      return false;
+    }
+    if (hasOwnProperty(obj, prop)) {
+      return true;
+    }
+    obj = prototype2;
+  }
+  return false;
+};
+var getSafeProp = (obj, prop) => obj != null && hasOwnInPrototypeChain(obj, prop) ? obj[prop] : void 0;
+var toSafeFlatObject = (thing) => {
+  if (thing == null || typeof thing !== "object" && typeof thing !== "function") {
+    return thing;
+  }
+  const sourcePrototype = getPrototypeOf(thing);
+  if (sourcePrototype === null && isSafeAndFullyMutable(thing)) {
+    return thing;
+  }
+  const result = /* @__PURE__ */ Object.create(null);
+  const merged = /* @__PURE__ */ Object.create(null);
+  const seen = [];
+  let current = thing;
+  while (current != null) {
+    if (seen.indexOf(current) !== -1) {
+      break;
+    }
+    seen.push(current);
+    const prototype2 = current === thing ? sourcePrototype : getPrototypeOf(current);
+    if (isPrototypeBoundary(current, prototype2, current === thing)) {
+      break;
+    }
+    const props = Object.getOwnPropertyNames(current);
+    if (Object.getOwnPropertySymbols) {
+      props.push(...Object.getOwnPropertySymbols(current));
+    }
+    for (const prop of props) {
+      if (isUnsafeObjectKey(prop)) {
+        continue;
+      }
+      if (!hasOwnProperty(merged, prop)) {
+        result[prop] = thing[prop];
+        merged[prop] = true;
+      }
+    }
+    current = prototype2;
+  }
+  return result;
+};
+var kindOf = /* @__PURE__ */ ((cache2) => (thing) => {
+  const str = toString.call(thing);
+  return cache2[str] || (cache2[str] = str.slice(8, -1).toLowerCase());
+})(/* @__PURE__ */ Object.create(null));
+var kindOfTest = (type) => {
+  type = type.toLowerCase();
+  return (thing) => kindOf(thing) === type;
+};
+var typeOfTest = (type) => (thing) => typeof thing === type;
+var { isArray } = Array;
+var isUndefined = typeOfTest("undefined");
+function isBuffer(val) {
+  return val !== null && !isUndefined(val) && val.constructor !== null && !isUndefined(val.constructor) && isFunction(val.constructor.isBuffer) && val.constructor.isBuffer(val);
+}
+var isArrayBuffer = kindOfTest("ArrayBuffer");
+function isArrayBufferView(val) {
+  let result;
+  if (typeof ArrayBuffer !== "undefined" && ArrayBuffer.isView) {
+    result = ArrayBuffer.isView(val);
+  } else {
+    result = val && val.buffer && isArrayBuffer(val.buffer);
+  }
+  return result;
+}
+var isString = typeOfTest("string");
+var isFunction = typeOfTest("function");
+var isNumber = typeOfTest("number");
+var isObject = (thing) => thing !== null && typeof thing === "object";
+var isBoolean = (thing) => thing === true || thing === false;
+var isPlainObject2 = (val) => {
+  if (!isObject(val)) {
+    return false;
+  }
+  const prototype2 = getPrototypeOf(val);
+  return (prototype2 === null || prototype2 === Object.prototype || getPrototypeOf(prototype2) === null) && // Treat safe own/inherited Symbol.toStringTag or Symbol.iterator members as
+  // evidence the value is tagged/iterable, while ignoring members reachable
+  // only through shared or terminal prototype boundaries.
+  !hasOwnInPrototypeChain(val, toStringTag) && !hasOwnInPrototypeChain(val, iterator);
+};
+var isEmptyObject = (val) => {
+  if (!isObject(val) || isBuffer(val)) {
+    return false;
+  }
+  try {
+    return Object.keys(val).length === 0 && Object.getPrototypeOf(val) === Object.prototype;
+  } catch (e) {
+    return false;
+  }
+};
+var isDate = kindOfTest("Date");
+var isFile = kindOfTest("File");
+var isReactNativeBlob = (value) => {
+  return !!(value && typeof value.uri !== "undefined");
+};
+var isReactNative = (formData) => formData && typeof formData.getParts !== "undefined";
+var isBlob = kindOfTest("Blob");
+var isFileList = kindOfTest("FileList");
+var isSet = kindOfTest("Set");
+var isStream = (val) => isObject(val) && isFunction(val.pipe);
+function getGlobal() {
+  if (typeof globalThis !== "undefined") return globalThis;
+  if (typeof self !== "undefined") return self;
+  if (typeof window !== "undefined") return window;
+  if (typeof globalThis !== "undefined") return globalThis;
+  return {};
+}
+var G = getGlobal();
+var FormDataCtor = typeof G.FormData !== "undefined" ? G.FormData : void 0;
+var isFormData = (thing) => {
+  if (!thing) return false;
+  if (FormDataCtor && thing instanceof FormDataCtor) return true;
+  const proto = getPrototypeOf(thing);
+  if (!proto || proto === Object.prototype) return false;
+  if (!isFunction(thing.append)) return false;
+  const kind = kindOf(thing);
+  return kind === "formdata" || // detect form-data instance
+  kind === "object" && isFunction(thing.toString) && thing.toString() === "[object FormData]";
+};
+var isURLSearchParams = kindOfTest("URLSearchParams");
+var [isReadableStream, isRequest, isResponse, isHeaders] = [
+  "ReadableStream",
+  "Request",
+  "Response",
+  "Headers"
+].map(kindOfTest);
+var trim = (str) => {
+  return str.trim ? str.trim() : str.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, "");
+};
+function forEach(obj, fn, { allOwnKeys = false } = {}) {
+  if (obj === null || typeof obj === "undefined") {
+    return;
+  }
+  let i;
+  let l;
+  if (typeof obj !== "object") {
+    obj = [obj];
+  }
+  if (isArray(obj)) {
+    for (i = 0, l = obj.length; i < l; i++) {
+      fn.call(null, obj[i], i, obj);
+    }
+  } else {
+    if (isBuffer(obj)) {
+      return;
+    }
+    const keys = allOwnKeys ? Object.getOwnPropertyNames(obj) : Object.keys(obj);
+    const len = keys.length;
+    let key;
+    for (i = 0; i < len; i++) {
+      key = keys[i];
+      fn.call(null, obj[key], key, obj);
+    }
+  }
+}
+function findKey(obj, key) {
+  if (isBuffer(obj)) {
+    return null;
+  }
+  key = key.toLowerCase();
+  const keys = Object.keys(obj);
+  let i = keys.length;
+  let _key;
+  while (i-- > 0) {
+    _key = keys[i];
+    if (key === _key.toLowerCase()) {
+      return _key;
+    }
+  }
+  return null;
+}
+var _global = (() => {
+  if (typeof globalThis !== "undefined") return globalThis;
+  return typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : globalThis;
+})();
+var isContextDefined = (context) => !isUndefined(context) && context !== _global;
+function merge(...objs) {
+  const { caseless, skipUndefined } = isContextDefined(this) && this || {};
+  const result = {};
+  const assignValue = (val, key) => {
+    if (key === "__proto__" || key === "constructor" || key === "prototype") {
+      return;
+    }
+    const targetKey = caseless && typeof key === "string" && findKey(result, key) || key;
+    const existing = hasOwnProperty(result, targetKey) ? result[targetKey] : void 0;
+    if (isPlainObject2(existing) && isPlainObject2(val)) {
+      result[targetKey] = merge(existing, val);
+    } else if (isPlainObject2(val)) {
+      result[targetKey] = merge({}, val);
+    } else if (isArray(val)) {
+      result[targetKey] = val.slice();
+    } else if (!skipUndefined || !isUndefined(val)) {
+      result[targetKey] = val;
+    }
+  };
+  for (let i = 0, l = objs.length; i < l; i++) {
+    const source = objs[i];
+    if (!source || isBuffer(source)) {
+      continue;
+    }
+    forEach(source, assignValue);
+    if (typeof source !== "object" || isArray(source)) {
+      continue;
+    }
+    const symbols = Object.getOwnPropertySymbols(source);
+    for (let j = 0; j < symbols.length; j++) {
+      const symbol = symbols[j];
+      if (propertyIsEnumerable.call(source, symbol)) {
+        assignValue(source[symbol], symbol);
+      }
+    }
+  }
+  return result;
+}
+var extend = (a, b, thisArg, { allOwnKeys } = {}) => {
+  forEach(
+    b,
+    (val, key) => {
+      if (thisArg && isFunction(val)) {
+        Object.defineProperty(a, key, {
+          // Null-proto descriptor so a polluted Object.prototype.get cannot
+          // hijack defineProperty's accessor-vs-data resolution.
+          __proto__: null,
+          value: bind(val, thisArg),
+          writable: true,
+          enumerable: true,
+          configurable: true
+        });
+      } else {
+        Object.defineProperty(a, key, {
+          __proto__: null,
+          value: val,
+          writable: true,
+          enumerable: true,
+          configurable: true
+        });
+      }
+    },
+    { allOwnKeys }
+  );
+  return a;
+};
+var stripBOM = (content) => {
+  if (content.charCodeAt(0) === 65279) {
+    content = content.slice(1);
+  }
+  return content;
+};
+var inherits = (constructor, superConstructor, props, descriptors) => {
+  constructor.prototype = Object.create(superConstructor.prototype, descriptors);
+  Object.defineProperty(constructor.prototype, "constructor", {
+    __proto__: null,
+    value: constructor,
+    writable: true,
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(constructor, "super", {
+    __proto__: null,
+    value: superConstructor.prototype
+  });
+  props && Object.assign(constructor.prototype, props);
+};
+var toFlatObject = (sourceObj, destObj, filter2, propFilter) => {
+  let props;
+  let i;
+  let prop;
+  const merged = {};
+  destObj = destObj || {};
+  if (sourceObj == null) return destObj;
+  do {
+    props = Object.getOwnPropertyNames(sourceObj);
+    i = props.length;
+    while (i-- > 0) {
+      prop = props[i];
+      if ((!propFilter || propFilter(prop, sourceObj, destObj)) && !merged[prop]) {
+        destObj[prop] = sourceObj[prop];
+        merged[prop] = true;
+      }
+    }
+    sourceObj = filter2 !== false && getPrototypeOf(sourceObj);
+  } while (sourceObj && (!filter2 || filter2(sourceObj, destObj)) && sourceObj !== Object.prototype);
+  return destObj;
+};
+var endsWith = (str, searchString, position) => {
+  str = String(str);
+  if (position === void 0 || position > str.length) {
+    position = str.length;
+  }
+  position -= searchString.length;
+  const lastIndex = str.indexOf(searchString, position);
+  return lastIndex !== -1 && lastIndex === position;
+};
+var toArray = (thing) => {
+  if (!thing) return null;
+  if (isArray(thing)) return thing;
+  let i = thing.length;
+  if (!isNumber(i)) return null;
+  const arr = new Array(i);
+  while (i-- > 0) {
+    arr[i] = thing[i];
+  }
+  return arr;
+};
+var isTypedArray = /* @__PURE__ */ ((TypedArray) => {
+  return (thing) => {
+    return TypedArray && thing instanceof TypedArray;
+  };
+})(typeof Uint8Array !== "undefined" && getPrototypeOf(Uint8Array));
+var forEachEntry = (obj, fn) => {
+  const generator = obj && obj[iterator];
+  const _iterator = generator.call(obj);
+  let result;
+  while ((result = _iterator.next()) && !result.done) {
+    const pair = result.value;
+    fn.call(obj, pair[0], pair[1]);
+  }
+};
+var matchAll = (regExp, str) => {
+  let matches;
+  const arr = [];
+  while ((matches = regExp.exec(str)) !== null) {
+    arr.push(matches);
+  }
+  return arr;
+};
+var isHTMLForm = kindOfTest("HTMLFormElement");
+var toCamelCase = (str) => {
+  return str.toLowerCase().replace(/[-_\s]([a-z\d])(\w*)/g, function replacer(m, p1, p2) {
+    return p1.toUpperCase() + p2;
+  });
+};
+var { propertyIsEnumerable } = Object.prototype;
+var isRegExp = kindOfTest("RegExp");
+var reduceDescriptors = (obj, reducer) => {
+  const descriptors = Object.getOwnPropertyDescriptors(obj);
+  const reducedDescriptors = {};
+  forEach(descriptors, (descriptor, name) => {
+    let ret;
+    if ((ret = reducer(descriptor, name, obj)) !== false) {
+      reducedDescriptors[name] = ret || descriptor;
+    }
+  });
+  Object.defineProperties(obj, reducedDescriptors);
+};
+var freezeMethods = (obj) => {
+  reduceDescriptors(obj, (descriptor, name) => {
+    if (isFunction(obj) && ["arguments", "caller", "callee"].includes(name)) {
+      return false;
+    }
+    const value = obj[name];
+    if (!isFunction(value)) return;
+    descriptor.enumerable = false;
+    if ("writable" in descriptor) {
+      descriptor.writable = false;
+      return;
+    }
+    if (!descriptor.set) {
+      descriptor.set = () => {
+        throw Error("Can not rewrite read-only method '" + name + "'");
+      };
+    }
+  });
+};
+var toObjectSet = (arrayOrString, delimiter) => {
+  const obj = {};
+  const define = (arr) => {
+    arr.forEach((value) => {
+      obj[value] = true;
+    });
+  };
+  isArray(arrayOrString) ? define(arrayOrString) : define(String(arrayOrString).split(delimiter));
+  return obj;
+};
+var noop = () => {
+};
+var toFiniteNumber = (value, defaultValue) => {
+  return value != null && Number.isFinite(value = +value) ? value : defaultValue;
+};
+function isSpecCompliantForm(thing) {
+  return !!(thing && isFunction(thing.append) && thing[toStringTag] === "FormData" && thing[iterator]);
+}
+var toJSONObject = (obj) => {
+  const visited = /* @__PURE__ */ new WeakSet();
+  const visit = (source) => {
+    if (isObject(source)) {
+      if (visited.has(source)) {
+        return;
+      }
+      if (isBuffer(source)) {
+        return source;
+      }
+      if (!("toJSON" in source)) {
+        visited.add(source);
+        let target;
+        if (isSet(source)) {
+          target = [];
+          for (const value of source) {
+            const reducedValue = visit(value);
+            !isUndefined(reducedValue) && target.push(reducedValue);
+          }
+        } else {
+          target = isArray(source) ? [] : {};
+          forEach(source, (value, key) => {
+            const reducedValue = visit(value);
+            !isUndefined(reducedValue) && (target[key] = reducedValue);
+          });
+        }
+        visited.delete(source);
+        return target;
+      }
+    }
+    return source;
+  };
+  return visit(obj);
+};
+var isAsyncFn = kindOfTest("AsyncFunction");
+var isThenable = (thing) => thing && (isObject(thing) || isFunction(thing)) && isFunction(thing.then) && isFunction(thing.catch);
+var _setImmediate = ((setImmediateSupported, postMessageSupported) => {
+  if (setImmediateSupported) {
+    return setImmediate;
+  }
+  return postMessageSupported ? ((token, callbacks) => {
+    _global.addEventListener(
+      "message",
+      ({ source, data }) => {
+        if (source === _global && data === token) {
+          callbacks.length && callbacks.shift()();
+        }
+      },
+      false
+    );
+    return (cb) => {
+      callbacks.push(cb);
+      _global.postMessage(token, "*");
+    };
+  })(`axios@${Math.random()}`, []) : (cb) => setTimeout(cb);
+})(typeof setImmediate === "function", isFunction(_global.postMessage));
+var asap = typeof queueMicrotask !== "undefined" ? queueMicrotask.bind(_global) : typeof process !== "undefined" && process.nextTick || _setImmediate;
+var isIterable = (thing) => thing != null && isFunction(thing[iterator]);
+var isSafeIterable = (thing) => thing != null && hasOwnInPrototypeChain(thing, iterator) && isIterable(thing);
+var utils_default = {
+  isArray,
+  isArrayBuffer,
+  isBuffer,
+  isFormData,
+  isArrayBufferView,
+  isString,
+  isNumber,
+  isBoolean,
+  isObject,
+  isPlainObject: isPlainObject2,
+  isEmptyObject,
+  isReadableStream,
+  isRequest,
+  isResponse,
+  isHeaders,
+  isUndefined,
+  isDate,
+  isFile,
+  isReactNativeBlob,
+  isReactNative,
+  isBlob,
+  isRegExp,
+  isFunction,
+  isStream,
+  isURLSearchParams,
+  isTypedArray,
+  isFileList,
+  forEach,
+  merge,
+  extend,
+  trim,
+  stripBOM,
+  inherits,
+  toFlatObject,
+  kindOf,
+  kindOfTest,
+  endsWith,
+  toArray,
+  forEachEntry,
+  matchAll,
+  isHTMLForm,
+  hasOwnProperty,
+  hasOwnProp: hasOwnProperty,
+  // an alias to avoid ESLint no-prototype-builtins detection
+  hasOwnInPrototypeChain,
+  getSafeProp,
+  toSafeFlatObject,
+  reduceDescriptors,
+  freezeMethods,
+  toObjectSet,
+  toCamelCase,
+  noop,
+  toFiniteNumber,
+  findKey,
+  global: _global,
+  isContextDefined,
+  isSpecCompliantForm,
+  toJSONObject,
+  isAsyncFn,
+  isThenable,
+  setImmediate: _setImmediate,
+  asap,
+  isIterable,
+  isSafeIterable
+};
+
+// node_modules/axios/lib/helpers/parseHeaders.js
+var ignoreDuplicateOf = utils_default.toObjectSet([
+  "age",
+  "authorization",
+  "content-length",
+  "content-type",
+  "etag",
+  "expires",
+  "from",
+  "host",
+  "if-modified-since",
+  "if-unmodified-since",
+  "last-modified",
+  "location",
+  "max-forwards",
+  "proxy-authorization",
+  "referer",
+  "retry-after",
+  "user-agent"
+]);
+var parseHeaders_default = (rawHeaders) => {
+  const parsed = {};
+  let key;
+  let val;
+  let i;
+  rawHeaders && rawHeaders.split("\n").forEach(function parser(line) {
+    i = line.indexOf(":");
+    key = line.substring(0, i).trim().toLowerCase();
+    val = line.substring(i + 1).trim();
+    const hasKey = utils_default.hasOwnProp(parsed, key);
+    if (!key || hasKey && utils_default.hasOwnProp(ignoreDuplicateOf, key)) {
+      return;
+    }
+    if (key === "set-cookie") {
+      if (hasKey) {
+        parsed[key].push(val);
+      } else {
+        parsed[key] = [val];
+      }
+    } else {
+      parsed[key] = hasKey ? parsed[key] + ", " + val : val;
+    }
+  });
+  return parsed;
+};
+
+// node_modules/axios/lib/helpers/sanitizeHeaderValue.js
+function trimSPorHTAB(str) {
+  let start = 0;
+  let end = str.length;
+  while (start < end) {
+    const code = str.charCodeAt(start);
+    if (code !== 9 && code !== 32) {
+      break;
+    }
+    start += 1;
+  }
+  while (end > start) {
+    const code = str.charCodeAt(end - 1);
+    if (code !== 9 && code !== 32) {
+      break;
+    }
+    end -= 1;
+  }
+  return start === 0 && end === str.length ? str : str.slice(start, end);
+}
+var INVALID_UNICODE_HEADER_VALUE_CHARS = new RegExp("[\\u0000-\\u0008\\u000a-\\u001f\\u007f]+", "g");
+var INVALID_BYTE_STRING_HEADER_VALUE_CHARS = new RegExp("[^\\u0009\\u0020-\\u007e\\u0080-\\u00ff]+", "g");
+function sanitizeValue(value, invalidChars) {
+  if (utils_default.isArray(value)) {
+    return value.map((item) => sanitizeValue(item, invalidChars));
+  }
+  return trimSPorHTAB(String(value).replace(invalidChars, ""));
+}
+var sanitizeHeaderValue = (value) => sanitizeValue(value, INVALID_UNICODE_HEADER_VALUE_CHARS);
+var sanitizeByteStringHeaderValue = (value) => sanitizeValue(value, INVALID_BYTE_STRING_HEADER_VALUE_CHARS);
+function toByteStringHeaderObject(headers) {
+  const byteStringHeaders = /* @__PURE__ */ Object.create(null);
+  utils_default.forEach(headers.toJSON(), (value, header) => {
+    byteStringHeaders[header] = sanitizeByteStringHeaderValue(value);
+  });
+  return byteStringHeaders;
+}
+
+// node_modules/axios/lib/core/AxiosHeaders.js
+var $internals = /* @__PURE__ */ Symbol("internals");
+function normalizeHeader(header) {
+  return header && String(header).trim().toLowerCase();
+}
+function normalizeValue(value) {
+  if (value === false || value == null) {
+    return value;
+  }
+  return utils_default.isArray(value) ? value.map(normalizeValue) : sanitizeHeaderValue(String(value));
+}
+function parseTokens(str) {
+  const tokens = /* @__PURE__ */ Object.create(null);
+  const tokensRE = /([^\s,;=]+)\s*(?:=\s*([^,;]+))?/g;
+  let match2;
+  while (match2 = tokensRE.exec(str)) {
+    tokens[match2[1]] = match2[2];
+  }
+  return tokens;
+}
+var parameterNameRE = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+function trimOWS(value) {
+  let start = 0;
+  let end = value.length;
+  while (start < end) {
+    const code = value.charCodeAt(start);
+    if (code !== 9 && code !== 32) {
+      break;
+    }
+    start += 1;
+  }
+  while (end > start) {
+    const code = value.charCodeAt(end - 1);
+    if (code !== 9 && code !== 32) {
+      break;
+    }
+    end -= 1;
+  }
+  return start === 0 && end === value.length ? value : value.slice(start, end);
+}
+function decodeQuotedString(value) {
+  const last = value.length - 1;
+  if (last < 1 || value.charCodeAt(0) !== 34 || value.charCodeAt(last) !== 34) {
+    return value;
+  }
+  let decoded = "";
+  for (let i = 1; i < last; i++) {
+    const code = value.charCodeAt(i);
+    if (code === 34) {
+      return value;
+    }
+    if (code === 92) {
+      i += 1;
+      if (i >= last) {
+        return value;
+      }
+    }
+    decoded += value[i];
+  }
+  return decoded;
+}
+function parseParameters(value) {
+  const parameters = /* @__PURE__ */ Object.create(null);
+  const str = String(value);
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+  function parseParameter(end) {
+    const part = trimOWS(str.slice(start, end));
+    const equals = part.indexOf("=");
+    if (equals < 1) {
+      return;
+    }
+    const name = trimOWS(part.slice(0, equals));
+    if (!parameterNameRE.test(name)) {
+      return;
+    }
+    const normalizedName = name.toLowerCase();
+    if (normalizedName === "__proto__" || normalizedName === "constructor" || normalizedName === "prototype") {
+      return;
+    }
+    const parameterValue = trimOWS(part.slice(equals + 1));
+    parameters[normalizedName] = decodeQuotedString(parameterValue);
+  }
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (code === 92) {
+        escaped = true;
+      } else if (code === 34) {
+        quoted = false;
+      }
+    } else if (code === 34) {
+      quoted = true;
+    } else if (code === 44 || code === 59) {
+      parseParameter(i);
+      start = i + 1;
+    }
+  }
+  parseParameter(str.length);
+  return parameters;
+}
+var isValidHeaderName = (str) => /^[-_a-zA-Z0-9^`|~,!#$%&'*+.]+$/.test(str.trim());
+function matchHeaderValue(context, value, header, filter2, isHeaderNameFilter) {
+  if (utils_default.isFunction(filter2)) {
+    return filter2.call(this, value, header);
+  }
+  if (isHeaderNameFilter) {
+    value = header;
+  }
+  if (!utils_default.isString(value)) return;
+  if (utils_default.isString(filter2)) {
+    return value.indexOf(filter2) !== -1;
+  }
+  if (utils_default.isRegExp(filter2)) {
+    return filter2.test(value);
+  }
+}
+function formatHeader(header) {
+  return header.trim().toLowerCase().replace(/([a-z\d])(\w*)/g, (w, char, str) => {
+    return char.toUpperCase() + str;
+  });
+}
+function buildAccessors(obj, header) {
+  const accessorName = utils_default.toCamelCase(" " + header);
+  ["get", "set", "has"].forEach((methodName) => {
+    Object.defineProperty(obj, methodName + accessorName, {
+      // Null-proto descriptor so a polluted Object.prototype.get cannot turn
+      // this data descriptor into an accessor descriptor on the way in.
+      __proto__: null,
+      value: function(arg1, arg2, arg3) {
+        return this[methodName].call(this, header, arg1, arg2, arg3);
+      },
+      configurable: true
+    });
+  });
+}
+var AxiosHeaders = class {
+  constructor(headers) {
+    headers && this.set(headers);
+  }
+  set(header, valueOrRewrite, rewrite) {
+    const self2 = this;
+    function setHeader(_value, _header, _rewrite) {
+      const lHeader = normalizeHeader(_header);
+      if (!lHeader) {
+        return;
+      }
+      const key = utils_default.findKey(self2, lHeader);
+      if (!key || self2[key] === void 0 || _rewrite === true || _rewrite === void 0 && self2[key] !== false) {
+        self2[key || _header] = normalizeValue(_value);
+      }
+    }
+    const setHeaders = (headers, _rewrite) => utils_default.forEach(headers, (_value, _header) => setHeader(_value, _header, _rewrite));
+    if (utils_default.isPlainObject(header) || header instanceof this.constructor) {
+      setHeaders(header, valueOrRewrite);
+    } else if (utils_default.isString(header) && (header = header.trim()) && !isValidHeaderName(header)) {
+      setHeaders(parseHeaders_default(header), valueOrRewrite);
+    } else if (utils_default.isObject(header) && utils_default.isSafeIterable(header)) {
+      let obj = /* @__PURE__ */ Object.create(null), dest, key;
+      for (const entry of header) {
+        if (!utils_default.isArray(entry)) {
+          throw new TypeError("Object iterator must return a key-value pair");
+        }
+        key = entry[0];
+        if (utils_default.hasOwnProp(obj, key)) {
+          dest = obj[key];
+          obj[key] = utils_default.isArray(dest) ? [...dest, entry[1]] : [dest, entry[1]];
+        } else {
+          obj[key] = entry[1];
+        }
+      }
+      setHeaders(obj, valueOrRewrite);
+    } else {
+      header != null && setHeader(valueOrRewrite, header, rewrite);
+    }
+    return this;
+  }
+  get(header, parser) {
+    header = normalizeHeader(header);
+    if (header) {
+      const key = utils_default.findKey(this, header);
+      if (key) {
+        const value = this[key];
+        if (!parser) {
+          return value;
+        }
+        if (parser === true) {
+          return parseTokens(value);
+        }
+        if (utils_default.isFunction(parser)) {
+          return parser.call(this, value, key);
+        }
+        if (utils_default.isRegExp(parser)) {
+          return parser.exec(value);
+        }
+        throw new TypeError("parser must be boolean|regexp|function");
+      }
+    }
+  }
+  has(header, matcher) {
+    header = normalizeHeader(header);
+    if (header) {
+      const key = utils_default.findKey(this, header);
+      return !!(key && this[key] !== void 0 && (!matcher || matchHeaderValue(this, this[key], key, matcher)));
+    }
+    return false;
+  }
+  delete(header, matcher) {
+    const self2 = this;
+    let deleted = false;
+    function deleteHeader(_header) {
+      _header = normalizeHeader(_header);
+      if (_header) {
+        const key = utils_default.findKey(self2, _header);
+        if (key && (!matcher || matchHeaderValue(self2, self2[key], key, matcher))) {
+          delete self2[key];
+          deleted = true;
+        }
+      }
+    }
+    if (utils_default.isArray(header)) {
+      header.forEach(deleteHeader);
+    } else {
+      deleteHeader(header);
+    }
+    return deleted;
+  }
+  clear(matcher) {
+    const keys = Object.keys(this);
+    let i = keys.length;
+    let deleted = false;
+    while (i--) {
+      const key = keys[i];
+      if (!matcher || matchHeaderValue(this, this[key], key, matcher, true)) {
+        delete this[key];
+        deleted = true;
+      }
+    }
+    return deleted;
+  }
+  normalize(format) {
+    const self2 = this;
+    const headers = {};
+    utils_default.forEach(this, (value, header) => {
+      const key = utils_default.findKey(headers, header);
+      if (key) {
+        self2[key] = normalizeValue(value);
+        delete self2[header];
+        return;
+      }
+      const normalized = format ? formatHeader(header) : String(header).trim();
+      if (normalized !== header) {
+        delete self2[header];
+      }
+      self2[normalized] = normalizeValue(value);
+      headers[normalized] = true;
+    });
+    return this;
+  }
+  concat(...targets) {
+    return this.constructor.concat(this, ...targets);
+  }
+  toJSON(asStrings) {
+    const obj = /* @__PURE__ */ Object.create(null);
+    utils_default.forEach(this, (value, header) => {
+      value != null && value !== false && (obj[header] = asStrings && utils_default.isArray(value) ? value.join(", ") : value);
+    });
+    return obj;
+  }
+  [Symbol.iterator]() {
+    return Object.entries(this.toJSON())[Symbol.iterator]();
+  }
+  toString() {
+    return Object.entries(this.toJSON()).map(([header, value]) => header + ": " + value).join("\n");
+  }
+  getSetCookie() {
+    const value = this.get("set-cookie");
+    return utils_default.isArray(value) ? value : value == null || value === false ? [] : [value];
+  }
+  get [Symbol.toStringTag]() {
+    return "AxiosHeaders";
+  }
+  static from(thing) {
+    return thing instanceof this ? thing : new this(thing);
+  }
+  static parseParameters(value) {
+    return parseParameters(value);
+  }
+  static concat(first, ...targets) {
+    const computed = new this(first);
+    targets.forEach((target) => computed.set(target));
+    return computed;
+  }
+  static accessor(header) {
+    const internals = this[$internals] = this[$internals] = {
+      accessors: {}
+    };
+    const accessors = internals.accessors;
+    const prototype2 = this.prototype;
+    function defineAccessor(_header) {
+      const lHeader = normalizeHeader(_header);
+      if (!accessors[lHeader]) {
+        buildAccessors(prototype2, _header);
+        accessors[lHeader] = true;
+      }
+    }
+    utils_default.isArray(header) ? header.forEach(defineAccessor) : defineAccessor(header);
+    return this;
+  }
+};
+AxiosHeaders.accessor([
+  "Content-Type",
+  "Content-Length",
+  "Accept",
+  "Accept-Encoding",
+  "User-Agent",
+  "Authorization"
+]);
+utils_default.reduceDescriptors(AxiosHeaders.prototype, ({ value }, key) => {
+  let mapped = key[0].toUpperCase() + key.slice(1);
+  return {
+    get: () => value,
+    set(headerValue) {
+      this[mapped] = headerValue;
+    }
+  };
+});
+utils_default.freezeMethods(AxiosHeaders);
+var AxiosHeaders_default = AxiosHeaders;
+
+// node_modules/axios/lib/core/AxiosError.js
+var REDACTED = "[REDACTED ****]";
+function hasOwnOrPrototypeToJSON(source) {
+  if (utils_default.hasOwnProp(source, "toJSON")) {
+    return true;
+  }
+  let prototype2 = Object.getPrototypeOf(source);
+  while (prototype2 && prototype2 !== Object.prototype) {
+    if (utils_default.hasOwnProp(prototype2, "toJSON")) {
+      return true;
+    }
+    prototype2 = Object.getPrototypeOf(prototype2);
+  }
+  return false;
+}
+function redactConfig(config, redactKeys) {
+  const lowerKeys = new Set(redactKeys.map((k) => String(k).toLowerCase()));
+  const seen = [];
+  const visit = (source) => {
+    if (source === null || typeof source !== "object") return source;
+    if (utils_default.isBuffer(source)) return source;
+    if (seen.indexOf(source) !== -1) return void 0;
+    if (source instanceof AxiosHeaders_default) {
+      source = source.toJSON();
+    }
+    seen.push(source);
+    let result;
+    if (utils_default.isArray(source)) {
+      result = [];
+      source.forEach((v, i) => {
+        const reducedValue = visit(v);
+        if (!utils_default.isUndefined(reducedValue)) {
+          result[i] = reducedValue;
+        }
+      });
+    } else {
+      if (!utils_default.isPlainObject(source) && hasOwnOrPrototypeToJSON(source)) {
+        seen.pop();
+        return source;
+      }
+      result = /* @__PURE__ */ Object.create(null);
+      for (const [key, value] of Object.entries(source)) {
+        const reducedValue = lowerKeys.has(key.toLowerCase()) ? REDACTED : visit(value);
+        if (!utils_default.isUndefined(reducedValue)) {
+          result[key] = reducedValue;
+        }
+      }
+    }
+    seen.pop();
+    return result;
+  };
+  return visit(config);
+}
+function stringifySafely(value) {
+  try {
+    return String(value);
+  } catch (err) {
+    return "";
+  }
+}
+function aggregateErrorMessage(error) {
+  const message = error.errors.map((entry) => {
+    try {
+      return entry && entry.message ? stringifySafely(entry.message) : stringifySafely(entry);
+    } catch (err) {
+      return "";
+    }
+  }).filter(Boolean).join("; ");
+  return message || error.name || "AggregateError";
+}
+var AxiosError = class _AxiosError extends Error {
+  static from(error, code, config, request2, response, customProps) {
+    let message = error.message;
+    if (!message && utils_default.isArray(error.errors) && error.errors.length) {
+      message = aggregateErrorMessage(error);
+    }
+    const axiosError = new _AxiosError(message, code || error.code, config, request2, response);
+    Object.defineProperty(axiosError, "cause", {
+      __proto__: null,
+      value: error,
+      writable: true,
+      enumerable: false,
+      configurable: true
+    });
+    axiosError.name = error.name;
+    if (error.status != null && axiosError.status == null) {
+      axiosError.status = error.status;
+    }
+    customProps && Object.assign(axiosError, customProps);
+    return axiosError;
+  }
+  /**
+   * Create an Error with the specified message, config, error code, request and response.
+   *
+   * @param {string} message The error message.
+   * @param {string} [code] The error code (for example, 'ECONNABORTED').
+   * @param {Object} [config] The config.
+   * @param {Object} [request] The request.
+   * @param {Object} [response] The response.
+   *
+   * @returns {Error} The created error.
+   */
+  constructor(message, code, config, request2, response) {
+    super(message);
+    Object.defineProperty(this, "message", {
+      // Null-proto descriptor so a polluted Object.prototype.get cannot turn
+      // this data descriptor into an accessor descriptor on the way in.
+      __proto__: null,
+      value: message,
+      enumerable: true,
+      writable: true,
+      configurable: true
+    });
+    this.name = "AxiosError";
+    this.isAxiosError = true;
+    code && (this.code = code);
+    config && (this.config = config);
+    request2 && (this.request = request2);
+    if (response) {
+      this.response = response;
+      this.status = response.status;
+    }
+  }
+  toJSON() {
+    const config = this.config;
+    const redactKeys = config && utils_default.hasOwnProp(config, "redact") ? config.redact : void 0;
+    const serializedConfig = utils_default.isArray(redactKeys) && redactKeys.length > 0 ? redactConfig(config, redactKeys) : utils_default.toJSONObject(config);
+    return {
+      // Standard
+      message: this.message,
+      name: this.name,
+      // Microsoft
+      description: this.description,
+      number: this.number,
+      // Mozilla
+      fileName: this.fileName,
+      lineNumber: this.lineNumber,
+      columnNumber: this.columnNumber,
+      stack: this.stack,
+      // Axios
+      config: serializedConfig,
+      code: this.code,
+      status: this.status
+    };
+  }
+};
+AxiosError.ERR_BAD_OPTION_VALUE = "ERR_BAD_OPTION_VALUE";
+AxiosError.ERR_BAD_OPTION = "ERR_BAD_OPTION";
+AxiosError.ECONNABORTED = "ECONNABORTED";
+AxiosError.ETIMEDOUT = "ETIMEDOUT";
+AxiosError.ECONNREFUSED = "ECONNREFUSED";
+AxiosError.ERR_NETWORK = "ERR_NETWORK";
+AxiosError.ERR_FR_TOO_MANY_REDIRECTS = "ERR_FR_TOO_MANY_REDIRECTS";
+AxiosError.ERR_DEPRECATED = "ERR_DEPRECATED";
+AxiosError.ERR_BAD_RESPONSE = "ERR_BAD_RESPONSE";
+AxiosError.ERR_BAD_REQUEST = "ERR_BAD_REQUEST";
+AxiosError.ERR_CANCELED = "ERR_CANCELED";
+AxiosError.ERR_NOT_SUPPORT = "ERR_NOT_SUPPORT";
+AxiosError.ERR_INVALID_URL = "ERR_INVALID_URL";
+AxiosError.ERR_FORM_DATA_DEPTH_EXCEEDED = "ERR_FORM_DATA_DEPTH_EXCEEDED";
+var AxiosError_default = AxiosError;
+
+// node_modules/axios/lib/helpers/null.js
+var null_default = null;
+
+// node_modules/axios/lib/helpers/toFormData.js
+var DEFAULT_FORM_DATA_MAX_DEPTH = 100;
+function isVisitable(thing) {
+  return utils_default.isPlainObject(thing) || utils_default.isArray(thing);
+}
+function removeBrackets(key) {
+  return utils_default.endsWith(key, "[]") ? key.slice(0, -2) : key;
+}
+function renderKey(path, key, dots) {
+  if (!path) return key;
+  return path.concat(key).map(function each(token, i) {
+    token = removeBrackets(token);
+    return !dots && i ? "[" + token + "]" : token;
+  }).join(dots ? "." : "");
+}
+function isFlatArray(arr) {
+  return utils_default.isArray(arr) && !arr.some(isVisitable);
+}
+var predicates = utils_default.toFlatObject(utils_default, {}, null, function filter(prop) {
+  return /^is[A-Z]/.test(prop);
+});
+function toFormData(obj, formData, options) {
+  if (!utils_default.isObject(obj)) {
+    throw new TypeError("target must be an object");
+  }
+  formData = formData || new (null_default || FormData)();
+  const option = (name, fallback) => {
+    const value = utils_default.getSafeProp(options, name);
+    return utils_default.isUndefined(value) ? fallback : value;
+  };
+  const metaTokens = option("metaTokens", true);
+  const visitor = option("visitor") || defaultVisitor;
+  const dots = option("dots", false);
+  const indexes = option("indexes", false);
+  const _Blob = option("Blob") || typeof Blob !== "undefined" && Blob;
+  const maxDepth = option("maxDepth", DEFAULT_FORM_DATA_MAX_DEPTH);
+  const useBlob = _Blob && utils_default.isSpecCompliantForm(formData);
+  const stack = [];
+  if (!utils_default.isFunction(visitor)) {
+    throw new TypeError("visitor must be a function");
+  }
+  function convertValue(value) {
+    if (value === null) return "";
+    if (utils_default.isDate(value)) {
+      return value.toISOString();
+    }
+    if (utils_default.isBoolean(value)) {
+      return value.toString();
+    }
+    if (!useBlob && utils_default.isBlob(value)) {
+      throw new AxiosError_default("Blob is not supported. Use a Buffer instead.");
+    }
+    if (utils_default.isArrayBuffer(value) || utils_default.isTypedArray(value)) {
+      if (useBlob && typeof _Blob === "function") {
+        return new _Blob([value]);
+      }
+      if (null_default && null_default.isBufferAvailable()) {
+        return null_default.from(value);
+      }
+      throw new AxiosError_default(
+        "Blob is not supported. Use a Buffer instead.",
+        AxiosError_default.ERR_NOT_SUPPORT
+      );
+    }
+    return value;
+  }
+  function throwIfMaxDepthExceeded(depth) {
+    if (depth > maxDepth) {
+      throw new AxiosError_default(
+        "Object is too deeply nested (" + depth + " levels). Max depth: " + maxDepth,
+        AxiosError_default.ERR_FORM_DATA_DEPTH_EXCEEDED
+      );
+    }
+  }
+  function stringifyWithDepthLimit(value, depth) {
+    if (maxDepth === Infinity) {
+      return JSON.stringify(value);
+    }
+    const ancestors = [];
+    return JSON.stringify(value, function limitDepth(_key, currentValue) {
+      if (!utils_default.isObject(currentValue)) {
+        return currentValue;
+      }
+      while (ancestors.length && ancestors[ancestors.length - 1] !== this) {
+        ancestors.pop();
+      }
+      ancestors.push(currentValue);
+      throwIfMaxDepthExceeded(depth + ancestors.length - 1);
+      return currentValue;
+    });
+  }
+  function defaultVisitor(value, key, path) {
+    let arr = value;
+    if (utils_default.isReactNative(formData) && utils_default.isReactNativeBlob(value)) {
+      formData.append(renderKey(path, key, dots), convertValue(value));
+      return false;
+    }
+    if (value && !path && typeof value === "object") {
+      if (utils_default.endsWith(key, "{}")) {
+        key = metaTokens ? key : key.slice(0, -2);
+        value = stringifyWithDepthLimit(value, 1);
+      } else if (utils_default.isArray(value) && isFlatArray(value) || (utils_default.isFileList(value) || utils_default.endsWith(key, "[]")) && (arr = utils_default.toArray(value))) {
+        key = removeBrackets(key);
+        arr.forEach(function each(el, index) {
+          !(utils_default.isUndefined(el) || el === null) && formData.append(
+            // eslint-disable-next-line no-nested-ternary
+            indexes === true ? renderKey([key], index, dots) : indexes === null ? key : key + "[]",
+            convertValue(el)
+          );
+        });
+        return false;
+      }
+    }
+    if (isVisitable(value)) {
+      return true;
+    }
+    formData.append(renderKey(path, key, dots), convertValue(value));
+    return false;
+  }
+  const exposedHelpers = Object.assign(predicates, {
+    defaultVisitor,
+    convertValue,
+    isVisitable
+  });
+  function build(value, path, depth = 0) {
+    if (utils_default.isUndefined(value)) return;
+    throwIfMaxDepthExceeded(depth);
+    if (stack.indexOf(value) !== -1) {
+      throw new Error("Circular reference detected in " + path.join("."));
+    }
+    stack.push(value);
+    utils_default.forEach(value, function each(el, key) {
+      const result = !(utils_default.isUndefined(el) || el === null) && visitor.call(formData, el, utils_default.isString(key) ? key.trim() : key, path, exposedHelpers);
+      if (result === true) {
+        build(el, path ? path.concat(key) : [key], depth + 1);
+      }
+    });
+    stack.pop();
+  }
+  if (!utils_default.isObject(obj)) {
+    throw new TypeError("data must be an object");
+  }
+  build(obj);
+  return formData;
+}
+var toFormData_default = toFormData;
+
+// node_modules/axios/lib/helpers/AxiosURLSearchParams.js
+function encode(str) {
+  const charMap = {
+    "!": "%21",
+    "'": "%27",
+    "(": "%28",
+    ")": "%29",
+    "~": "%7E",
+    "%20": "+"
+  };
+  return encodeURIComponent(str).replace(/[!'()~]|%20/g, function replacer(match2) {
+    return charMap[match2];
+  });
+}
+function AxiosURLSearchParams(params, options) {
+  this._pairs = [];
+  params && toFormData_default(params, this, options);
+}
+var prototype = AxiosURLSearchParams.prototype;
+prototype.append = function append(name, value) {
+  this._pairs.push([name, value]);
+};
+prototype.toString = function toString2(encoder) {
+  const _encode = encoder ? (value) => encoder.call(this, value, encode) : encode;
+  return this._pairs.map(function each(pair) {
+    return _encode(pair[0]) + "=" + _encode(pair[1]);
+  }, "").join("&");
+};
+var AxiosURLSearchParams_default = AxiosURLSearchParams;
+
+// node_modules/axios/lib/helpers/buildURL.js
+function encode2(val) {
+  return encodeURIComponent(val).replace(/%3A/gi, ":").replace(/%24/g, "$").replace(/%2C/gi, ",").replace(/%20/g, "+");
+}
+function buildURL(url2, params, options) {
+  if (!params) {
+    return url2;
+  }
+  url2 = url2 || "";
+  const _options = utils_default.isFunction(options) ? {
+    serialize: options
+  } : options;
+  const _encode = utils_default.getSafeProp(_options, "encode") || encode2;
+  const serializeFn = utils_default.getSafeProp(_options, "serialize");
+  let serializedParams;
+  if (serializeFn) {
+    serializedParams = serializeFn(params, _options);
+  } else {
+    serializedParams = utils_default.isURLSearchParams(params) ? params.toString() : new AxiosURLSearchParams_default(params, _options).toString(_encode);
+  }
+  if (serializedParams) {
+    const hashmarkIndex = url2.indexOf("#");
+    if (hashmarkIndex !== -1) {
+      url2 = url2.slice(0, hashmarkIndex);
+    }
+    url2 += (url2.indexOf("?") === -1 ? "?" : "&") + serializedParams;
+  }
+  return url2;
+}
+
+// node_modules/axios/lib/core/InterceptorManager.js
+var $internals2 = /* @__PURE__ */ Symbol("internals");
+function countHandlers(handlers) {
+  return handlers ? handlers.length : 0;
+}
+function trimHandlers(handlers) {
+  if (!handlers) {
+    return;
+  }
+  while (handlers.length && handlers[handlers.length - 1] === null) {
+    handlers.pop();
+  }
+}
+function syncHandlerEntries(manager, internals) {
+  const handlers = manager.handlers;
+  const length2 = countHandlers(handlers);
+  if (handlers !== internals.handlersRef) {
+    internals.handlersRef = handlers;
+    internals.handlerEntries.clear();
+  } else if (length2 !== internals.handlersLength) {
+    if (!length2) {
+      internals.handlerEntries.clear();
+    } else {
+      internals.handlerEntries.forEach(function removeStaleEntry(entry, id) {
+        if (handlers[entry.index] !== entry.handler) {
+          internals.handlerEntries.delete(id);
+        }
+      });
+    }
+  }
+  internals.handlersLength = length2;
+}
+var InterceptorManager = class {
+  constructor() {
+    this.handlers = [];
+    this[$internals2] = {
+      handlersRef: this.handlers,
+      handlersLength: this.handlers.length,
+      handlerEntries: /* @__PURE__ */ new Map(),
+      iterationDepth: 0,
+      nextId: 0
+    };
+  }
+  /**
+   * Add a new interceptor to the stack
+   *
+   * @param {Function} fulfilled The function to handle `then` for a `Promise`
+   * @param {Function} rejected The function to handle `reject` for a `Promise`
+   * @param {Object} options The options for the interceptor, synchronous and runWhen
+   *
+   * @return {Number} An ID used to remove interceptor later
+   */
+  use(fulfilled, rejected, options) {
+    const handler = {
+      fulfilled,
+      rejected,
+      synchronous: options ? options.synchronous : false,
+      runWhen: options ? options.runWhen : null
+    };
+    const internals = this[$internals2];
+    if (this.handlers == null) {
+      this.handlers = [];
+    }
+    syncHandlerEntries(this, internals);
+    const id = internals.nextId++;
+    this.handlers.push(handler);
+    internals.handlerEntries.set(id, {
+      handler,
+      index: this.handlers.length - 1
+    });
+    internals.handlersLength = this.handlers.length;
+    return id;
+  }
+  /**
+   * Remove an interceptor from the stack
+   *
+   * @param {Number} id The ID that was returned by `use`
+   *
+   * @returns {void}
+   */
+  eject(id) {
+    const internals = this[$internals2];
+    syncHandlerEntries(this, internals);
+    const entry = internals.handlerEntries.get(id);
+    if (entry) {
+      internals.handlerEntries.delete(id);
+      if (this.handlers[entry.index] !== entry.handler) {
+        return;
+      }
+      this.handlers[entry.index] = null;
+      if (!internals.iterationDepth) {
+        trimHandlers(this.handlers);
+        internals.handlersLength = this.handlers.length;
+      }
+    }
+  }
+  /**
+   * Clear all interceptors from the stack
+   *
+   * @returns {void}
+   */
+  clear() {
+    if (this.handlers) {
+      this.handlers = [];
+      syncHandlerEntries(this, this[$internals2]);
+    }
+  }
+  /**
+   * Iterate over all the registered interceptors
+   *
+   * This method is particularly useful for skipping over any
+   * interceptors that may have become `null` calling `eject`.
+   *
+   * @param {Function} fn The function to call for each interceptor
+   *
+   * @returns {void}
+   */
+  forEach(fn) {
+    const internals = this[$internals2];
+    syncHandlerEntries(this, internals);
+    internals.iterationDepth++;
+    try {
+      utils_default.forEach(this.handlers, function forEachHandler(h) {
+        if (h !== null) {
+          fn(h);
+        }
+      });
+    } finally {
+      if (!--internals.iterationDepth) {
+        syncHandlerEntries(this, internals);
+        trimHandlers(this.handlers);
+        internals.handlersLength = countHandlers(this.handlers);
+      }
+    }
+  }
+};
+var InterceptorManager_default = InterceptorManager;
+
+// node_modules/axios/lib/defaults/transitional.js
+var transitional_default = {
+  silentJSONParsing: true,
+  forcedJSONParsing: true,
+  clarifyTimeoutError: false,
+  legacyInterceptorReqResOrdering: true,
+  advertiseZstdAcceptEncoding: false,
+  validateStatusUndefinedResolves: true
+};
+
+// node_modules/axios/lib/platform/browser/classes/URLSearchParams.js
+var URLSearchParams_default = typeof URLSearchParams !== "undefined" ? URLSearchParams : AxiosURLSearchParams_default;
+
+// node_modules/axios/lib/platform/browser/classes/FormData.js
+var FormData_default = typeof FormData !== "undefined" ? FormData : null;
+
+// node_modules/axios/lib/platform/browser/classes/Blob.js
+var Blob_default = typeof Blob !== "undefined" ? Blob : null;
+
+// node_modules/axios/lib/platform/browser/index.js
+var browser_default = {
+  isBrowser: true,
+  classes: {
+    URLSearchParams: URLSearchParams_default,
+    FormData: FormData_default,
+    Blob: Blob_default
+  },
+  protocols: ["http", "https", "file", "blob", "url", "data"]
+};
+
+// node_modules/axios/lib/platform/common/utils.js
+var utils_exports2 = {};
+__export(utils_exports2, {
+  hasBrowserEnv: () => hasBrowserEnv,
+  hasStandardBrowserEnv: () => hasStandardBrowserEnv,
+  hasStandardBrowserWebWorkerEnv: () => hasStandardBrowserWebWorkerEnv,
+  navigator: () => _navigator,
+  origin: () => origin
+});
+var hasBrowserEnv = typeof window !== "undefined" && typeof document !== "undefined";
+var _navigator = typeof navigator === "object" && navigator || void 0;
+var hasStandardBrowserEnv = hasBrowserEnv && (!_navigator || ["ReactNative", "NativeScript", "NS"].indexOf(_navigator.product) < 0);
+var hasStandardBrowserWebWorkerEnv = (() => {
+  return typeof WorkerGlobalScope !== "undefined" && // eslint-disable-next-line no-undef
+  self instanceof WorkerGlobalScope && typeof self.importScripts === "function";
+})();
+var origin = hasBrowserEnv && window.location.href || "http://localhost";
+
+// node_modules/axios/lib/platform/index.js
+var platform_default = {
+  ...utils_exports2,
+  ...browser_default
+};
+
+// node_modules/axios/lib/helpers/toURLEncodedForm.js
+function toURLEncodedForm(data, options) {
+  return toFormData_default(data, new platform_default.classes.URLSearchParams(), {
+    visitor: function(value, key, path, helpers) {
+      if (platform_default.isNode && utils_default.isBuffer(value)) {
+        this.append(key, value.toString("base64"));
+        return false;
+      }
+      return helpers.defaultVisitor.apply(this, arguments);
+    },
+    ...options
+  });
+}
+
+// node_modules/axios/lib/helpers/formDataToJSON.js
+var MAX_DEPTH = DEFAULT_FORM_DATA_MAX_DEPTH;
+function throwIfDepthExceeded(index) {
+  if (index > MAX_DEPTH) {
+    throw new AxiosError_default(
+      "FormData field is too deeply nested (" + index + " levels). Max depth: " + MAX_DEPTH,
+      AxiosError_default.ERR_FORM_DATA_DEPTH_EXCEEDED
+    );
+  }
+}
+function parsePropPath(name) {
+  const path = [];
+  const pattern = /[^.[\]]+|\[([^.[\]]*)]/g;
+  let match2;
+  while ((match2 = pattern.exec(name)) !== null) {
+    throwIfDepthExceeded(path.length);
+    path.push(match2[0] === "[]" ? "" : match2[1] || match2[0]);
+  }
+  return path;
+}
+function arrayToObject(arr) {
+  const obj = {};
+  const keys = Object.keys(arr);
+  let i;
+  const len = keys.length;
+  let key;
+  for (i = 0; i < len; i++) {
+    key = keys[i];
+    obj[key] = arr[key];
+  }
+  return obj;
+}
+function formDataToJSON(formData) {
+  function buildPath(path, value, target, index) {
+    throwIfDepthExceeded(index);
+    let name = path[index++];
+    if (name === "__proto__") return true;
+    const isNumericKey = Number.isFinite(+name);
+    const isLast = index >= path.length;
+    name = !name && utils_default.isArray(target) ? target.length : name;
+    if (isLast) {
+      if (utils_default.hasOwnProp(target, name)) {
+        target[name] = utils_default.isArray(target[name]) ? target[name].concat(value) : [target[name], value];
+      } else {
+        target[name] = value;
+      }
+      return !isNumericKey;
+    }
+    if (!utils_default.hasOwnProp(target, name) || !utils_default.isObject(target[name])) {
+      target[name] = [];
+    }
+    const result = buildPath(path, value, target[name], index);
+    if (result && utils_default.isArray(target[name])) {
+      target[name] = arrayToObject(target[name]);
+    }
+    return !isNumericKey;
+  }
+  if (utils_default.isFormData(formData) && utils_default.isFunction(formData.entries)) {
+    const obj = {};
+    utils_default.forEachEntry(formData, (name, value) => {
+      buildPath(parsePropPath(name), value, obj, 0);
+    });
+    return obj;
+  }
+  return null;
+}
+var formDataToJSON_default = formDataToJSON;
+
+// node_modules/axios/lib/core/methodList.js
+var methodList = Object.freeze([
+  "get",
+  "delete",
+  "head",
+  "options",
+  "post",
+  "put",
+  "patch",
+  "purge",
+  "link",
+  "unlink",
+  "query"
+]);
+var methodList_default = methodList;
+
+// node_modules/axios/lib/defaults/index.js
+var own = (obj, key) => obj != null && utils_default.hasOwnProp(obj, key) ? obj[key] : void 0;
+function stringifySafely2(rawValue, parser, encoder) {
+  if (utils_default.isString(rawValue)) {
+    try {
+      (parser || JSON.parse)(rawValue);
+      return utils_default.trim(rawValue);
+    } catch (e) {
+      if (e.name !== "SyntaxError") {
+        throw e;
+      }
+    }
+  }
+  return (encoder || JSON.stringify)(rawValue);
+}
+var defaults = {
+  transitional: transitional_default,
+  adapter: ["xhr", "http", "fetch"],
+  transformRequest: [
+    function transformRequest(data, headers) {
+      const contentType = headers.getContentType() || "";
+      const hasJSONContentType = contentType.indexOf("application/json") > -1;
+      const isObjectPayload = utils_default.isObject(data);
+      if (isObjectPayload && utils_default.isHTMLForm(data)) {
+        data = new FormData(data);
+      }
+      const isFormData2 = utils_default.isFormData(data);
+      if (isFormData2) {
+        return hasJSONContentType ? JSON.stringify(formDataToJSON_default(data)) : data;
+      }
+      if (utils_default.isArrayBuffer(data) || utils_default.isBuffer(data) || utils_default.isStream(data) || utils_default.isFile(data) || utils_default.isBlob(data) || utils_default.isReadableStream(data)) {
+        return data;
+      }
+      if (utils_default.isArrayBufferView(data)) {
+        return data.buffer;
+      }
+      if (utils_default.isURLSearchParams(data)) {
+        headers.setContentType("application/x-www-form-urlencoded;charset=utf-8", false);
+        return data.toString();
+      }
+      let isFileList2;
+      if (isObjectPayload) {
+        const formSerializer = own(this, "formSerializer");
+        if (contentType.indexOf("application/x-www-form-urlencoded") > -1) {
+          return toURLEncodedForm(data, formSerializer).toString();
+        }
+        if ((isFileList2 = utils_default.isFileList(data)) || contentType.indexOf("multipart/form-data") > -1) {
+          const env = own(this, "env");
+          const _FormData = env && env.FormData;
+          return toFormData_default(
+            isFileList2 ? { "files[]": data } : data,
+            _FormData && new _FormData(),
+            formSerializer
+          );
+        }
+      }
+      if (isObjectPayload || hasJSONContentType) {
+        headers.setContentType("application/json", false);
+        return stringifySafely2(data);
+      }
+      return data;
+    }
+  ],
+  transformResponse: [
+    function transformResponse(data) {
+      const transitional2 = own(this, "transitional") || defaults.transitional;
+      const forcedJSONParsing = transitional2 && transitional2.forcedJSONParsing;
+      const responseType = own(this, "responseType");
+      const JSONRequested = responseType === "json";
+      if (utils_default.isResponse(data) || utils_default.isReadableStream(data)) {
+        return data;
+      }
+      if (data && utils_default.isString(data) && (forcedJSONParsing && !responseType || JSONRequested)) {
+        const silentJSONParsing = transitional2 && transitional2.silentJSONParsing;
+        const strictJSONParsing = !silentJSONParsing && JSONRequested;
+        try {
+          return JSON.parse(data, own(this, "parseReviver"));
+        } catch (e) {
+          if (strictJSONParsing) {
+            if (e.name === "SyntaxError") {
+              throw AxiosError_default.from(e, AxiosError_default.ERR_BAD_RESPONSE, this, null, own(this, "response"));
+            }
+            throw e;
+          }
+        }
+      }
+      return data;
+    }
+  ],
+  /**
+   * A timeout in milliseconds to abort a request. If set to 0 (default) a
+   * timeout is not created.
+   */
+  timeout: 0,
+  xsrfCookieName: "XSRF-TOKEN",
+  xsrfHeaderName: "X-XSRF-TOKEN",
+  maxContentLength: -1,
+  maxBodyLength: -1,
+  env: {
+    FormData: platform_default.classes.FormData,
+    Blob: platform_default.classes.Blob
+  },
+  validateStatus: function validateStatus(status) {
+    return status >= 200 && status < 300;
+  },
+  headers: {
+    common: {
+      Accept: "application/json, text/plain, */*",
+      "Content-Type": void 0
+    }
+  }
+};
+utils_default.forEach(methodList_default, (method) => {
+  defaults.headers[method] = {};
+});
+var defaults_default = defaults;
+
+// node_modules/axios/lib/core/transformData.js
+function transformData(fns, response) {
+  const config = this || defaults_default;
+  const context = response || config;
+  const headers = AxiosHeaders_default.from(context.headers);
+  let data = context.data;
+  utils_default.forEach(fns, function transform2(fn) {
+    data = fn.call(config, data, headers.normalize(), response ? response.status : void 0);
+  });
+  headers.normalize();
+  return data;
+}
+
+// node_modules/axios/lib/cancel/isCancel.js
+function isCancel(value) {
+  return !!(value && value.__CANCEL__);
+}
+
+// node_modules/axios/lib/cancel/CanceledError.js
+var CanceledError = class extends AxiosError_default {
+  /**
+   * A `CanceledError` is an object that is thrown when an operation is canceled.
+   *
+   * @param {string=} message The message.
+   * @param {Object=} config The config.
+   * @param {Object=} request The request.
+   *
+   * @returns {CanceledError} The created error.
+   */
+  constructor(message, config, request2) {
+    super(message == null ? "canceled" : message, AxiosError_default.ERR_CANCELED, config, request2);
+    this.name = "CanceledError";
+    this.__CANCEL__ = true;
+  }
+};
+var CanceledError_default = CanceledError;
+
+// node_modules/axios/lib/core/settle.js
+function settle(resolve, reject, response) {
+  const validateStatus2 = response.config.validateStatus;
+  if (!response.status || !validateStatus2 || validateStatus2(response.status)) {
+    resolve(response);
+  } else {
+    reject(new AxiosError_default(
+      "Request failed with status code " + response.status,
+      response.status >= 400 && response.status < 500 ? AxiosError_default.ERR_BAD_REQUEST : AxiosError_default.ERR_BAD_RESPONSE,
+      response.config,
+      response.request,
+      response
+    ));
+  }
+}
+
+// node_modules/axios/lib/helpers/normalizeURLForProtocolCheck.js
+var urlParserControlCharacters = /[\t\n\r]/g;
+function normalizeURLForProtocolCheck(url2) {
+  if (typeof url2 !== "string") {
+    return url2;
+  }
+  let start = 0;
+  while (start < url2.length && url2.charCodeAt(start) <= 32) {
+    start++;
+  }
+  return url2.slice(start).replace(urlParserControlCharacters, "");
+}
+
+// node_modules/axios/lib/helpers/parseProtocol.js
+function parseProtocol(url2) {
+  const match2 = /^([-+\w]{1,25}):(?:\/\/)?/.exec(url2);
+  return match2 && match2[1] || "";
+}
+
+// node_modules/axios/lib/helpers/speedometer.js
+function speedometer(samplesCount, min) {
+  samplesCount = samplesCount || 10;
+  const bytes = new Array(samplesCount);
+  const timestamps = new Array(samplesCount);
+  let head = 0;
+  let tail = 0;
+  let firstSampleTS;
+  min = min !== void 0 ? min : 1e3;
+  return function push(chunkLength) {
+    const now = Date.now();
+    const startedAt = timestamps[tail];
+    if (!firstSampleTS) {
+      firstSampleTS = now;
+    }
+    bytes[head] = chunkLength;
+    timestamps[head] = now;
+    let i = tail;
+    let bytesCount = 0;
+    while (i !== head) {
+      bytesCount += bytes[i++];
+      i = i % samplesCount;
+    }
+    head = (head + 1) % samplesCount;
+    if (head === tail) {
+      tail = (tail + 1) % samplesCount;
+    }
+    if (now - firstSampleTS < min) {
+      return;
+    }
+    const passed = startedAt && now - startedAt;
+    return passed ? Math.round(bytesCount * 1e3 / passed) : void 0;
+  };
+}
+var speedometer_default = speedometer;
+
+// node_modules/axios/lib/helpers/throttle.js
+function throttle(fn, freq) {
+  let timestamp = 0;
+  let threshold = 1e3 / freq;
+  let lastArgs;
+  let timer;
+  const invoke = (args, now = Date.now()) => {
+    timestamp = now;
+    lastArgs = null;
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    fn(...args);
+  };
+  const throttled = (...args) => {
+    const now = Date.now();
+    const passed = now - timestamp;
+    if (passed >= threshold) {
+      invoke(args, now);
+    } else {
+      lastArgs = args;
+      if (!timer) {
+        timer = setTimeout(() => {
+          timer = null;
+          invoke(lastArgs);
+        }, threshold - passed);
+      }
+    }
+  };
+  const flush = () => lastArgs && invoke(lastArgs);
+  const flushWith = (...args) => invoke(args);
+  return [throttled, flush, flushWith];
+}
+var throttle_default = throttle;
+
+// node_modules/axios/lib/helpers/progressEventReducer.js
+var progressEventReducer = (listener, isDownloadStream, freq = 3) => {
+  let bytesNotified = 0;
+  const _speedometer = speedometer_default(50, 250);
+  return throttle_default((e) => {
+    if (!e || !utils_default.isNumber(e.loaded)) {
+      return;
+    }
+    const rawLoaded = e.loaded;
+    const total = e.lengthComputable ? e.total : void 0;
+    const loaded = Math.max(0, total != null ? Math.min(rawLoaded, total) : rawLoaded);
+    const progressBytes = Math.max(0, loaded - bytesNotified);
+    const rate = _speedometer(progressBytes);
+    bytesNotified = Math.max(bytesNotified, loaded);
+    const data = {
+      loaded,
+      total,
+      progress: total ? loaded / total : void 0,
+      bytes: progressBytes,
+      rate: rate ? rate : void 0,
+      estimated: rate && total ? (total - loaded) / rate : void 0,
+      event: e,
+      lengthComputable: total != null,
+      [isDownloadStream ? "download" : "upload"]: true
+    };
+    listener(data);
+  }, freq);
+};
+var progressEventDecorator = (total, throttled) => {
+  const lengthComputable = total != null;
+  return [
+    (loaded) => throttled[0]({
+      lengthComputable,
+      total,
+      loaded
+    }),
+    throttled[1]
+  ];
+};
+var asyncDecorator = (fn, scheduler = utils_default.asap) => (...args) => scheduler(() => fn(...args));
+
+// node_modules/axios/lib/helpers/isURLSameOrigin.js
+var isURLSameOrigin_default = platform_default.hasStandardBrowserEnv ? /* @__PURE__ */ ((origin2, isMSIE) => (url2) => {
+  url2 = new URL(url2, platform_default.origin);
+  return origin2.protocol === url2.protocol && origin2.host === url2.host && (isMSIE || origin2.port === url2.port);
+})(
+  new URL(platform_default.origin),
+  platform_default.navigator && /(msie|trident)/i.test(platform_default.navigator.userAgent)
+) : () => true;
+
+// node_modules/axios/lib/helpers/cookies.js
+var cookies_default = platform_default.hasStandardBrowserEnv ? (
+  // Standard browser envs support document.cookie
+  {
+    write(name, value, expires, path, domain, secure, sameSite) {
+      if (typeof document === "undefined") return;
+      const cookie = [`${name}=${encodeURIComponent(value)}`];
+      if (utils_default.isNumber(expires)) {
+        cookie.push(`expires=${new Date(expires).toUTCString()}`);
+      }
+      if (utils_default.isString(path)) {
+        cookie.push(`path=${path}`);
+      }
+      if (utils_default.isString(domain)) {
+        cookie.push(`domain=${domain}`);
+      }
+      if (secure === true) {
+        cookie.push("secure");
+      }
+      if (utils_default.isString(sameSite)) {
+        cookie.push(`SameSite=${sameSite}`);
+      }
+      document.cookie = cookie.join("; ");
+    },
+    read(name) {
+      if (typeof document === "undefined") return null;
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].replace(/^\s+/, "");
+        const eq = cookie.indexOf("=");
+        if (eq !== -1 && cookie.slice(0, eq) === name) {
+          try {
+            return decodeURIComponent(cookie.slice(eq + 1));
+          } catch (e) {
+            return cookie.slice(eq + 1);
+          }
+        }
+      }
+      return null;
+    },
+    remove(name) {
+      this.write(name, "", Date.now() - 864e5, "/");
+    }
+  }
+) : (
+  // Non-standard browser env (web workers, react-native) lack needed support.
+  {
+    write() {
+    },
+    read() {
+      return null;
+    },
+    remove() {
+    }
+  }
+);
+
+// node_modules/axios/lib/helpers/isAbsoluteURL.js
+function isAbsoluteURL(url2) {
+  if (typeof url2 !== "string") {
+    return false;
+  }
+  return /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url2);
+}
+
+// node_modules/axios/lib/helpers/combineURLs.js
+function combineURLs(baseURL, relativeURL) {
+  if (!relativeURL) {
+    return baseURL;
+  }
+  let end = baseURL.length;
+  while (end > 0 && baseURL.charCodeAt(end - 1) === 47) {
+    end--;
+  }
+  return baseURL.slice(0, end) + "/" + relativeURL.replace(/^\/+/, "");
+}
+
+// node_modules/axios/lib/core/buildFullPath.js
+var malformedHttpProtocol = /^https?:(?!\/\/)/i;
+function redactFragment(fragment) {
+  if (!fragment) {
+    return fragment;
+  }
+  return fragment.replace(/(^|&)([^=&]*=)?[^&]+/g, (match2, separator, parameterName = "") => {
+    return `${separator}${parameterName}${REDACTED}`;
+  });
+}
+function redactSensitiveURLParts(url2) {
+  const redactedURL = url2.replace(/^(https?:\/{0,2})[^/?#]*@/i, `$1${REDACTED}@`);
+  const fragmentIndex = redactedURL.indexOf("#");
+  const urlWithoutFragment = fragmentIndex === -1 ? redactedURL : redactedURL.slice(0, fragmentIndex);
+  const redactedURLWithoutFragment = urlWithoutFragment.replace(
+    /([?&][^=&#]*=)[^&#]*/g,
+    `$1${REDACTED}`
+  );
+  if (fragmentIndex === -1) {
+    return redactedURLWithoutFragment;
+  }
+  return `${redactedURLWithoutFragment}#${redactFragment(redactedURL.slice(fragmentIndex + 1))}`;
+}
+function assertValidHttpProtocolURL(url2, config) {
+  if (typeof url2 === "string") {
+    const normalizedURL = normalizeURLForProtocolCheck(url2);
+    if (malformedHttpProtocol.test(normalizedURL)) {
+      throw new AxiosError_default(
+        `Invalid URL ${JSON.stringify(redactSensitiveURLParts(normalizedURL))}: missing "//" after protocol`,
+        AxiosError_default.ERR_INVALID_URL,
+        config
+      );
+    }
+  }
+}
+function buildFullPath(baseURL, requestedURL, allowAbsoluteUrls, config) {
+  assertValidHttpProtocolURL(requestedURL, config);
+  let isRelativeUrl = !isAbsoluteURL(requestedURL);
+  if (baseURL && (isRelativeUrl || allowAbsoluteUrls === false)) {
+    assertValidHttpProtocolURL(baseURL, config);
+    return combineURLs(baseURL, requestedURL);
+  }
+  return requestedURL;
+}
+
+// node_modules/axios/lib/core/mergeConfig.js
+var headersToObject = (thing) => thing instanceof AxiosHeaders_default ? { ...thing } : thing;
+var ownEnumerableKeys = (thing) => {
+  if (Object.getOwnPropertySymbols && Object.getOwnPropertyDescriptor) {
+    return Object.keys(thing).concat(
+      Object.getOwnPropertySymbols(thing).filter(
+        (symbol) => Object.getOwnPropertyDescriptor(thing, symbol).enumerable
+      )
+    );
+  }
+  return Object.keys(thing);
+};
+function mergeConfig(config1, config2) {
+  config1 = config1 || {};
+  config2 = config2 || {};
+  const config = /* @__PURE__ */ Object.create(null);
+  Object.defineProperty(config, "hasOwnProperty", {
+    // Null-proto descriptor so a polluted Object.prototype.get cannot turn
+    // this data descriptor into an accessor descriptor on the way in.
+    __proto__: null,
+    value: Object.prototype.hasOwnProperty,
+    enumerable: false,
+    writable: true,
+    configurable: true
+  });
+  function getMergedValue(target, source, prop, caseless) {
+    if (utils_default.isPlainObject(target) && utils_default.isPlainObject(source)) {
+      return utils_default.merge.call({ caseless }, target, source);
+    } else if (utils_default.isPlainObject(source)) {
+      return utils_default.merge({}, source);
+    } else if (utils_default.isArray(source)) {
+      return source.slice();
+    }
+    return source;
+  }
+  function mergeDeepProperties(a, b, prop, caseless) {
+    if (!utils_default.isUndefined(b)) {
+      return getMergedValue(a, b, prop, caseless);
+    } else if (!utils_default.isUndefined(a)) {
+      return getMergedValue(void 0, a, prop, caseless);
+    }
+  }
+  function valueFromConfig2(a, b) {
+    if (!utils_default.isUndefined(b)) {
+      return getMergedValue(void 0, b);
+    }
+  }
+  function defaultToConfig2(a, b) {
+    if (!utils_default.isUndefined(b)) {
+      return getMergedValue(void 0, b);
+    } else if (!utils_default.isUndefined(a)) {
+      return getMergedValue(void 0, a);
+    }
+  }
+  function getMergedTransitionalOption(prop) {
+    const transitional2 = utils_default.hasOwnProp(config2, "transitional") ? config2.transitional : void 0;
+    if (!utils_default.isUndefined(transitional2)) {
+      if (utils_default.isPlainObject(transitional2)) {
+        if (utils_default.hasOwnProp(transitional2, prop)) {
+          return transitional2[prop];
+        }
+      } else {
+        return void 0;
+      }
+    }
+    const transitional1 = utils_default.hasOwnProp(config1, "transitional") ? config1.transitional : void 0;
+    if (utils_default.isPlainObject(transitional1) && utils_default.hasOwnProp(transitional1, prop)) {
+      return transitional1[prop];
+    }
+    return void 0;
+  }
+  function mergeDirectKeys(a, b, prop) {
+    if (utils_default.hasOwnProp(config2, prop)) {
+      return getMergedValue(a, b);
+    } else if (utils_default.hasOwnProp(config1, prop)) {
+      return getMergedValue(void 0, a);
+    }
+  }
+  const mergeMap = {
+    url: valueFromConfig2,
+    method: valueFromConfig2,
+    data: valueFromConfig2,
+    baseURL: defaultToConfig2,
+    transformRequest: defaultToConfig2,
+    transformResponse: defaultToConfig2,
+    paramsSerializer: defaultToConfig2,
+    timeout: defaultToConfig2,
+    timeoutErrorMessage: defaultToConfig2,
+    withCredentials: defaultToConfig2,
+    withXSRFToken: defaultToConfig2,
+    adapter: defaultToConfig2,
+    responseType: defaultToConfig2,
+    xsrfCookieName: defaultToConfig2,
+    xsrfHeaderName: defaultToConfig2,
+    onUploadProgress: defaultToConfig2,
+    onDownloadProgress: defaultToConfig2,
+    decompress: defaultToConfig2,
+    maxContentLength: defaultToConfig2,
+    maxBodyLength: defaultToConfig2,
+    beforeRedirect: defaultToConfig2,
+    transport: defaultToConfig2,
+    httpAgent: defaultToConfig2,
+    httpsAgent: defaultToConfig2,
+    cancelToken: defaultToConfig2,
+    socketPath: defaultToConfig2,
+    allowedSocketPaths: defaultToConfig2,
+    responseEncoding: defaultToConfig2,
+    validateStatus: mergeDirectKeys,
+    headers: (a, b, prop) => mergeDeepProperties(headersToObject(a), headersToObject(b), prop, true)
+  };
+  utils_default.forEach(ownEnumerableKeys({ ...config1, ...config2 }), function computeConfigValue(prop) {
+    if (prop === "__proto__" || prop === "constructor" || prop === "prototype") return;
+    const merge2 = utils_default.hasOwnProp(mergeMap, prop) ? mergeMap[prop] : mergeDeepProperties;
+    const a = utils_default.hasOwnProp(config1, prop) ? config1[prop] : void 0;
+    const b = utils_default.hasOwnProp(config2, prop) ? config2[prop] : void 0;
+    const configValue = merge2(a, b, prop);
+    utils_default.isUndefined(configValue) && merge2 !== mergeDirectKeys || (config[prop] = configValue);
+  });
+  if (utils_default.hasOwnProp(config2, "validateStatus") && utils_default.isUndefined(config2.validateStatus) && getMergedTransitionalOption("validateStatusUndefinedResolves") === false) {
+    if (utils_default.hasOwnProp(config1, "validateStatus")) {
+      config.validateStatus = getMergedValue(void 0, config1.validateStatus);
+    } else {
+      delete config.validateStatus;
+    }
+  }
+  return config;
+}
+
+// node_modules/axios/lib/core/setFormDataHeaders.js
+var FORM_DATA_CONTENT_HEADERS = ["content-type", "content-length"];
+function setFormDataHeaders(headers, formHeaders, policy) {
+  if (policy !== "content-only") {
+    headers.set(formHeaders);
+    return;
+  }
+  Object.entries(formHeaders || {}).forEach(([key, val]) => {
+    if (FORM_DATA_CONTENT_HEADERS.includes(key.toLowerCase())) {
+      headers.set(key, val);
+    }
+  });
+}
+
+// node_modules/axios/lib/helpers/resolveConfig.js
+var encodeUTF8 = (str) => encodeURIComponent(str).replace(
+  /%([0-9A-F]{2})/gi,
+  (_, hex4) => String.fromCharCode(parseInt(hex4, 16))
+);
+function resolveConfig(config) {
+  const newConfig = mergeConfig({}, config);
+  const own2 = (key) => utils_default.hasOwnProp(newConfig, key) ? newConfig[key] : void 0;
+  const data = own2("data");
+  let withXSRFToken = own2("withXSRFToken");
+  const xsrfHeaderName = own2("xsrfHeaderName");
+  const xsrfCookieName = own2("xsrfCookieName");
+  let headers = own2("headers");
+  const auth = own2("auth");
+  const baseURL = own2("baseURL");
+  const allowAbsoluteUrls = own2("allowAbsoluteUrls");
+  const url2 = own2("url");
+  newConfig.headers = headers = AxiosHeaders_default.from(headers);
+  newConfig.url = buildURL(
+    buildFullPath(baseURL, url2, allowAbsoluteUrls, newConfig),
+    own2("params"),
+    own2("paramsSerializer")
+  );
+  if (auth) {
+    const username = utils_default.getSafeProp(auth, "username") || "";
+    const password = utils_default.getSafeProp(auth, "password") || "";
+    try {
+      headers.set(
+        "Authorization",
+        "Basic " + btoa(username + ":" + (password ? encodeUTF8(password) : ""))
+      );
+    } catch (e) {
+      throw AxiosError_default.from(e, AxiosError_default.ERR_BAD_OPTION_VALUE, config);
+    }
+  }
+  if (utils_default.isFormData(data)) {
+    const getHeaders = utils_default.getSafeProp(data, "getHeaders");
+    if (platform_default.hasStandardBrowserEnv || platform_default.hasStandardBrowserWebWorkerEnv || utils_default.isReactNative(data)) {
+      headers.setContentType(void 0);
+    } else if (utils_default.isFunction(getHeaders)) {
+      setFormDataHeaders(headers, getHeaders.call(data), own2("formDataHeaderPolicy"));
+    }
+  }
+  if (platform_default.hasStandardBrowserEnv) {
+    if (utils_default.isFunction(withXSRFToken)) {
+      withXSRFToken = withXSRFToken(newConfig);
+    }
+    const shouldSendXSRF = withXSRFToken === true || withXSRFToken == null && isURLSameOrigin_default(newConfig.url);
+    if (shouldSendXSRF) {
+      const xsrfValue = xsrfHeaderName && xsrfCookieName && cookies_default.read(xsrfCookieName);
+      if (xsrfValue) {
+        headers.set(xsrfHeaderName, xsrfValue);
+      }
+    }
+  }
+  return newConfig;
+}
+var resolveConfig_default = resolveConfig;
+
+// node_modules/axios/lib/adapters/xhr.js
+var isXHRAdapterSupported = typeof XMLHttpRequest !== "undefined";
+var xhr_default = isXHRAdapterSupported && function(config) {
+  return new Promise(function dispatchXhrRequest(resolve, reject) {
+    const _config = resolveConfig_default(config);
+    let requestData = _config.data;
+    const requestHeaders = AxiosHeaders_default.from(_config.headers).normalize();
+    let { responseType, onUploadProgress, onDownloadProgress } = _config;
+    let onCanceled;
+    let uploadThrottled, downloadThrottled;
+    let flushUpload, flushDownload, flushDownloadWithEvent;
+    function done() {
+      flushUpload && flushUpload();
+      flushDownload && flushDownload();
+      _config.cancelToken && _config.cancelToken.unsubscribe(onCanceled);
+      _config.signal && _config.signal.removeEventListener("abort", onCanceled);
+    }
+    let request2 = new XMLHttpRequest();
+    request2.open(_config.method.toUpperCase(), _config.url, true);
+    request2.timeout = _config.timeout;
+    function onloadend(event) {
+      if (!request2) {
+        return;
+      }
+      if (request2.status === 0 && (parseProtocol(normalizeURLForProtocolCheck(_config.url)) || parseProtocol(platform_default.origin)) !== "file" && !(request2.responseURL && request2.responseURL.startsWith("file:"))) {
+        reject(new AxiosError_default("Request aborted", AxiosError_default.ECONNABORTED, config, request2));
+        done();
+        request2 = null;
+        return;
+      }
+      try {
+        if (event) {
+          flushDownloadWithEvent && flushDownloadWithEvent(event);
+        } else {
+          flushDownload && flushDownload();
+        }
+      } catch (err) {
+        setTimeout(() => {
+          throw err;
+        });
+      }
+      if (!request2) {
+        return;
+      }
+      const responseHeaders = AxiosHeaders_default.from(
+        "getAllResponseHeaders" in request2 && request2.getAllResponseHeaders()
+      );
+      const responseData = !responseType || responseType === "text" || responseType === "json" ? request2.responseText : request2.response;
+      const response = {
+        data: responseData,
+        status: request2.status,
+        statusText: request2.statusText,
+        headers: responseHeaders,
+        config,
+        request: request2
+      };
+      settle(
+        function _resolve(value) {
+          resolve(value);
+          done();
+        },
+        function _reject(err) {
+          reject(err);
+          done();
+        },
+        response
+      );
+      request2 = null;
+    }
+    if ("onloadend" in request2) {
+      request2.onloadend = onloadend;
+    } else {
+      request2.onreadystatechange = function handleLoad() {
+        if (!request2 || request2.readyState !== 4) {
+          return;
+        }
+        if (request2.status === 0 && !(request2.responseURL && request2.responseURL.startsWith("file:"))) {
+          return;
+        }
+        setTimeout(onloadend);
+      };
+    }
+    request2.onabort = function handleAbort() {
+      if (!request2) {
+        return;
+      }
+      reject(new AxiosError_default("Request aborted", AxiosError_default.ECONNABORTED, config, request2));
+      done();
+      request2 = null;
+    };
+    request2.onerror = function handleError(event) {
+      const msg = event && event.message ? event.message : "Network Error";
+      const err = new AxiosError_default(msg, AxiosError_default.ERR_NETWORK, config, request2);
+      err.event = event || null;
+      reject(err);
+      done();
+      request2 = null;
+    };
+    request2.ontimeout = function handleTimeout() {
+      let timeoutErrorMessage = _config.timeout ? "timeout of " + _config.timeout + "ms exceeded" : "timeout exceeded";
+      const transitional2 = _config.transitional || transitional_default;
+      if (_config.timeoutErrorMessage) {
+        timeoutErrorMessage = _config.timeoutErrorMessage;
+      }
+      reject(
+        new AxiosError_default(
+          timeoutErrorMessage,
+          transitional2.clarifyTimeoutError ? AxiosError_default.ETIMEDOUT : AxiosError_default.ECONNABORTED,
+          config,
+          request2
+        )
+      );
+      done();
+      request2 = null;
+    };
+    requestData === void 0 && requestHeaders.setContentType(null);
+    if ("setRequestHeader" in request2) {
+      utils_default.forEach(toByteStringHeaderObject(requestHeaders), function setRequestHeader(val, key) {
+        request2.setRequestHeader(key, val);
+      });
+    }
+    if (!utils_default.isUndefined(_config.withCredentials)) {
+      request2.withCredentials = !!_config.withCredentials;
+    }
+    if (responseType && responseType !== "json") {
+      request2.responseType = _config.responseType;
+    }
+    if (onDownloadProgress) {
+      [downloadThrottled, flushDownload, flushDownloadWithEvent] = progressEventReducer(
+        onDownloadProgress,
+        true
+      );
+      request2.addEventListener("progress", downloadThrottled);
+    }
+    if (onUploadProgress && request2.upload) {
+      [uploadThrottled, flushUpload] = progressEventReducer(onUploadProgress);
+      request2.upload.addEventListener("progress", uploadThrottled);
+      request2.upload.addEventListener("loadend", flushUpload);
+    }
+    if (_config.cancelToken || _config.signal) {
+      onCanceled = (cancel) => {
+        if (!request2) {
+          return;
+        }
+        reject(!cancel || cancel.type ? new CanceledError_default(null, config, request2) : cancel);
+        request2.abort();
+        done();
+        request2 = null;
+      };
+      _config.cancelToken && _config.cancelToken.subscribe(onCanceled);
+      if (_config.signal) {
+        _config.signal.aborted ? onCanceled() : _config.signal.addEventListener("abort", onCanceled);
+      }
+    }
+    const protocol = parseProtocol(_config.url);
+    if (protocol && !platform_default.protocols.includes(protocol)) {
+      reject(
+        new AxiosError_default(
+          "Unsupported protocol " + protocol + ":",
+          AxiosError_default.ERR_BAD_REQUEST,
+          config
+        )
+      );
+      done();
+      return;
+    }
+    request2.send(requestData || null);
+  });
+};
+
+// node_modules/axios/lib/helpers/composeSignals.js
+var composeSignals = (signals, timeout) => {
+  signals = signals ? signals.filter(Boolean) : [];
+  if (!timeout && !signals.length) {
+    return;
+  }
+  const controller = new AbortController();
+  let aborted = false;
+  const onabort = function(reason) {
+    if (!aborted) {
+      aborted = true;
+      unsubscribe();
+      const err = reason instanceof Error ? reason : this.reason;
+      controller.abort(
+        err instanceof AxiosError_default ? err : new CanceledError_default(err instanceof Error ? err.message : err)
+      );
+    }
+  };
+  let timer = timeout && setTimeout(() => {
+    timer = null;
+    onabort(new AxiosError_default(`timeout of ${timeout}ms exceeded`, AxiosError_default.ETIMEDOUT));
+  }, timeout);
+  const unsubscribe = () => {
+    if (!signals) {
+      return;
+    }
+    timer && clearTimeout(timer);
+    timer = null;
+    signals.forEach((signal2) => {
+      signal2.unsubscribe ? signal2.unsubscribe(onabort) : signal2.removeEventListener("abort", onabort);
+    });
+    signals = null;
+  };
+  signals.forEach((signal2) => {
+    if (aborted) {
+      return;
+    }
+    if (signal2.aborted) {
+      onabort.call(signal2);
+      return;
+    }
+    signal2.addEventListener("abort", onabort, { once: true });
+  });
+  const { signal } = controller;
+  signal.unsubscribe = () => utils_default.asap(unsubscribe);
+  return signal;
+};
+var composeSignals_default = composeSignals;
+
+// node_modules/axios/lib/helpers/trackStream.js
+var streamChunk = function* (chunk, chunkSize) {
+  let len = chunk.byteLength;
+  if (!chunkSize || len < chunkSize) {
+    yield chunk;
+    return;
+  }
+  let pos = 0;
+  let end;
+  while (pos < len) {
+    end = pos + chunkSize;
+    yield chunk.slice(pos, end);
+    pos = end;
+  }
+};
+var readBytes = async function* (iterable, chunkSize) {
+  for await (const chunk of readStream(iterable)) {
+    yield* streamChunk(chunk, chunkSize);
+  }
+};
+var readStream = async function* (stream) {
+  if (stream[Symbol.asyncIterator]) {
+    yield* stream;
+    return;
+  }
+  const reader = stream.getReader();
+  try {
+    for (; ; ) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      yield value;
+    }
+  } finally {
+    await reader.cancel();
+  }
+};
+var trackStream = (stream, chunkSize, onProgress, onFinish) => {
+  const iterator2 = readBytes(stream, chunkSize);
+  let bytes = 0;
+  let done;
+  let _onFinish = (e) => {
+    if (!done) {
+      done = true;
+      onFinish && onFinish(e);
+    }
+  };
+  return new ReadableStream(
+    {
+      async pull(controller) {
+        try {
+          const { done: done2, value } = await iterator2.next();
+          if (done2) {
+            _onFinish();
+            controller.close();
+            return;
+          }
+          let len = value.byteLength;
+          if (onProgress) {
+            let loadedBytes = bytes += len;
+            onProgress(loadedBytes);
+          }
+          controller.enqueue(new Uint8Array(value));
+        } catch (err) {
+          _onFinish(err);
+          throw err;
+        }
+      },
+      cancel(reason) {
+        _onFinish(reason);
+        return iterator2.return();
+      }
+    },
+    {
+      highWaterMark: 2
+    }
+  );
+};
+
+// node_modules/axios/lib/helpers/estimateDataURLDecodedBytes.js
+var isHexDigit = (charCode) => charCode >= 48 && charCode <= 57 || charCode >= 65 && charCode <= 70 || charCode >= 97 && charCode <= 102;
+var isPercentEncodedByte = (str, i, len) => i + 2 < len && isHexDigit(str.charCodeAt(i + 1)) && isHexDigit(str.charCodeAt(i + 2));
+var hexValue = (charCode) => charCode <= 57 ? charCode - 48 : (charCode & 223) - 55;
+var isBase64Char = (charCode) => charCode >= 65 && charCode <= 90 || // A-Z
+charCode >= 97 && charCode <= 122 || // a-z
+charCode >= 48 && charCode <= 57 || // 0-9
+charCode === 43 || // +
+charCode === 47 || // /
+charCode === 45 || // - (base64url)
+charCode === 95;
+var isBase64Whitespace = (charCode) => charCode === 9 || charCode === 10 || charCode === 12 || charCode === 13 || charCode === 32;
+var base64Bytes = (significant) => {
+  const groups = Math.floor(significant / 4);
+  const remainder = significant % 4;
+  return groups * 3 + (remainder === 2 ? 1 : remainder === 3 ? 2 : 0);
+};
+var estimateBase64BufferAllocation = (body) => {
+  const len = body.length;
+  let padding = 0;
+  if (len > 0 && body.charCodeAt(len - 1) === 61) {
+    padding++;
+    if (len > 1 && body.charCodeAt(len - 2) === 61) {
+      padding++;
+    }
+  }
+  return Math.floor((len - padding) * 3 / 4);
+};
+var estimatePercentDecodedBase64Bytes = (body) => {
+  const len = body.length;
+  let significant = 0;
+  let padding = 0;
+  let invalid = false;
+  for (let i = 0; i < len; i++) {
+    let code = body.charCodeAt(i);
+    if (code === 37 && isPercentEncodedByte(body, i, len)) {
+      code = hexValue(body.charCodeAt(i + 1)) * 16 + hexValue(body.charCodeAt(i + 2));
+      i += 2;
+    }
+    if (isBase64Whitespace(code)) {
+      continue;
+    }
+    if (code === 61) {
+      padding++;
+      continue;
+    }
+    if (!isBase64Char(code) || padding > 0) {
+      invalid = true;
+      continue;
+    }
+    significant++;
+  }
+  if (invalid || padding > 2 || padding > 0 && (significant + padding) % 4 !== 0 || significant % 4 === 1) {
+    return estimateBase64BufferAllocation(body);
+  }
+  return base64Bytes(significant);
+};
+var estimateDataURLBytes = (url2, estimateBase64) => {
+  if (!url2 || typeof url2 !== "string") return 0;
+  if (!url2.startsWith("data:")) return 0;
+  const comma = url2.indexOf(",");
+  if (comma < 0) return 0;
+  const meta = url2.slice(5, comma);
+  const body = url2.slice(comma + 1);
+  const isBase64 = /;base64/i.test(meta);
+  if (isBase64) {
+    return estimateBase64(body);
+  }
+  let bytes = 0;
+  for (let i = 0, len = body.length; i < len; i++) {
+    const c = body.charCodeAt(i);
+    if (c === 37 && isPercentEncodedByte(body, i, len)) {
+      bytes += 1;
+      i += 2;
+    } else if (c < 128) {
+      bytes += 1;
+    } else if (c < 2048) {
+      bytes += 2;
+    } else if (c >= 55296 && c <= 56319 && i + 1 < len) {
+      const next = body.charCodeAt(i + 1);
+      if (next >= 56320 && next <= 57343) {
+        bytes += 4;
+        i++;
+      } else {
+        bytes += 3;
+      }
+    } else {
+      bytes += 3;
+    }
+  }
+  return bytes;
+};
+function estimateDataURLDecodedBytes(url2) {
+  const fragmentIndex = typeof url2 === "string" ? url2.indexOf("#") : -1;
+  return estimateDataURLBytes(
+    fragmentIndex === -1 ? url2 : url2.slice(0, fragmentIndex),
+    estimatePercentDecodedBase64Bytes
+  );
+}
+
+// node_modules/axios/lib/env/data.js
+var VERSION = "1.20.0";
+
+// node_modules/axios/lib/adapters/fetch.js
+var DEFAULT_CHUNK_SIZE = 64 * 1024;
+var DEFAULT_REQUEST_OPTIONS = {
+  cache: "default",
+  redirect: "follow",
+  referrer: "about:client",
+  referrerPolicy: "",
+  mode: "cors",
+  integrity: "",
+  keepalive: false,
+  priority: "auto",
+  window: null
+};
+var { isFunction: isFunction2 } = utils_default;
+var encodeUTF82 = (str) => encodeURIComponent(str).replace(
+  /%([0-9A-F]{2})/gi,
+  (_, hex4) => String.fromCharCode(parseInt(hex4, 16))
+);
+var decodeURIComponentSafe = (value) => {
+  if (!utils_default.isString(value)) {
+    return value;
+  }
+  try {
+    return decodeURIComponent(value);
+  } catch (error) {
+    return value;
+  }
+};
+var test = (fn, ...args) => {
+  try {
+    return !!fn(...args);
+  } catch (e) {
+    return false;
+  }
+};
+var maybeWithAuthCredentials = (url2) => {
+  const protocolIndex = url2.indexOf("://");
+  let urlToCheck = url2;
+  if (protocolIndex !== -1) {
+    urlToCheck = urlToCheck.slice(protocolIndex + 3);
+  }
+  return urlToCheck.includes("@") || urlToCheck.includes(":");
+};
+var factory = (env) => {
+  const globalObject = utils_default.global !== void 0 && utils_default.global !== null ? utils_default.global : globalThis;
+  const { ReadableStream: ReadableStream2, TextEncoder: TextEncoder2 } = globalObject;
+  env = utils_default.merge.call(
+    {
+      skipUndefined: true
+    },
+    {
+      Request: globalObject.Request,
+      Response: globalObject.Response
+    },
+    env
+  );
+  const { fetch: envFetch, Request, Response } = env;
+  const isFetchSupported = envFetch ? isFunction2(envFetch) : typeof fetch === "function";
+  const isRequestSupported = isFunction2(Request);
+  const isResponseSupported = isFunction2(Response);
+  if (!isFetchSupported) {
+    return false;
+  }
+  const isReadableStreamSupported = isFetchSupported && isFunction2(ReadableStream2);
+  const encodeText = isFetchSupported && (typeof TextEncoder2 === "function" ? /* @__PURE__ */ ((encoder) => (str) => encoder.encode(str))(new TextEncoder2()) : async (str) => new Uint8Array(await new Request(str).arrayBuffer()));
+  const supportsRequestStream = isRequestSupported && isReadableStreamSupported && test(() => {
+    let duplexAccessed = false;
+    const request2 = new Request(platform_default.origin, {
+      body: new ReadableStream2(),
+      method: "POST",
+      get duplex() {
+        duplexAccessed = true;
+        return "half";
+      }
+    });
+    const hasContentType = request2.headers.has("Content-Type");
+    if (request2.body != null) {
+      request2.body.cancel();
+    }
+    return duplexAccessed && !hasContentType;
+  });
+  const supportsResponseStream = isResponseSupported && isReadableStreamSupported && test(() => utils_default.isReadableStream(new Response("").body));
+  const resolvers = {
+    stream: supportsResponseStream && ((res) => res.body)
+  };
+  isFetchSupported && (() => {
+    ["text", "arrayBuffer", "blob", "formData", "stream"].forEach((type) => {
+      !resolvers[type] && (resolvers[type] = (res, config) => {
+        let method = res && res[type];
+        if (method) {
+          return method.call(res);
+        }
+        throw new AxiosError_default(
+          `Response type '${type}' is not supported`,
+          AxiosError_default.ERR_NOT_SUPPORT,
+          config
+        );
+      });
+    });
+  })();
+  const getBodyLength = async (body) => {
+    if (body == null) {
+      return 0;
+    }
+    if (utils_default.isBlob(body)) {
+      return body.size;
+    }
+    if (utils_default.isSpecCompliantForm(body)) {
+      const _request = new Request(platform_default.origin, {
+        method: "POST",
+        body
+      });
+      return (await _request.arrayBuffer()).byteLength;
+    }
+    if (utils_default.isArrayBufferView(body) || utils_default.isArrayBuffer(body)) {
+      return body.byteLength;
+    }
+    if (utils_default.isURLSearchParams(body)) {
+      body = body + "";
+    }
+    if (utils_default.isString(body)) {
+      return (await encodeText(body)).byteLength;
+    }
+  };
+  const resolveBodyLength = async (headers, body) => {
+    const length2 = utils_default.toFiniteNumber(headers.getContentLength());
+    return length2 == null ? getBodyLength(body) : length2;
+  };
+  return async (config) => {
+    let {
+      url: url2,
+      method,
+      data,
+      signal,
+      cancelToken,
+      timeout,
+      onDownloadProgress,
+      onUploadProgress,
+      responseType,
+      headers,
+      withCredentials = "same-origin",
+      fetchOptions,
+      maxContentLength,
+      maxBodyLength,
+      maxRedirects
+    } = resolveConfig_default(config);
+    const hasMaxContentLength = utils_default.isNumber(maxContentLength) && maxContentLength > -1;
+    const hasMaxBodyLength = utils_default.isNumber(maxBodyLength) && maxBodyLength > -1;
+    const own2 = (key) => utils_default.hasOwnProp(config, key) ? config[key] : void 0;
+    let _fetch = envFetch || fetch;
+    responseType = responseType ? (responseType + "").toLowerCase() : "text";
+    let composedSignal = composeSignals_default(
+      [signal, cancelToken && cancelToken.toAbortSignal()],
+      timeout
+    );
+    let request2 = null;
+    const unsubscribe = composedSignal && composedSignal.unsubscribe && (() => {
+      composedSignal.unsubscribe();
+    });
+    let requestContentLength;
+    let pendingBodyError = null;
+    const maxBodyLengthError = () => new AxiosError_default(
+      "Request body larger than maxBodyLength limit",
+      AxiosError_default.ERR_BAD_REQUEST,
+      config,
+      request2
+    );
+    try {
+      let auth = void 0;
+      const configAuth = own2("auth");
+      if (configAuth) {
+        const username = utils_default.getSafeProp(configAuth, "username") || "";
+        const password = utils_default.getSafeProp(configAuth, "password") || "";
+        auth = {
+          username,
+          password
+        };
+      }
+      if (maybeWithAuthCredentials(url2)) {
+        const parsedURL = new URL(url2, platform_default.origin);
+        if (!auth && (parsedURL.username || parsedURL.password)) {
+          const urlUsername = decodeURIComponentSafe(parsedURL.username);
+          const urlPassword = decodeURIComponentSafe(parsedURL.password);
+          auth = {
+            username: urlUsername,
+            password: urlPassword
+          };
+        }
+        if (parsedURL.username || parsedURL.password) {
+          parsedURL.username = "";
+          parsedURL.password = "";
+          url2 = parsedURL.href;
+        }
+      }
+      if (auth) {
+        headers.delete("authorization");
+        headers.set(
+          "Authorization",
+          "Basic " + btoa(encodeUTF82((auth.username || "") + ":" + (auth.password || "")))
+        );
+      }
+      if (hasMaxContentLength && typeof url2 === "string" && url2.startsWith("data:")) {
+        const estimated = estimateDataURLDecodedBytes(url2);
+        if (estimated > maxContentLength) {
+          throw new AxiosError_default(
+            "maxContentLength size of " + maxContentLength + " exceeded",
+            AxiosError_default.ERR_BAD_RESPONSE,
+            config,
+            request2
+          );
+        }
+      }
+      if (hasMaxBodyLength && method !== "get" && method !== "head") {
+        const outboundLength = await getBodyLength(data);
+        if (typeof outboundLength === "number" && isFinite(outboundLength)) {
+          requestContentLength = outboundLength;
+          if (outboundLength > maxBodyLength) {
+            throw maxBodyLengthError();
+          }
+        }
+      }
+      const mustEnforceStreamBody = hasMaxBodyLength && (utils_default.isReadableStream(data) || utils_default.isStream(data));
+      const trackRequestStream = (stream, onProgress, flush) => trackStream(
+        stream,
+        DEFAULT_CHUNK_SIZE,
+        (loadedBytes) => {
+          if (hasMaxBodyLength && loadedBytes > maxBodyLength) {
+            throw pendingBodyError = maxBodyLengthError();
+          }
+          onProgress && onProgress(loadedBytes);
+        },
+        flush
+      );
+      if (supportsRequestStream && method !== "get" && method !== "head" && (onUploadProgress || mustEnforceStreamBody)) {
+        requestContentLength = requestContentLength == null ? await resolveBodyLength(headers, data) : requestContentLength;
+        if (requestContentLength !== 0 || mustEnforceStreamBody) {
+          let _request = new Request(url2, {
+            method: "POST",
+            body: data,
+            duplex: "half"
+          });
+          let contentTypeHeader;
+          if (utils_default.isFormData(data) && (contentTypeHeader = _request.headers.get("content-type"))) {
+            headers.setContentType(contentTypeHeader);
+          }
+          if (_request.body) {
+            const [onProgress, flush] = onUploadProgress && progressEventDecorator(
+              requestContentLength,
+              progressEventReducer(asyncDecorator(onUploadProgress))
+            ) || [];
+            data = trackRequestStream(_request.body, onProgress, flush);
+          }
+        }
+      } else if (mustEnforceStreamBody && !isRequestSupported && isReadableStreamSupported && method !== "get" && method !== "head") {
+        data = trackRequestStream(data);
+      } else if (mustEnforceStreamBody && isRequestSupported && !supportsRequestStream && method !== "get" && method !== "head") {
+        throw new AxiosError_default(
+          "Stream request bodies are not supported by the current fetch implementation",
+          AxiosError_default.ERR_NOT_SUPPORT,
+          config,
+          request2
+        );
+      }
+      if (!utils_default.isString(withCredentials)) {
+        withCredentials = withCredentials ? "include" : "omit";
+      }
+      const isCredentialsSupported = isRequestSupported && "credentials" in Request.prototype;
+      if (utils_default.isFormData(data)) {
+        const contentType = headers.getContentType();
+        if (contentType && /^multipart\/form-data/i.test(contentType) && !/boundary=/i.test(contentType)) {
+          headers.delete("content-type");
+        }
+      }
+      headers.set("User-Agent", "axios/" + VERSION, false);
+      const safeFetchOptions = fetchOptions == null ? fetchOptions : Object.assign(/* @__PURE__ */ Object.create(null), fetchOptions);
+      if (safeFetchOptions) {
+        delete safeFetchOptions.body;
+        delete safeFetchOptions.headers;
+        delete safeFetchOptions.method;
+        delete safeFetchOptions.signal;
+        delete safeFetchOptions.duplex;
+        delete safeFetchOptions.credentials;
+      }
+      const resolvedOptions = Object.assign(/* @__PURE__ */ Object.create(null), safeFetchOptions, {
+        signal: composedSignal,
+        method: method.toUpperCase(),
+        headers: toByteStringHeaderObject(headers.normalize()),
+        body: data,
+        duplex: "half",
+        credentials: isCredentialsSupported ? withCredentials : void 0
+      });
+      if (isRequestSupported) {
+        utils_default.forEach(DEFAULT_REQUEST_OPTIONS, (value, key) => {
+          if (resolvedOptions[key] === void 0) {
+            resolvedOptions[key] = value;
+          }
+        });
+        if (resolvedOptions.signal === void 0) {
+          resolvedOptions.signal = null;
+        }
+        if (resolvedOptions.body === void 0) {
+          resolvedOptions.body = null;
+        }
+      }
+      if (maxRedirects === 0) {
+        resolvedOptions.redirect = "manual";
+        if (safeFetchOptions) {
+          safeFetchOptions.redirect = "manual";
+        }
+      }
+      request2 = isRequestSupported && new Request(url2, resolvedOptions);
+      let response = await (isRequestSupported ? _fetch(request2, safeFetchOptions) : _fetch(url2, resolvedOptions));
+      const responseHeaders = AxiosHeaders_default.from(response.headers);
+      if (hasMaxContentLength) {
+        const declaredLength = utils_default.toFiniteNumber(responseHeaders.getContentLength());
+        if (declaredLength != null && declaredLength > maxContentLength) {
+          throw new AxiosError_default(
+            "maxContentLength size of " + maxContentLength + " exceeded",
+            AxiosError_default.ERR_BAD_RESPONSE,
+            config,
+            request2
+          );
+        }
+      }
+      const isStreamResponse = supportsResponseStream && (responseType === "stream" || responseType === "response");
+      if (supportsResponseStream && response.body && (onDownloadProgress || hasMaxContentLength || isStreamResponse && unsubscribe)) {
+        const options = {};
+        ["status", "statusText", "headers"].forEach((prop) => {
+          options[prop] = response[prop];
+        });
+        const responseContentLength = utils_default.toFiniteNumber(responseHeaders.getContentLength());
+        const [onProgress, flush] = onDownloadProgress && progressEventDecorator(
+          responseContentLength,
+          progressEventReducer(asyncDecorator(onDownloadProgress), true)
+        ) || [];
+        let bytesRead = 0;
+        const onChunkProgress = (loadedBytes) => {
+          if (hasMaxContentLength) {
+            bytesRead = loadedBytes;
+            if (bytesRead > maxContentLength) {
+              throw new AxiosError_default(
+                "maxContentLength size of " + maxContentLength + " exceeded",
+                AxiosError_default.ERR_BAD_RESPONSE,
+                config,
+                request2
+              );
+            }
+          }
+          onProgress && onProgress(loadedBytes);
+        };
+        response = new Response(
+          trackStream(response.body, DEFAULT_CHUNK_SIZE, onChunkProgress, () => {
+            flush && flush();
+            unsubscribe && unsubscribe();
+          }),
+          options
+        );
+      }
+      responseType = responseType || "text";
+      let responseData = await resolvers[utils_default.findKey(resolvers, responseType) || "text"](
+        response,
+        config
+      );
+      if (hasMaxContentLength && !supportsResponseStream && !isStreamResponse) {
+        let materializedSize;
+        if (responseData != null) {
+          if (typeof responseData.byteLength === "number") {
+            materializedSize = responseData.byteLength;
+          } else if (typeof responseData.size === "number") {
+            materializedSize = responseData.size;
+          } else if (typeof responseData === "string") {
+            materializedSize = typeof TextEncoder2 === "function" ? new TextEncoder2().encode(responseData).byteLength : responseData.length;
+          }
+        }
+        if (typeof materializedSize === "number" && materializedSize > maxContentLength) {
+          throw new AxiosError_default(
+            "maxContentLength size of " + maxContentLength + " exceeded",
+            AxiosError_default.ERR_BAD_RESPONSE,
+            config,
+            request2
+          );
+        }
+      }
+      !isStreamResponse && unsubscribe && unsubscribe();
+      return await new Promise((resolve, reject) => {
+        settle(resolve, reject, {
+          data: responseData,
+          headers: AxiosHeaders_default.from(response.headers),
+          status: response.status,
+          statusText: response.statusText,
+          config,
+          request: request2
+        });
+      });
+    } catch (err) {
+      unsubscribe && unsubscribe();
+      if (composedSignal && composedSignal.aborted && composedSignal.reason instanceof AxiosError_default) {
+        const canceledError = composedSignal.reason;
+        canceledError.config = config;
+        request2 && (canceledError.request = request2);
+        if (err !== canceledError) {
+          Object.defineProperty(canceledError, "cause", {
+            __proto__: null,
+            value: err,
+            writable: true,
+            enumerable: false,
+            configurable: true
+          });
+        }
+        throw canceledError;
+      }
+      if (pendingBodyError) {
+        request2 && !pendingBodyError.request && (pendingBodyError.request = request2);
+        throw pendingBodyError;
+      }
+      if (err instanceof AxiosError_default) {
+        request2 && !err.request && (err.request = request2);
+        throw err;
+      }
+      if (err && err.name === "TypeError" && /Load failed|fetch/i.test(err.message)) {
+        const networkError = new AxiosError_default(
+          "Network Error",
+          AxiosError_default.ERR_NETWORK,
+          config,
+          request2,
+          err && err.response
+        );
+        Object.defineProperty(networkError, "cause", {
+          __proto__: null,
+          value: err.cause || err,
+          writable: true,
+          enumerable: false,
+          configurable: true
+        });
+        throw networkError;
+      }
+      throw AxiosError_default.from(err, err && err.code, config, request2, err && err.response);
+    }
+  };
+};
+var seedCache = /* @__PURE__ */ new Map();
+var getFetch = (config) => {
+  let env = config && config.env || {};
+  const { fetch: fetch2, Request, Response } = env;
+  const seeds = [Request, Response, fetch2];
+  let len = seeds.length, i = len, seed, target, map2 = seedCache;
+  while (i--) {
+    seed = seeds[i];
+    target = map2.get(seed);
+    target === void 0 && map2.set(seed, target = i ? /* @__PURE__ */ new Map() : factory(env));
+    map2 = target;
+  }
+  return target;
+};
+var adapter = getFetch();
+
+// node_modules/axios/lib/adapters/adapters.js
+var knownAdapters = {
+  http: null_default,
+  xhr: xhr_default,
+  fetch: {
+    get: getFetch
+  }
+};
+utils_default.forEach(knownAdapters, (fn, value) => {
+  if (fn) {
+    try {
+      Object.defineProperty(fn, "name", { __proto__: null, value });
+    } catch (e) {
+    }
+    Object.defineProperty(fn, "adapterName", { __proto__: null, value });
+  }
+});
+var renderReason = (reason) => `- ${reason}`;
+var isResolvedHandle = (adapter2) => utils_default.isFunction(adapter2) || adapter2 === null || adapter2 === false;
+function getAdapter(adapters, config) {
+  adapters = utils_default.isArray(adapters) ? adapters : [adapters];
+  const { length: length2 } = adapters;
+  let nameOrAdapter;
+  let adapter2;
+  const rejectedReasons = {};
+  for (let i = 0; i < length2; i++) {
+    nameOrAdapter = adapters[i];
+    let id;
+    adapter2 = nameOrAdapter;
+    if (!isResolvedHandle(nameOrAdapter)) {
+      adapter2 = knownAdapters[(id = String(nameOrAdapter)).toLowerCase()];
+      if (adapter2 === void 0) {
+        throw new AxiosError_default(`Unknown adapter '${id}'`);
+      }
+    }
+    if (adapter2 && (utils_default.isFunction(adapter2) || (adapter2 = adapter2.get(config)))) {
+      break;
+    }
+    rejectedReasons[id || "#" + i] = adapter2;
+  }
+  if (!adapter2) {
+    const reasons = Object.entries(rejectedReasons).map(
+      ([id, state]) => `adapter ${id} ` + (state === false ? "is not supported by the environment" : "is not available in the build")
+    );
+    let s = length2 ? reasons.length > 1 ? "since :\n" + reasons.map(renderReason).join("\n") : " " + renderReason(reasons[0]) : "as no adapter specified";
+    throw new AxiosError_default(
+      `There is no suitable adapter to dispatch the request ` + s,
+      AxiosError_default.ERR_NOT_SUPPORT
+    );
+  }
+  return adapter2;
+}
+var adapters_default = {
+  /**
+   * Resolve an adapter from a list of adapter names or functions.
+   * @type {Function}
+   */
+  getAdapter,
+  /**
+   * Exposes all known adapters
+   * @type {Object<string, Function|Object>}
+   */
+  adapters: knownAdapters
+};
+
+// node_modules/axios/lib/core/dispatchRequest.js
+function throwIfCancellationRequested(config) {
+  if (config.cancelToken) {
+    config.cancelToken.throwIfRequested();
+  }
+  if (config.signal && config.signal.aborted) {
+    throw new CanceledError_default(null, config);
+  }
+}
+function dispatchRequest(_config) {
+  const config = utils_default.toSafeFlatObject(_config);
+  throwIfCancellationRequested(config);
+  config.headers = AxiosHeaders_default.from(utils_default.getSafeProp(config, "headers"));
+  config.data = transformData.call(config, config.transformRequest);
+  if (["post", "put", "patch"].indexOf(config.method) !== -1) {
+    config.headers.setContentType("application/x-www-form-urlencoded", false);
+  }
+  const adapter2 = adapters_default.getAdapter(config.adapter || defaults_default.adapter, config);
+  return adapter2(config).then(
+    function onAdapterResolution(response) {
+      throwIfCancellationRequested(config);
+      config.response = response;
+      try {
+        response.data = transformData.call(config, config.transformResponse, response);
+      } finally {
+        delete config.response;
+      }
+      response.headers = AxiosHeaders_default.from(response.headers);
+      return response;
+    },
+    function onAdapterRejection(reason) {
+      if (!isCancel(reason)) {
+        throwIfCancellationRequested(config);
+        if (reason && reason.response) {
+          config.response = reason.response;
+          try {
+            reason.response.data = transformData.call(
+              config,
+              config.transformResponse,
+              reason.response
+            );
+          } finally {
+            delete config.response;
+          }
+          reason.response.headers = AxiosHeaders_default.from(reason.response.headers);
+        }
+      }
+      return Promise.reject(reason);
+    }
+  );
+}
+
+// node_modules/axios/lib/helpers/validator.js
+var validators = {};
+["object", "boolean", "number", "function", "string", "symbol"].forEach((type, i) => {
+  validators[type] = function validator(thing) {
+    return typeof thing === type || "a" + (i < 1 ? "n " : " ") + type;
+  };
+});
+var deprecatedWarnings = {};
+validators.transitional = function transitional(validator, version, message) {
+  function formatMessage(opt, desc) {
+    return "[Axios v" + VERSION + "] Transitional option '" + opt + "'" + desc + (message ? ". " + message : "");
+  }
+  return (value, opt, opts) => {
+    if (validator === false) {
+      throw new AxiosError_default(
+        formatMessage(opt, " has been removed" + (version ? " in " + version : "")),
+        AxiosError_default.ERR_DEPRECATED
+      );
+    }
+    if (version && !deprecatedWarnings[opt]) {
+      deprecatedWarnings[opt] = true;
+      console.warn(
+        formatMessage(
+          opt,
+          " has been deprecated since v" + version + " and will be removed in the near future"
+        )
+      );
+    }
+    return validator ? validator(value, opt, opts) : true;
+  };
+};
+validators.spelling = function spelling(correctSpelling) {
+  return (value, opt) => {
+    console.warn(`${opt} is likely a misspelling of ${correctSpelling}`);
+    return true;
+  };
+};
+function assertOptions(options, schema, allowUnknown) {
+  if (typeof options !== "object" || options === null) {
+    throw new AxiosError_default("options must be an object", AxiosError_default.ERR_BAD_OPTION_VALUE);
+  }
+  const keys = Object.keys(options);
+  let i = keys.length;
+  while (i-- > 0) {
+    const opt = keys[i];
+    const validator = Object.prototype.hasOwnProperty.call(schema, opt) ? schema[opt] : void 0;
+    if (validator) {
+      const value = options[opt];
+      const result = value === void 0 || validator(value, opt, options);
+      if (result !== true) {
+        throw new AxiosError_default(
+          "option " + opt + " must be " + result,
+          AxiosError_default.ERR_BAD_OPTION_VALUE
+        );
+      }
+      continue;
+    }
+    if (allowUnknown !== true) {
+      throw new AxiosError_default("Unknown option " + opt, AxiosError_default.ERR_BAD_OPTION);
+    }
+  }
+}
+var validator_default = {
+  assertOptions,
+  validators
+};
+
+// node_modules/axios/lib/core/Axios.js
+var validators2 = validator_default.validators;
+var Axios = class {
+  constructor(instanceConfig) {
+    this.defaults = instanceConfig || {};
+    this.interceptors = {
+      request: new InterceptorManager_default(),
+      response: new InterceptorManager_default()
+    };
+  }
+  /**
+   * Dispatch a request
+   *
+   * @param {String|Object} configOrUrl The config specific for this request (merged with this.defaults)
+   * @param {?Object} config
+   *
+   * @returns {Promise} The Promise to be fulfilled
+   */
+  async request(configOrUrl, config) {
+    try {
+      return await this._request(configOrUrl, config);
+    } catch (err) {
+      if (err instanceof Error) {
+        try {
+          let dummy = {};
+          Error.captureStackTrace ? Error.captureStackTrace(dummy) : dummy = new Error();
+          const dummyStack = dummy.stack;
+          let stack = "";
+          if (typeof dummyStack === "string") {
+            const firstNewlineIndex = dummyStack.indexOf("\n");
+            stack = firstNewlineIndex === -1 ? "" : dummyStack.slice(firstNewlineIndex + 1);
+          }
+          if (!err.stack) {
+            err.stack = stack;
+          } else if (stack) {
+            const firstNewlineIndex = stack.indexOf("\n");
+            const secondNewlineIndex = firstNewlineIndex === -1 ? -1 : stack.indexOf("\n", firstNewlineIndex + 1);
+            const stackWithoutTwoTopLines = secondNewlineIndex === -1 ? "" : stack.slice(secondNewlineIndex + 1);
+            if (!String(err.stack).endsWith(stackWithoutTwoTopLines)) {
+              err.stack += "\n" + stack;
+            }
+          }
+        } catch (e) {
+        }
+      }
+      throw err;
+    }
+  }
+  _request(configOrUrl, config) {
+    if (typeof configOrUrl === "string") {
+      config = config || {};
+      config.url = configOrUrl;
+    } else {
+      config = configOrUrl || {};
+    }
+    config = mergeConfig(this.defaults, config);
+    const { transitional: transitional2, paramsSerializer, headers } = config;
+    if (transitional2 !== void 0) {
+      validator_default.assertOptions(
+        transitional2,
+        {
+          silentJSONParsing: validators2.transitional(validators2.boolean),
+          forcedJSONParsing: validators2.transitional(validators2.boolean),
+          clarifyTimeoutError: validators2.transitional(validators2.boolean),
+          legacyInterceptorReqResOrdering: validators2.transitional(validators2.boolean),
+          advertiseZstdAcceptEncoding: validators2.transitional(validators2.boolean),
+          validateStatusUndefinedResolves: validators2.transitional(validators2.boolean)
+        },
+        false
+      );
+    }
+    if (paramsSerializer != null) {
+      if (utils_default.isFunction(paramsSerializer)) {
+        config.paramsSerializer = {
+          serialize: paramsSerializer
+        };
+      } else {
+        validator_default.assertOptions(
+          paramsSerializer,
+          {
+            encode: validators2.function,
+            serialize: validators2.function
+          },
+          true
+        );
+      }
+    }
+    if (config.allowAbsoluteUrls !== void 0) {
+    } else if (this.defaults.allowAbsoluteUrls !== void 0) {
+      config.allowAbsoluteUrls = this.defaults.allowAbsoluteUrls;
+    } else {
+      config.allowAbsoluteUrls = true;
+    }
+    validator_default.assertOptions(
+      config,
+      {
+        baseUrl: validators2.spelling("baseURL"),
+        withXsrfToken: validators2.spelling("withXSRFToken")
+      },
+      true
+    );
+    config.method = (utils_default.getSafeProp(config, "method") || utils_default.getSafeProp(this.defaults, "method") || "get").toLowerCase();
+    let contextHeaders = headers && utils_default.merge(headers.common, headers[config.method]);
+    headers && utils_default.forEach(methodList_default.concat("common"), (method) => {
+      delete headers[method];
+    });
+    config.headers = AxiosHeaders_default.concat(contextHeaders, headers);
+    const requestInterceptorChain = [];
+    let synchronousRequestInterceptors = true;
+    this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
+      if (typeof interceptor.runWhen === "function" && interceptor.runWhen(config) === false) {
+        return;
+      }
+      synchronousRequestInterceptors = synchronousRequestInterceptors && interceptor.synchronous;
+      const transitional3 = config.transitional || transitional_default;
+      const legacyInterceptorReqResOrdering = transitional3 && transitional3.legacyInterceptorReqResOrdering;
+      if (legacyInterceptorReqResOrdering) {
+        requestInterceptorChain.unshift(interceptor.fulfilled, interceptor.rejected);
+      } else {
+        requestInterceptorChain.push(interceptor.fulfilled, interceptor.rejected);
+      }
+    });
+    const responseInterceptorChain = [];
+    this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
+      responseInterceptorChain.push(interceptor.fulfilled, interceptor.rejected);
+    });
+    let promise;
+    let i = 0;
+    let len;
+    if (!synchronousRequestInterceptors) {
+      const chain4 = [dispatchRequest.bind(this), void 0];
+      chain4.unshift(...requestInterceptorChain);
+      chain4.push(...responseInterceptorChain);
+      len = chain4.length;
+      promise = Promise.resolve(config);
+      while (i < len) {
+        promise = promise.then(chain4[i++], chain4[i++]);
+      }
+      return promise;
+    }
+    len = requestInterceptorChain.length;
+    let newConfig = config;
+    while (i < len) {
+      const onFulfilled = requestInterceptorChain[i++];
+      const onRejected = requestInterceptorChain[i++];
+      try {
+        newConfig = onFulfilled ? onFulfilled(newConfig) : newConfig;
+      } catch (error) {
+        if (!onRejected) {
+          promise = Promise.reject(error);
+          break;
+        }
+        try {
+          const rejectedResult = onRejected.call(this, error);
+          if (utils_default.isThenable(rejectedResult)) {
+            promise = Promise.resolve(rejectedResult).then(
+              () => dispatchRequest.call(this, newConfig)
+            );
+          }
+        } catch (rejectedError) {
+          promise = Promise.reject(rejectedError);
+        }
+        break;
+      }
+    }
+    if (!promise) {
+      try {
+        promise = dispatchRequest.call(this, newConfig);
+      } catch (error) {
+        promise = Promise.reject(error);
+      }
+    }
+    i = 0;
+    len = responseInterceptorChain.length;
+    while (i < len) {
+      promise = promise.then(responseInterceptorChain[i++], responseInterceptorChain[i++]);
+    }
+    return promise;
+  }
+  getUri(config) {
+    config = mergeConfig(this.defaults, config);
+    const fullPath = buildFullPath(config.baseURL, config.url, config.allowAbsoluteUrls, config);
+    return buildURL(fullPath, config.params, config.paramsSerializer);
+  }
+};
+utils_default.forEach(["delete", "get", "head", "options"], function forEachMethodNoData(method) {
+  Axios.prototype[method] = function(url2, config) {
+    return this.request(
+      mergeConfig(config || {}, {
+        method,
+        url: url2,
+        data: config && utils_default.hasOwnProp(config, "data") ? config.data : void 0
+      })
+    );
+  };
+});
+utils_default.forEach(["post", "put", "patch", "query"], function forEachMethodWithData(method) {
+  function generateHTTPMethod(isForm) {
+    return function httpMethod(url2, data, config) {
+      return this.request(
+        mergeConfig(config || {}, {
+          method,
+          headers: isForm ? {
+            "Content-Type": "multipart/form-data"
+          } : {},
+          url: url2,
+          data
+        })
+      );
+    };
+  }
+  Axios.prototype[method] = generateHTTPMethod();
+  if (method !== "query") {
+    Axios.prototype[method + "Form"] = generateHTTPMethod(true);
+  }
+});
+var Axios_default = Axios;
+
+// node_modules/axios/lib/cancel/CancelToken.js
+var CancelToken = class _CancelToken {
+  constructor(executor) {
+    if (typeof executor !== "function") {
+      throw new TypeError("executor must be a function.");
+    }
+    let resolvePromise;
+    this.promise = new Promise(function promiseExecutor(resolve) {
+      resolvePromise = resolve;
+    });
+    const token = this;
+    this.promise.then((cancel) => {
+      if (!token._listeners) return;
+      let i = token._listeners.length;
+      while (i-- > 0) {
+        token._listeners[i](cancel);
+      }
+      token._listeners = null;
+    });
+    this.promise.then = (onfulfilled) => {
+      let _resolve;
+      const promise = new Promise((resolve) => {
+        token.subscribe(resolve);
+        _resolve = resolve;
+      }).then(onfulfilled);
+      promise.cancel = function reject() {
+        token.unsubscribe(_resolve);
+      };
+      return promise;
+    };
+    executor(function cancel(message, config, request2) {
+      if (token.reason) {
+        return;
+      }
+      token.reason = new CanceledError_default(message, config, request2);
+      resolvePromise(token.reason);
+    });
+  }
+  /**
+   * Throws a `CanceledError` if cancellation has been requested.
+   */
+  throwIfRequested() {
+    if (this.reason) {
+      throw this.reason;
+    }
+  }
+  /**
+   * Subscribe to the cancel signal
+   */
+  subscribe(listener) {
+    if (this.reason) {
+      listener(this.reason);
+      return;
+    }
+    if (this._listeners) {
+      this._listeners.push(listener);
+    } else {
+      this._listeners = [listener];
+    }
+  }
+  /**
+   * Unsubscribe from the cancel signal
+   */
+  unsubscribe(listener) {
+    if (!this._listeners) {
+      return;
+    }
+    const index = this._listeners.indexOf(listener);
+    if (index !== -1) {
+      this._listeners.splice(index, 1);
+    }
+  }
+  toAbortSignal() {
+    const controller = new AbortController();
+    const abort = (err) => {
+      controller.abort(err);
+    };
+    this.subscribe(abort);
+    controller.signal.unsubscribe = () => this.unsubscribe(abort);
+    return controller.signal;
+  }
+  /**
+   * Returns an object that contains a new `CancelToken` and a function that, when called,
+   * cancels the `CancelToken`.
+   */
+  static source() {
+    let cancel;
+    const token = new _CancelToken(function executor(c) {
+      cancel = c;
+    });
+    return {
+      token,
+      cancel
+    };
+  }
+};
+var CancelToken_default = CancelToken;
+
+// node_modules/axios/lib/helpers/spread.js
+function spread(callback) {
+  return function wrap2(arr) {
+    return callback.apply(null, arr);
+  };
+}
+
+// node_modules/axios/lib/helpers/isAxiosError.js
+function isAxiosError(payload) {
+  return utils_default.isObject(payload) && payload.isAxiosError === true;
+}
+
+// node_modules/axios/lib/helpers/HttpStatusCode.js
+var HttpStatusCode = {
+  Continue: 100,
+  SwitchingProtocols: 101,
+  Processing: 102,
+  EarlyHints: 103,
+  Ok: 200,
+  Created: 201,
+  Accepted: 202,
+  NonAuthoritativeInformation: 203,
+  NoContent: 204,
+  ResetContent: 205,
+  PartialContent: 206,
+  MultiStatus: 207,
+  AlreadyReported: 208,
+  ImUsed: 226,
+  MultipleChoices: 300,
+  MovedPermanently: 301,
+  Found: 302,
+  SeeOther: 303,
+  NotModified: 304,
+  UseProxy: 305,
+  Unused: 306,
+  TemporaryRedirect: 307,
+  PermanentRedirect: 308,
+  BadRequest: 400,
+  Unauthorized: 401,
+  PaymentRequired: 402,
+  Forbidden: 403,
+  NotFound: 404,
+  MethodNotAllowed: 405,
+  NotAcceptable: 406,
+  ProxyAuthenticationRequired: 407,
+  RequestTimeout: 408,
+  Conflict: 409,
+  Gone: 410,
+  LengthRequired: 411,
+  PreconditionFailed: 412,
+  /**
+   * @deprecated Use `ContentTooLarge` instead.
+   */
+  PayloadTooLarge: 413,
+  ContentTooLarge: 413,
+  UriTooLong: 414,
+  UnsupportedMediaType: 415,
+  RangeNotSatisfiable: 416,
+  ExpectationFailed: 417,
+  ImATeapot: 418,
+  MisdirectedRequest: 421,
+  /**
+   * @deprecated Use `UnprocessableContent` instead.
+   */
+  UnprocessableEntity: 422,
+  UnprocessableContent: 422,
+  Locked: 423,
+  FailedDependency: 424,
+  TooEarly: 425,
+  UpgradeRequired: 426,
+  PreconditionRequired: 428,
+  TooManyRequests: 429,
+  RequestHeaderFieldsTooLarge: 431,
+  UnavailableForLegalReasons: 451,
+  InternalServerError: 500,
+  NotImplemented: 501,
+  BadGateway: 502,
+  ServiceUnavailable: 503,
+  GatewayTimeout: 504,
+  HttpVersionNotSupported: 505,
+  VariantAlsoNegotiates: 506,
+  InsufficientStorage: 507,
+  LoopDetected: 508,
+  NotExtended: 510,
+  NetworkAuthenticationRequired: 511,
+  WebServerReturnsAnUnknownError: 520,
+  WebServerIsDown: 521,
+  ConnectionTimedOut: 522,
+  OriginIsUnreachable: 523,
+  TimeoutOccurred: 524,
+  SslHandshakeFailed: 525,
+  InvalidSslCertificate: 526
+};
+Object.entries(HttpStatusCode).forEach(([key, value]) => {
+  if (HttpStatusCode[value] === void 0) {
+    HttpStatusCode[value] = key;
+  }
+});
+var HttpStatusCode_default = HttpStatusCode;
+
+// node_modules/axios/lib/axios.js
+function createInstance(defaultConfig) {
+  const context = new Axios_default(defaultConfig);
+  const instance = bind(Axios_default.prototype.request, context);
+  utils_default.extend(instance, Axios_default.prototype, context, { allOwnKeys: true });
+  utils_default.extend(instance, context, null, { allOwnKeys: true });
+  instance.create = function create2(instanceConfig) {
+    return createInstance(mergeConfig(defaultConfig, instanceConfig));
+  };
+  return instance;
+}
+var axios = createInstance(defaults_default);
+axios.Axios = Axios_default;
+axios.CanceledError = CanceledError_default;
+axios.CancelToken = CancelToken_default;
+axios.isCancel = isCancel;
+axios.VERSION = VERSION;
+axios.toFormData = toFormData_default;
+axios.AxiosError = AxiosError_default;
+axios.Cancel = axios.CanceledError;
+axios.all = function all(promises) {
+  return Promise.all(promises);
+};
+axios.spread = spread;
+axios.isAxiosError = isAxiosError;
+axios.mergeConfig = mergeConfig;
+axios.AxiosHeaders = AxiosHeaders_default;
+axios.formToJSON = (thing) => formDataToJSON_default(utils_default.isHTMLForm(thing) ? new FormData(thing) : thing);
+axios.getAdapter = adapters_default.getAdapter;
+axios.HttpStatusCode = HttpStatusCode_default;
+axios.default = axios;
+var axios_default = axios;
+
+// node_modules/axios/index.js
+var {
+  Axios: Axios2,
+  AxiosError: AxiosError2,
+  CanceledError: CanceledError2,
+  isCancel: isCancel2,
+  CancelToken: CancelToken2,
+  VERSION: VERSION2,
+  all: all2,
+  Cancel,
+  isAxiosError: isAxiosError2,
+  spread: spread2,
+  toFormData: toFormData2,
+  AxiosHeaders: AxiosHeaders2,
+  HttpStatusCode: HttpStatusCode2,
+  formToJSON,
+  getAdapter: getAdapter2,
+  mergeConfig: mergeConfig2,
+  create
+} = axios_default;
+
+// node_modules/base58-js/base58_chars.js
+var base58_chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+var base58_chars_default = base58_chars;
+
+// node_modules/base58-js/base58_to_binary.js
+function base58_to_binary(base58String) {
+  if (!base58String || typeof base58String !== "string")
+    throw new Error(`Expected base58 string but got \u201C${base58String}\u201D`);
+  if (base58String.match(/[IOl0]/gmu))
+    throw new Error(
+      `Invalid base58 character \u201C${base58String.match(/[IOl0]/gmu)}\u201D`
+    );
+  const lz = base58String.match(/^1+/gmu);
+  const psz = lz ? lz[0].length : 0;
+  const size = (base58String.length - psz) * (Math.log(58) / Math.log(256)) + 1 >>> 0;
+  return new Uint8Array([
+    ...new Uint8Array(psz),
+    ...base58String.match(/.{1}/gmu).map((i) => base58_chars_default.indexOf(i)).reduce((acc, i) => {
+      acc = acc.map((j) => {
+        const x = j * 58 + i;
+        i = x >> 8;
+        return x;
+      });
+      return acc;
+    }, new Uint8Array(size)).reverse().filter(
+      /* @__PURE__ */ ((lastValue) => (value) => (
+        // @ts-ignore
+        lastValue = lastValue || value
+      ))(false)
+    )
+  ]);
+}
+var base58_to_binary_default = base58_to_binary;
+
+// node_modules/bitcoin-address-validation/dist/index.js
+var import_bech32 = __toESM(require_dist(), 1);
+
+// node_modules/sha256-uint8array/dist/sha256-uint8array.mjs
+var K = [
+  1116352408 | 0,
+  1899447441 | 0,
+  3049323471 | 0,
+  3921009573 | 0,
+  961987163 | 0,
+  1508970993 | 0,
+  2453635748 | 0,
+  2870763221 | 0,
+  3624381080 | 0,
+  310598401 | 0,
+  607225278 | 0,
+  1426881987 | 0,
+  1925078388 | 0,
+  2162078206 | 0,
+  2614888103 | 0,
+  3248222580 | 0,
+  3835390401 | 0,
+  4022224774 | 0,
+  264347078 | 0,
+  604807628 | 0,
+  770255983 | 0,
+  1249150122 | 0,
+  1555081692 | 0,
+  1996064986 | 0,
+  2554220882 | 0,
+  2821834349 | 0,
+  2952996808 | 0,
+  3210313671 | 0,
+  3336571891 | 0,
+  3584528711 | 0,
+  113926993 | 0,
+  338241895 | 0,
+  666307205 | 0,
+  773529912 | 0,
+  1294757372 | 0,
+  1396182291 | 0,
+  1695183700 | 0,
+  1986661051 | 0,
+  2177026350 | 0,
+  2456956037 | 0,
+  2730485921 | 0,
+  2820302411 | 0,
+  3259730800 | 0,
+  3345764771 | 0,
+  3516065817 | 0,
+  3600352804 | 0,
+  4094571909 | 0,
+  275423344 | 0,
+  430227734 | 0,
+  506948616 | 0,
+  659060556 | 0,
+  883997877 | 0,
+  958139571 | 0,
+  1322822218 | 0,
+  1537002063 | 0,
+  1747873779 | 0,
+  1955562222 | 0,
+  2024104815 | 0,
+  2227730452 | 0,
+  2361852424 | 0,
+  2428436474 | 0,
+  2756734187 | 0,
+  3204031479 | 0,
+  3329325298 | 0
+];
+var algorithms = {
+  sha256: 1
+};
+function createHash(algorithm) {
+  if (algorithm && !algorithms[algorithm] && !algorithms[algorithm.toLowerCase()]) {
+    throw new Error("Digest method not supported");
+  }
+  return new Hash();
+}
+var Hash = class {
+  constructor() {
+    this.A = 1779033703 | 0;
+    this.B = 3144134277 | 0;
+    this.C = 1013904242 | 0;
+    this.D = 2773480762 | 0;
+    this.E = 1359893119 | 0;
+    this.F = 2600822924 | 0;
+    this.G = 528734635 | 0;
+    this.H = 1541459225 | 0;
+    this._size = 0;
+    this._sp = 0;
+    if (!sharedBuffer || sharedOffset >= 8e3) {
+      sharedBuffer = new ArrayBuffer(
+        8e3
+        /* N.allocTotal */
+      );
+      sharedOffset = 0;
+    }
+    this._byte = new Uint8Array(
+      sharedBuffer,
+      sharedOffset,
+      80
+      /* N.allocBytes */
+    );
+    this._word = new Int32Array(
+      sharedBuffer,
+      sharedOffset,
+      20
+      /* N.allocWords */
+    );
+    sharedOffset += 80;
+  }
+  update(data) {
+    if ("string" === typeof data) {
+      return this._utf8(data);
+    }
+    if (data == null) {
+      throw new TypeError("Invalid type: " + typeof data);
+    }
+    const byteOffset = data.byteOffset;
+    const length2 = data.byteLength;
+    let blocks = length2 / 64 | 0;
+    let offset = 0;
+    if (blocks && !(byteOffset & 3) && !(this._size % 64)) {
+      const block = new Int32Array(
+        data.buffer,
+        byteOffset,
+        blocks * 16
+        /* N.inputWords */
+      );
+      while (blocks--) {
+        this._int32(block, offset >> 2);
+        offset += 64;
+      }
+      this._size += offset;
+    }
+    const BYTES_PER_ELEMENT = data.BYTES_PER_ELEMENT;
+    if (BYTES_PER_ELEMENT !== 1 && data.buffer) {
+      const rest = new Uint8Array(data.buffer, byteOffset + offset, length2 - offset);
+      return this._uint8(rest);
+    }
+    if (offset === length2)
+      return this;
+    return this._uint8(data, offset);
+  }
+  _uint8(data, offset) {
+    const { _byte, _word } = this;
+    const length2 = data.length;
+    offset = offset | 0;
+    while (offset < length2) {
+      const start = this._size % 64;
+      let index = start;
+      while (offset < length2 && index < 64) {
+        _byte[index++] = data[offset++];
+      }
+      if (index >= 64) {
+        this._int32(_word);
+      }
+      this._size += index - start;
+    }
+    return this;
+  }
+  _utf8(text) {
+    const { _byte, _word } = this;
+    const length2 = text.length;
+    let surrogate = this._sp;
+    for (let offset = 0; offset < length2; ) {
+      const start = this._size % 64;
+      let index = start;
+      while (offset < length2 && index < 64) {
+        let code = text.charCodeAt(offset++) | 0;
+        if (code < 128) {
+          _byte[index++] = code;
+        } else if (code < 2048) {
+          _byte[index++] = 192 | code >>> 6;
+          _byte[index++] = 128 | code & 63;
+        } else if (code < 55296 || code > 57343) {
+          _byte[index++] = 224 | code >>> 12;
+          _byte[index++] = 128 | code >>> 6 & 63;
+          _byte[index++] = 128 | code & 63;
+        } else if (surrogate) {
+          code = ((surrogate & 1023) << 10) + (code & 1023) + 65536;
+          _byte[index++] = 240 | code >>> 18;
+          _byte[index++] = 128 | code >>> 12 & 63;
+          _byte[index++] = 128 | code >>> 6 & 63;
+          _byte[index++] = 128 | code & 63;
+          surrogate = 0;
+        } else {
+          surrogate = code;
+        }
+      }
+      if (index >= 64) {
+        this._int32(_word);
+        _word[0] = _word[
+          16
+          /* N.inputWords */
+        ];
+      }
+      this._size += index - start;
+    }
+    this._sp = surrogate;
+    return this;
+  }
+  _int32(data, offset) {
+    let { A, B, C, D, E, F, G: G2, H } = this;
+    let i = 0;
+    offset = offset | 0;
+    while (i < 16) {
+      W[i++] = swap32(data[offset++]);
+    }
+    for (i = 16; i < 64; i++) {
+      W[i] = gamma1(W[i - 2]) + W[i - 7] + gamma0(W[i - 15]) + W[i - 16] | 0;
+    }
+    for (i = 0; i < 64; i++) {
+      const T1 = H + sigma1(E) + ch(E, F, G2) + K[i] + W[i] | 0;
+      const T2 = sigma0(A) + maj(A, B, C) | 0;
+      H = G2;
+      G2 = F;
+      F = E;
+      E = D + T1 | 0;
+      D = C;
+      C = B;
+      B = A;
+      A = T1 + T2 | 0;
+    }
+    this.A = A + this.A | 0;
+    this.B = B + this.B | 0;
+    this.C = C + this.C | 0;
+    this.D = D + this.D | 0;
+    this.E = E + this.E | 0;
+    this.F = F + this.F | 0;
+    this.G = G2 + this.G | 0;
+    this.H = H + this.H | 0;
+  }
+  digest(encoding) {
+    const { _byte, _word } = this;
+    let i = this._size % 64 | 0;
+    _byte[i++] = 128;
+    while (i & 3) {
+      _byte[i++] = 0;
+    }
+    i >>= 2;
+    if (i > 14) {
+      while (i < 16) {
+        _word[i++] = 0;
+      }
+      i = 0;
+      this._int32(_word);
+    }
+    while (i < 16) {
+      _word[i++] = 0;
+    }
+    const bits64 = this._size * 8;
+    const low32 = (bits64 & 4294967295) >>> 0;
+    const high32 = (bits64 - low32) / 4294967296;
+    if (high32)
+      _word[
+        14
+        /* N.highIndex */
+      ] = swap32(high32);
+    if (low32)
+      _word[
+        15
+        /* N.lowIndex */
+      ] = swap32(low32);
+    this._int32(_word);
+    return encoding === "hex" ? this._hex() : this._bin();
+  }
+  _hex() {
+    const { A, B, C, D, E, F, G: G2, H } = this;
+    return hex32(A) + hex32(B) + hex32(C) + hex32(D) + hex32(E) + hex32(F) + hex32(G2) + hex32(H);
+  }
+  _bin() {
+    const { A, B, C, D, E, F, G: G2, H, _byte, _word } = this;
+    _word[0] = swap32(A);
+    _word[1] = swap32(B);
+    _word[2] = swap32(C);
+    _word[3] = swap32(D);
+    _word[4] = swap32(E);
+    _word[5] = swap32(F);
+    _word[6] = swap32(G2);
+    _word[7] = swap32(H);
+    return _byte.slice(0, 32);
+  }
+};
+var W = new Int32Array(
+  64
+  /* N.workWords */
+);
+var sharedBuffer;
+var sharedOffset = 0;
+var hex32 = (num2) => (num2 + 4294967296).toString(16).substr(-8);
+var swapLE = ((c) => c << 24 & 4278190080 | c << 8 & 16711680 | c >> 8 & 65280 | c >> 24 & 255);
+var swapBE = ((c) => c);
+var swap32 = isBE() ? swapBE : swapLE;
+var ch = (x, y, z) => z ^ x & (y ^ z);
+var maj = (x, y, z) => x & y | z & (x | y);
+var sigma0 = (x) => (x >>> 2 | x << 30) ^ (x >>> 13 | x << 19) ^ (x >>> 22 | x << 10);
+var sigma1 = (x) => (x >>> 6 | x << 26) ^ (x >>> 11 | x << 21) ^ (x >>> 25 | x << 7);
+var gamma0 = (x) => (x >>> 7 | x << 25) ^ (x >>> 18 | x << 14) ^ x >>> 3;
+var gamma1 = (x) => (x >>> 17 | x << 15) ^ (x >>> 19 | x << 13) ^ x >>> 10;
+function isBE() {
+  const buf = new Uint8Array(new Uint16Array([65279]).buffer);
+  return buf[0] === 254;
+}
+
+// node_modules/bitcoin-address-validation/dist/index.js
+var sha2563 = (payload) => createHash().update(payload).digest();
+var Network;
+(function(Network2) {
+  Network2["mainnet"] = "mainnet";
+  Network2["testnet"] = "testnet";
+  Network2["regtest"] = "regtest";
+  Network2["signet"] = "signet";
+})(Network || (Network = {}));
+var AddressType;
+(function(AddressType3) {
+  AddressType3["p2pkh"] = "p2pkh";
+  AddressType3["p2sh"] = "p2sh";
+  AddressType3["p2wpkh"] = "p2wpkh";
+  AddressType3["p2wsh"] = "p2wsh";
+  AddressType3["p2tr"] = "p2tr";
+})(AddressType || (AddressType = {}));
+var addressTypes = {
+  0: {
+    type: AddressType.p2pkh,
+    network: Network.mainnet
+  },
+  111: {
+    type: AddressType.p2pkh,
+    network: Network.testnet
+  },
+  5: {
+    type: AddressType.p2sh,
+    network: Network.mainnet
+  },
+  196: {
+    type: AddressType.p2sh,
+    network: Network.testnet
+  }
+};
+function castTestnetTo(fromNetwork, toNetwork) {
+  if (!toNetwork) {
+    return fromNetwork;
+  }
+  if (fromNetwork === Network.mainnet) {
+    throw new Error("Cannot cast mainnet to non-mainnet");
+  }
+  return toNetwork;
+}
+var normalizeAddressInfo = (addressInfo, options) => {
+  return {
+    ...addressInfo,
+    network: castTestnetTo(addressInfo.network, options?.castTestnetTo)
+  };
+};
+var parseBech32 = (address, options) => {
+  let decoded;
+  try {
+    if (address.startsWith("bc1p") || address.startsWith("tb1p") || address.startsWith("bcrt1p")) {
+      decoded = import_bech32.bech32m.decode(address);
+    } else {
+      decoded = import_bech32.bech32.decode(address);
+    }
+  } catch (error) {
+    throw new Error("Invalid address");
+  }
+  const mapPrefixToNetwork = {
+    bc: Network.mainnet,
+    tb: Network.testnet,
+    bcrt: Network.regtest
+  };
+  const network = mapPrefixToNetwork[decoded.prefix];
+  if (network === void 0) {
+    throw new Error("Invalid address");
+  }
+  const witnessVersion = decoded.words[0];
+  if (witnessVersion === void 0 || witnessVersion < 0 || witnessVersion > 16) {
+    throw new Error("Invalid address");
+  }
+  const data = import_bech32.bech32.fromWords(decoded.words.slice(1));
+  let type;
+  if (data.length === 20) {
+    type = AddressType.p2wpkh;
+  } else if (witnessVersion === 1) {
+    type = AddressType.p2tr;
+  } else {
+    type = AddressType.p2wsh;
+  }
+  return normalizeAddressInfo({
+    bech32: true,
+    network,
+    address,
+    type
+  }, options);
+};
+var getAddressInfo = (address, options) => {
+  let decoded;
+  const prefix2 = address.slice(0, 2).toLowerCase();
+  if (prefix2 === "bc" || prefix2 === "tb") {
+    return parseBech32(address, options);
+  }
+  try {
+    decoded = base58_to_binary_default(address);
+  } catch (error) {
+    throw new Error("Invalid address");
+  }
+  const { length: length2 } = decoded;
+  if (length2 !== 25) {
+    throw new Error("Invalid address");
+  }
+  const version = decoded[0];
+  const checksum2 = decoded.slice(length2 - 4, length2);
+  const body = decoded.slice(0, length2 - 4);
+  const expectedChecksum = sha2563(sha2563(body)).slice(0, 4);
+  if (checksum2.some((value, index) => value !== expectedChecksum[index])) {
+    throw new Error("Invalid address");
+  }
+  const validVersions = Object.keys(addressTypes).map(Number);
+  if (version === void 0 || !validVersions.includes(version)) {
+    throw new Error("Invalid address");
+  }
+  const addressType = addressTypes[version];
+  if (!addressType) {
+    throw new Error("Invalid address");
+  }
+  return normalizeAddressInfo({
+    ...addressType,
+    address,
+    bech32: false
+  }, options);
+};
+
+// node_modules/@sats-connect/core/dist/index.mjs
+var import_buffer = __toESM(require_buffer(), 1);
+var import_jsontokens = __toESM(require_lib2(), 1);
+var networkConfigurationChains = {
+  bitcoin: "bitcoin",
+  spark: "spark",
+  stacks: "stacks",
+  starknet: "starknet"
+};
+var networkConfigurationChainSchema = enum_(networkConfigurationChains);
+var networkConfigurationSources = {
+  builtin: "builtin",
+  custom: "custom"
+};
+var networkConfigurationSourceSchema = enum_(networkConfigurationSources);
+var commonNetworkConfigurationSchema = object({
+  id: string2(),
+  name: string2(),
+  mode: picklist([]),
+  source: networkConfigurationSourceSchema,
+  blockExplorerUrl: optional(union([pipe(literal(""), transform(() => void 0)), pipe(string2(), url())]))
+});
+var bitcoinChainModeSchema = pipe(string2(), enum_({
+  mainnet: "mainnet",
+  testnet: "testnet",
+  testnet4: "testnet4",
+  signet: "signet",
+  regtest: "regtest"
+}));
+var bitcoinNetworkConfigurationSchema = object({
+  ...commonNetworkConfigurationSchema.entries,
+  chain: literal(networkConfigurationChains.bitcoin),
+  mode: bitcoinChainModeSchema,
+  xverseApiUrl: pipe(string2(), url()),
+  electrsApiUrl: pipe(string2(), url())
+});
+var sparkChainMode = {
+  mainnet: "mainnet",
+  regtest: "regtest"
+};
+var sparkChainModeSchema = pipe(string2(), enum_(sparkChainMode));
+var sparkNetworkConfigurationSchema = object({
+  ...commonNetworkConfigurationSchema.entries,
+  chain: literal(networkConfigurationChains.spark),
+  mode: sparkChainModeSchema,
+  electrsApiUrl: pipe(string2(), url())
+});
+var stacksChainMode = {
+  mainnet: "mainnet",
+  testnet: "testnet",
+  devnet: "devnet",
+  mocknet: "mocknet"
+};
+var stacksChainModeSchema = pipe(string2(), enum_(stacksChainMode));
+var stacksNetworkConfigurationSchema = object({
+  ...commonNetworkConfigurationSchema.entries,
+  chain: literal(networkConfigurationChains.stacks),
+  mode: stacksChainModeSchema,
+  stacksApiUrl: pipe(string2(), url()),
+  xverseApiUrl: pipe(string2(), url())
+});
+var starknetChainMode = {
+  mainnet: "mainnet",
+  sepolia: "sepolia"
+};
+var starknetChainModeSchema = pipe(string2(), enum_(starknetChainMode));
+var starknetNetworkConfigurationSchema = object({
+  ...commonNetworkConfigurationSchema.entries,
+  chain: literal(networkConfigurationChains.starknet),
+  mode: starknetChainModeSchema,
+  rpcApiUrl: pipe(string2(), url()),
+  xverseApiUrl: pipe(string2(), url())
+});
+var networkConfigurationSchema = variant("chain", [
+  bitcoinNetworkConfigurationSchema,
+  sparkNetworkConfigurationSchema,
+  stacksNetworkConfigurationSchema,
+  starknetNetworkConfigurationSchema
+]);
+var omitFields = ["id", "source"];
+var bitcoinNetworkConfigurationOptionsSchema = omit(bitcoinNetworkConfigurationSchema, omitFields);
+var sparkNetworkConfigurationOptionsSchema = omit(sparkNetworkConfigurationSchema, omitFields);
+var stacksNetworkConfigurationOptionsSchema = omit(stacksNetworkConfigurationSchema, omitFields);
+var starknetNetworkConfigurationOptionsSchema = omit(starknetNetworkConfigurationSchema, omitFields);
+var networkConfigurationOptionsSchema = variant("chain", [
+  bitcoinNetworkConfigurationOptionsSchema,
+  sparkNetworkConfigurationOptionsSchema,
+  stacksNetworkConfigurationOptionsSchema,
+  starknetNetworkConfigurationOptionsSchema
+]);
+var allResolvedNetworksSchema = object({
+  active: object({
+    bitcoin: bitcoinNetworkConfigurationSchema,
+    spark: sparkNetworkConfigurationSchema,
+    stacks: stacksNetworkConfigurationSchema,
+    starknet: starknetNetworkConfigurationSchema
+  }),
+  all: array2(networkConfigurationSchema)
+});
+var walletTypes = [
+  "software",
+  "ledger",
+  "keystone",
+  "multisig"
+];
+var walletTypeSchema = picklist(walletTypes);
+var stacksMultisigSchema = object({
+  hashMode: literal("P2SHNonSequential"),
+  threshold: pipe(number(), integer(), minValue(1)),
+  publicKeys: pipe(array2(pipe(string2(), regex(/^0[23][0-9a-f]{64}$/))), minLength(1))
+});
+var AddressPurpose = /* @__PURE__ */ (function(AddressPurpose$1) {
+  AddressPurpose$1["Ordinals"] = "ordinals";
+  AddressPurpose$1["Payment"] = "payment";
+  AddressPurpose$1["Stacks"] = "stacks";
+  AddressPurpose$1["Starknet"] = "starknet";
+  AddressPurpose$1["Spark"] = "spark";
+  return AddressPurpose$1;
+})({});
+var AddressType2 = /* @__PURE__ */ (function(AddressType$2) {
+  AddressType$2["p2pkh"] = "p2pkh";
+  AddressType$2["p2sh"] = "p2sh";
+  AddressType$2["p2wpkh"] = "p2wpkh";
+  AddressType$2["p2wsh"] = "p2wsh";
+  AddressType$2["p2tr"] = "p2tr";
+  AddressType$2["stacks"] = "stacks";
+  AddressType$2["starknet"] = "starknet";
+  AddressType$2["spark"] = "spark";
+  return AddressType$2;
+})({});
+var hexSchema = pipe(string2(), regex(/^(?:[0-9a-f]{2})+$/, "Expected lowercase, even-length hex without a 0x prefix"));
+var tapInternalKeySchema = pipe(hexSchema, length(64, "Expected a 32-byte x-only key"));
+var controlBlockSchema = pipe(hexSchema, check((controlBlock) => controlBlock.length >= 66 && controlBlock.length <= 8258 && (controlBlock.length - 66) % 64 === 0, "Expected a 33+32n byte BIP341 control block"));
+var tapLeafScriptSchema = pipe(object({
+  script: hexSchema,
+  controlBlock: controlBlockSchema
+}), check(({ script, controlBlock }) => Number.parseInt(script.slice(-2), 16) === (Number.parseInt(controlBlock.slice(0, 2), 16) & 254), "Tapleaf version does not match the control block"));
+var unlockDefinitionSchema = variant("type", [
+  object({ type: literal("p2wpkh") }),
+  object({
+    type: literal("p2sh-p2wpkh"),
+    redeemScript: hexSchema
+  }),
+  object({
+    type: literal("p2tr-key-path"),
+    tapInternalKey: tapInternalKeySchema
+  }),
+  object({
+    type: literal("p2wsh"),
+    witnessScript: hexSchema
+  }),
+  object({
+    type: literal("p2tr-script-path"),
+    tapLeafScript: pipe(array2(tapLeafScriptSchema), minLength(1))
+  })
+]);
+var addressObjectSchema = object({
+  address: string2(),
+  publicKey: string2(),
+  purpose: enum_(AddressPurpose),
+  addressType: enum_(AddressType2),
+  walletType: walletTypeSchema,
+  scriptPubKey: optional(hexSchema),
+  unlockDefinition: optional(unlockDefinitionSchema),
+  stacksMultisig: optional(stacksMultisigSchema)
+});
+var addressSchema = pipe(addressObjectSchema, check(({ scriptPubKey: scriptPubKey2, unlockDefinition }) => scriptPubKey2 === void 0 === (unlockDefinition === void 0), "scriptPubKey and unlockDefinition must both be present or both be absent"), check(({ addressType, unlockDefinition }) => {
+  if (!unlockDefinition) return true;
+  switch (unlockDefinition.type) {
+    case "p2wpkh":
+      return addressType === AddressType2.p2wpkh;
+    case "p2sh-p2wpkh":
+      return addressType === AddressType2.p2sh;
+    case "p2tr-key-path":
+    case "p2tr-script-path":
+      return addressType === AddressType2.p2tr;
+    case "p2wsh":
+      return addressType === AddressType2.p2wsh;
+  }
+}, "unlockDefinition type does not match addressType"), check(({ purpose, addressType, walletType, stacksMultisig }) => !stacksMultisig || purpose === AddressPurpose.Stacks && addressType === AddressType2.stacks && walletType === "multisig", "stacksMultisig is only valid on multisig Stacks addresses"));
+var BitcoinNetworkType = /* @__PURE__ */ (function(BitcoinNetworkType$1) {
+  BitcoinNetworkType$1["Mainnet"] = "Mainnet";
+  BitcoinNetworkType$1["Testnet"] = "Testnet";
+  BitcoinNetworkType$1["Testnet4"] = "Testnet4";
+  BitcoinNetworkType$1["Signet"] = "Signet";
+  BitcoinNetworkType$1["Regtest"] = "Regtest";
+  return BitcoinNetworkType$1;
+})({});
+var StacksNetworkType = /* @__PURE__ */ (function(StacksNetworkType$1) {
+  StacksNetworkType$1["Mainnet"] = "mainnet";
+  StacksNetworkType$1["Testnet"] = "testnet";
+  return StacksNetworkType$1;
+})({});
+var StarknetNetworkType = /* @__PURE__ */ (function(StarknetNetworkType$1) {
+  StarknetNetworkType$1["Mainnet"] = "mainnet";
+  StarknetNetworkType$1["Sepolia"] = "sepolia";
+  return StarknetNetworkType$1;
+})({});
+var SparkNetworkType = /* @__PURE__ */ (function(SparkNetworkType$1) {
+  SparkNetworkType$1["Mainnet"] = "mainnet";
+  SparkNetworkType$1["Regtest"] = "regtest";
+  return SparkNetworkType$1;
+})({});
+var RpcErrorCode = /* @__PURE__ */ (function(RpcErrorCode$1) {
+  RpcErrorCode$1[RpcErrorCode$1["PARSE_ERROR"] = -32700] = "PARSE_ERROR";
+  RpcErrorCode$1[RpcErrorCode$1["INVALID_REQUEST"] = -32600] = "INVALID_REQUEST";
+  RpcErrorCode$1[RpcErrorCode$1["METHOD_NOT_FOUND"] = -32601] = "METHOD_NOT_FOUND";
+  RpcErrorCode$1[RpcErrorCode$1["INVALID_PARAMS"] = -32602] = "INVALID_PARAMS";
+  RpcErrorCode$1[RpcErrorCode$1["INTERNAL_ERROR"] = -32603] = "INTERNAL_ERROR";
+  RpcErrorCode$1[RpcErrorCode$1["USER_REJECTION"] = -32e3] = "USER_REJECTION";
+  RpcErrorCode$1[RpcErrorCode$1["METHOD_NOT_SUPPORTED"] = -32001] = "METHOD_NOT_SUPPORTED";
+  RpcErrorCode$1[RpcErrorCode$1["ACCESS_DENIED"] = -32002] = "ACCESS_DENIED";
+  return RpcErrorCode$1;
+})({});
+var accountChangeEventName = "accountChange";
+var accountChangeSchema = object({
+  type: literal(accountChangeEventName),
+  addresses: optional(array2(addressSchema))
+});
+var networkChangeEventName = "networkChange";
+var networkChangeSchema = object({
+  type: literal(networkChangeEventName),
+  bitcoin: object({ name: enum_(BitcoinNetworkType) }),
+  stacks: object({ name: string2() }),
+  addresses: optional(array2(addressSchema))
+});
+var networkChangeV2Schema = object({
+  type: literal(networkChangeEventName),
+  networks: object({
+    bitcoin: bitcoinNetworkConfigurationSchema,
+    spark: sparkNetworkConfigurationSchema,
+    stacks: stacksNetworkConfigurationSchema,
+    starknet: starknetNetworkConfigurationSchema
+  }),
+  addresses: optional(array2(addressSchema))
+});
+var disconnectEventName = "disconnect";
+var disconnectSchema = object({ type: literal(disconnectEventName) });
+var walletEventSchema = variant("type", [
+  accountChangeSchema,
+  networkChangeSchema,
+  disconnectSchema
+]);
+function getProviderById(providerId) {
+  return providerId?.split(".").reduce((acc, part) => acc?.[part], window);
+}
+var urlNetworkSuffix = {
+  [BitcoinNetworkType.Mainnet]: "",
+  [BitcoinNetworkType.Testnet]: "-testnet",
+  [BitcoinNetworkType.Testnet4]: "-testnet4",
+  [BitcoinNetworkType.Signet]: "-signet"
+};
+var ORDINALS_API_BASE_URL = (network = BitcoinNetworkType.Mainnet) => {
+  if (network === BitcoinNetworkType.Regtest) throw new Error(`Ordinals API does not support ${network} network`);
+  return `https://ordinals${urlNetworkSuffix[network]}.xverse.app/v1`;
+};
+var RunesApi = class {
+  client;
+  constructor(network) {
+    this.client = axios_default.create({ baseURL: ORDINALS_API_BASE_URL(network) });
+  }
+  parseError = (error) => {
+    return {
+      code: error.response?.status,
+      message: JSON.stringify(error.response?.data)
+    };
+  };
+  estimateMintCost = async (mintParams) => {
+    try {
+      return { data: (await this.client.post("/runes/mint/estimate", { ...mintParams })).data };
+    } catch (error) {
+      const err = error;
+      return { error: this.parseError(err) };
+    }
+  };
+  estimateEtchCost = async (etchParams) => {
+    try {
+      return { data: (await this.client.post("/runes/etch/estimate", { ...etchParams })).data };
+    } catch (error) {
+      const err = error;
+      return { error: this.parseError(err) };
+    }
+  };
+  createMintOrder = async (mintOrderParams) => {
+    try {
+      return { data: (await this.client.post("/runes/mint/orders", { ...mintOrderParams })).data };
+    } catch (error) {
+      const err = error;
+      return { error: this.parseError(err) };
+    }
+  };
+  createEtchOrder = async (etchOrderParams) => {
+    try {
+      return { data: (await this.client.post("/runes/etch/orders", { ...etchOrderParams })).data };
+    } catch (error) {
+      const err = error;
+      return { error: this.parseError(err) };
+    }
+  };
+  executeMint = async (orderId, fundTransactionId) => {
+    try {
+      return { data: (await this.client.post(`/runes/mint/orders/${orderId}/execute`, { fundTransactionId })).data };
+    } catch (error) {
+      const err = error;
+      return { error: this.parseError(err) };
+    }
+  };
+  executeEtch = async (orderId, fundTransactionId) => {
+    try {
+      return { data: (await this.client.post(`/runes/etch/orders/${orderId}/execute`, { fundTransactionId })).data };
+    } catch (error) {
+      const err = error;
+      return { error: this.parseError(err) };
+    }
+  };
+  getOrder = async (orderId) => {
+    try {
+      return { data: (await this.client.get(`/orders/${orderId}`)).data };
+    } catch (error) {
+      const err = error;
+      return { error: this.parseError(err) };
+    }
+  };
+  rbfOrder = async (rbfRequest) => {
+    const { orderId, newFeeRate } = rbfRequest;
+    try {
+      return { data: (await this.client.post(`/orders/${orderId}/rbf-estimate`, { newFeeRate })).data };
+    } catch (error) {
+      const err = error;
+      return { error: this.parseError(err) };
+    }
+  };
+};
+var clients = {};
+var getRunesApiClient = (network = BitcoinNetworkType.Mainnet) => {
+  if (!clients[network]) clients[network] = new RunesApi(network);
+  return clients[network];
+};
+var SatsConnectAdapter = class {
+  async mintRunes(params) {
+    try {
+      const walletInfo = await this.requestInternal("getInfo", null).catch(() => null);
+      if (walletInfo && walletInfo.status === "success") {
+        if (walletInfo.result.methods?.includes("runes_mint")) {
+          const response = await this.requestInternal("runes_mint", params);
+          if (response) {
+            if (response.status === "success") return response;
+            if (response.status === "error" && response.error.code !== RpcErrorCode.METHOD_NOT_FOUND) return response;
+          }
+        }
+      }
+      const mintRequest = {
+        destinationAddress: params.destinationAddress,
+        feeRate: params.feeRate,
+        refundAddress: params.refundAddress,
+        repeats: params.repeats,
+        runeName: params.runeName,
+        appServiceFee: params.appServiceFee,
+        appServiceFeeAddress: params.appServiceFeeAddress
+      };
+      const orderResponse = await new RunesApi(params.network).createMintOrder(mintRequest);
+      if (!orderResponse.data) return {
+        status: "error",
+        error: {
+          code: orderResponse.error.code === 400 ? RpcErrorCode.INVALID_REQUEST : RpcErrorCode.INTERNAL_ERROR,
+          message: orderResponse.error.message
+        }
+      };
+      const paymentResponse = await this.requestInternal("sendTransfer", { recipients: [{
+        address: orderResponse.data.fundAddress,
+        amount: orderResponse.data.fundAmount
+      }] });
+      if (paymentResponse.status !== "success") return paymentResponse;
+      await new RunesApi(params.network).executeMint(orderResponse.data.orderId, paymentResponse.result.txid);
+      return {
+        status: "success",
+        result: {
+          orderId: orderResponse.data.orderId,
+          fundTransactionId: paymentResponse.result.txid,
+          fundingAddress: orderResponse.data.fundAddress
+        }
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        error: {
+          code: RpcErrorCode.INTERNAL_ERROR,
+          message: error.message
+        }
+      };
+    }
+  }
+  async etchRunes(params) {
+    const etchRequest = {
+      destinationAddress: params.destinationAddress,
+      refundAddress: params.refundAddress,
+      feeRate: params.feeRate,
+      runeName: params.runeName,
+      divisibility: params.divisibility,
+      symbol: params.symbol,
+      premine: params.premine,
+      isMintable: params.isMintable,
+      terms: params.terms,
+      inscriptionDetails: params.inscriptionDetails,
+      delegateInscriptionId: params.delegateInscriptionId,
+      appServiceFee: params.appServiceFee,
+      appServiceFeeAddress: params.appServiceFeeAddress
+    };
+    try {
+      const walletInfo = await this.requestInternal("getInfo", null).catch(() => null);
+      if (walletInfo && walletInfo.status === "success") {
+        if (walletInfo.result.methods?.includes("runes_etch")) {
+          const response = await this.requestInternal("runes_etch", params);
+          if (response) {
+            if (response.status === "success") return response;
+            if (response.status === "error" && response.error.code !== RpcErrorCode.METHOD_NOT_FOUND) return response;
+          }
+        }
+      }
+      const orderResponse = await new RunesApi(params.network).createEtchOrder(etchRequest);
+      if (!orderResponse.data) return {
+        status: "error",
+        error: {
+          code: orderResponse.error.code === 400 ? RpcErrorCode.INVALID_REQUEST : RpcErrorCode.INTERNAL_ERROR,
+          message: orderResponse.error.message
+        }
+      };
+      const paymentResponse = await this.requestInternal("sendTransfer", { recipients: [{
+        address: orderResponse.data.fundAddress,
+        amount: orderResponse.data.fundAmount
+      }] });
+      if (paymentResponse.status !== "success") return paymentResponse;
+      await new RunesApi(params.network).executeEtch(orderResponse.data.orderId, paymentResponse.result.txid);
+      return {
+        status: "success",
+        result: {
+          orderId: orderResponse.data.orderId,
+          fundTransactionId: paymentResponse.result.txid,
+          fundingAddress: orderResponse.data.fundAddress
+        }
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        error: {
+          code: RpcErrorCode.INTERNAL_ERROR,
+          message: error.message
+        }
+      };
+    }
+  }
+  async estimateMint(params) {
+    const estimateMintRequest = {
+      destinationAddress: params.destinationAddress,
+      feeRate: params.feeRate,
+      repeats: params.repeats,
+      runeName: params.runeName,
+      appServiceFee: params.appServiceFee,
+      appServiceFeeAddress: params.appServiceFeeAddress
+    };
+    const response = await getRunesApiClient(params.network).estimateMintCost(estimateMintRequest);
+    if (response.data) return {
+      status: "success",
+      result: response.data
+    };
+    return {
+      status: "error",
+      error: {
+        code: response.error.code === 400 ? RpcErrorCode.INVALID_REQUEST : RpcErrorCode.INTERNAL_ERROR,
+        message: response.error.message
+      }
+    };
+  }
+  async estimateEtch(params) {
+    const estimateEtchRequest = {
+      destinationAddress: params.destinationAddress,
+      feeRate: params.feeRate,
+      runeName: params.runeName,
+      divisibility: params.divisibility,
+      symbol: params.symbol,
+      premine: params.premine,
+      isMintable: params.isMintable,
+      terms: params.terms,
+      inscriptionDetails: params.inscriptionDetails,
+      delegateInscriptionId: params.delegateInscriptionId,
+      appServiceFee: params.appServiceFee,
+      appServiceFeeAddress: params.appServiceFeeAddress
+    };
+    const response = await getRunesApiClient(params.network).estimateEtchCost(estimateEtchRequest);
+    if (response.data) return {
+      status: "success",
+      result: response.data
+    };
+    return {
+      status: "error",
+      error: {
+        code: response.error.code === 400 ? RpcErrorCode.INVALID_REQUEST : RpcErrorCode.INTERNAL_ERROR,
+        message: response.error.message
+      }
+    };
+  }
+  async getOrder(params) {
+    const response = await getRunesApiClient(params.network).getOrder(params.id);
+    if (response.data) return {
+      status: "success",
+      result: response.data
+    };
+    return {
+      status: "error",
+      error: {
+        code: response.error.code === 400 || response.error.code === 404 ? RpcErrorCode.INVALID_REQUEST : RpcErrorCode.INTERNAL_ERROR,
+        message: response.error.message
+      }
+    };
+  }
+  async estimateRbfOrder(params) {
+    const rbfOrderRequest = {
+      newFeeRate: params.newFeeRate,
+      orderId: params.orderId
+    };
+    const response = await getRunesApiClient(params.network).rbfOrder(rbfOrderRequest);
+    if (response.data) return {
+      status: "success",
+      result: {
+        fundingAddress: response.data.fundingAddress,
+        rbfCost: response.data.rbfCost
+      }
+    };
+    return {
+      status: "error",
+      error: {
+        code: response.error.code === 400 || response.error.code === 404 ? RpcErrorCode.INVALID_REQUEST : RpcErrorCode.INTERNAL_ERROR,
+        message: response.error.message
+      }
+    };
+  }
+  async rbfOrder(params) {
+    try {
+      const rbfOrderRequest = {
+        newFeeRate: params.newFeeRate,
+        orderId: params.orderId
+      };
+      const orderResponse = await getRunesApiClient(params.network).rbfOrder(rbfOrderRequest);
+      if (!orderResponse.data) return {
+        status: "error",
+        error: {
+          code: orderResponse.error.code === 400 || orderResponse.error.code === 404 ? RpcErrorCode.INVALID_REQUEST : RpcErrorCode.INTERNAL_ERROR,
+          message: orderResponse.error.message
+        }
+      };
+      const paymentResponse = await this.requestInternal("sendTransfer", { recipients: [{
+        address: orderResponse.data.fundingAddress,
+        amount: orderResponse.data.rbfCost
+      }] });
+      if (paymentResponse.status !== "success") return paymentResponse;
+      return {
+        status: "success",
+        result: {
+          fundingAddress: orderResponse.data.fundingAddress,
+          orderId: rbfOrderRequest.orderId,
+          fundRBFTransactionId: paymentResponse.result.txid
+        }
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        error: {
+          code: RpcErrorCode.INTERNAL_ERROR,
+          message: error.message
+        }
+      };
+    }
+  }
+  async request(method, params) {
+    switch (method) {
+      case "runes_mint":
+        return this.mintRunes(params);
+      case "runes_etch":
+        return this.etchRunes(params);
+      case "runes_estimateMint":
+        return this.estimateMint(params);
+      case "runes_estimateEtch":
+        return this.estimateEtch(params);
+      case "runes_getOrder":
+        return this.getOrder(params);
+      case "runes_estimateRbfOrder":
+        return this.estimateRbfOrder(params);
+      case "runes_rbfOrder":
+        return this.rbfOrder(params);
+      default:
+        return this.requestInternal(method, params);
+    }
+  }
+};
+var FordefiAdapter = class extends SatsConnectAdapter {
+  id = DefaultAdaptersInfo.fordefi.id;
+  requestInternal = async (method, params) => {
+    const provider = getProviderById(this.id);
+    if (!provider) throw new Error("no wallet provider was found");
+    if (!method) throw new Error("A wallet method is required");
+    return await provider.request(method, params);
+  };
+  addListener = ({ eventName, cb }) => {
+    const provider = getProviderById(this.id);
+    if (!provider) throw new Error("no wallet provider was found");
+    if (!provider.addListener) {
+      console.error(`The wallet provider you are using does not support the addListener method. Please update your wallet provider.`);
+      return () => {
+      };
+    }
+    return provider.addListener(eventName, cb);
+  };
+};
+var MessageSigningProtocols = /* @__PURE__ */ (function(MessageSigningProtocols$1) {
+  MessageSigningProtocols$1["ECDSA"] = "ECDSA";
+  MessageSigningProtocols$1["BIP322"] = "BIP322";
+  return MessageSigningProtocols$1;
+})({});
+var ProviderPlatform = /* @__PURE__ */ (function(ProviderPlatform$1) {
+  ProviderPlatform$1["Web"] = "web";
+  ProviderPlatform$1["Mobile"] = "mobile";
+  return ProviderPlatform$1;
+})({});
+function convertSignInputsToInputType(signInputs) {
+  const result = [];
+  if (!signInputs) return result;
+  for (const address in signInputs) {
+    const indexes = signInputs[address];
+    for (const index of indexes) result.push({
+      index,
+      address
+    });
+  }
+  return result;
+}
+var UnisatAdapter = class extends SatsConnectAdapter {
+  id = DefaultAdaptersInfo.unisat.id;
+  async getAccounts(params) {
+    const { purposes } = params;
+    if (purposes.includes(AddressPurpose.Stacks) || purposes.includes(AddressPurpose.Starknet) || purposes.includes(AddressPurpose.Spark)) throw new Error("Only bitcoin addresses are supported");
+    const accounts = await window.unisat.requestAccounts();
+    const publicKey = await window.unisat.getPublicKey();
+    const address = accounts[0];
+    const addressType = getAddressInfo(accounts[0]).type;
+    const pk = addressType === AddressType.p2tr ? publicKey.slice(2) : publicKey;
+    const paymentAddress = {
+      address,
+      publicKey: pk,
+      addressType,
+      purpose: AddressPurpose.Payment,
+      walletType: "software"
+    };
+    const ordinalsAddress = {
+      address,
+      publicKey: pk,
+      addressType,
+      purpose: AddressPurpose.Ordinals,
+      walletType: "software"
+    };
+    const response = [];
+    if (purposes.includes(AddressPurpose.Payment)) response.push({
+      ...paymentAddress,
+      walletType: "software"
+    });
+    if (purposes.includes(AddressPurpose.Ordinals)) response.push({
+      ...ordinalsAddress,
+      walletType: "software"
+    });
+    return response;
+  }
+  async signMessage(params) {
+    const { message, address } = params;
+    const addressType = getAddressInfo(address).type;
+    if ([AddressType.p2wpkh, AddressType.p2tr].includes(addressType)) return {
+      address,
+      messageHash: "",
+      signature: await window.unisat.signMessage(message, "bip322-simple"),
+      protocol: MessageSigningProtocols.BIP322
+    };
+    return {
+      address,
+      messageHash: "",
+      signature: await window.unisat.signMessage(message, "ecdsa"),
+      protocol: MessageSigningProtocols.ECDSA
+    };
+  }
+  async sendTransfer(params) {
+    const { recipients, broadcast: broadcast2 } = params;
+    if (recipients.length > 1) throw new Error("Only one recipient is supported by this wallet provider");
+    if (broadcast2 === false) throw new Error("Signing without broadcasting is not supported by this wallet provider");
+    return { txid: await window.unisat.sendBitcoin(recipients[0].address, recipients[0].amount) };
+  }
+  async signPsbt(params) {
+    const { psbt, signInputs, broadcast: broadcast2 } = params;
+    const psbtHex = import_buffer.Buffer.from(psbt, "base64").toString("hex");
+    const signedPsbt = await window.unisat.signPsbt(psbtHex, {
+      autoFinalized: broadcast2,
+      toSignInputs: convertSignInputsToInputType(signInputs)
+    });
+    const signedPsbtBase64 = import_buffer.Buffer.from(signedPsbt, "hex").toString("base64");
+    let txid;
+    if (broadcast2) txid = await window.unisat.pushPsbt(signedPsbt);
+    return {
+      psbt: signedPsbtBase64,
+      txid
+    };
+  }
+  requestInternal = async (method, params) => {
+    try {
+      switch (method) {
+        case "getAccounts":
+          return {
+            status: "success",
+            result: await this.getAccounts(params)
+          };
+        case "sendTransfer":
+          return {
+            status: "success",
+            result: await this.sendTransfer(params)
+          };
+        case "signMessage":
+          return {
+            status: "success",
+            result: await this.signMessage(params)
+          };
+        case "signPsbt":
+          return {
+            status: "success",
+            result: await this.signPsbt(params)
+          };
+        default: {
+          const error = {
+            code: RpcErrorCode.METHOD_NOT_SUPPORTED,
+            message: "Method not supported by the selected wallet"
+          };
+          console.error("Error calling the method", error);
+          return {
+            status: "error",
+            error
+          };
+        }
+      }
+    } catch (error) {
+      console.error("Error calling the method", error);
+      return {
+        status: "error",
+        error: {
+          code: error.code === 4001 ? RpcErrorCode.USER_REJECTION : RpcErrorCode.INTERNAL_ERROR,
+          message: error.message ? error.message : "Wallet method call error",
+          data: error
+        }
+      };
+    }
+  };
+  addListener = ({ eventName, cb }) => {
+    switch (eventName) {
+      case "accountChange": {
+        const handler = () => {
+          cb({ type: "accountChange" });
+        };
+        window.unisat.on("accountsChanged", handler);
+        return () => {
+          window.unisat.removeListener("accountsChanged", handler);
+        };
+      }
+      case "networkChange": {
+        const handler = () => {
+          cb({ type: "networkChange" });
+        };
+        window.unisat.on("networkChanged", handler);
+        return () => {
+          window.unisat.removeListener("networkChanged", handler);
+        };
+      }
+      default:
+        console.error("Event not supported by the selected wallet");
+        return () => {
+        };
+    }
+  };
+};
+var specIdSchema = union([
+  string2(),
+  number(),
+  null_()
+]);
+var specRequestSchema = object({
+  jsonrpc: literal("2.0"),
+  method: string2(),
+  params: optional(union([
+    array2(unknown()),
+    looseObject({}),
+    null_()
+  ])),
+  id: optional(specIdSchema)
+});
+var specSuccessResponseSchema = object({
+  jsonrpc: literal("2.0"),
+  result: unknown(),
+  id: specIdSchema
+});
+var warningSchema = variant("code", [object({
+  code: literal("DEPRECATION_NOTICE"),
+  message: string2(),
+  sunsetDate: pipe(string2(), isoDate())
+})]);
+var specSuccessWithExtensionsResponseSchema = object({
+  ...specSuccessResponseSchema.entries,
+  extensions: optional(object({ warnings: array2(warningSchema) }))
+});
+var specErrorObjectSchema = object({
+  code: number(),
+  message: string2(),
+  data: optional(unknown())
+});
+var specErrorResponseSchema = object({
+  jsonrpc: literal("2.0"),
+  error: specErrorObjectSchema,
+  id: specIdSchema
+});
+var specResponseSchema = union([specSuccessWithExtensionsResponseSchema, specErrorResponseSchema]);
+var sanitizeRequest = (method, params, providerInfo) => {
+  try {
+    const [major, minor] = providerInfo.version.split(".").map((part) => parseInt(part, 10));
+    const platform = providerInfo.platform;
+    if (!platform || platform === ProviderPlatform.Web && major <= 1 && minor <= 4 || platform === ProviderPlatform.Mobile && major <= 1 && minor <= 54) {
+      const v1Sanitized = sanitizeAddressPurposeRequest(method, params);
+      method = v1Sanitized.method;
+      params = v1Sanitized.params;
+    }
+  } catch {
+  }
+  return {
+    method,
+    params
+  };
+};
+var sanitizeAddressPurposeRequest = (method, params) => {
+  const filterPurposes = (purposes) => purposes?.filter((purpose) => purpose !== AddressPurpose.Spark && purpose !== AddressPurpose.Starknet);
+  if (method === "wallet_connect") {
+    const typedParams = params;
+    if (!typedParams) return {
+      method,
+      params
+    };
+    const { addresses, ...rest } = typedParams;
+    return {
+      method,
+      params: {
+        ...rest,
+        addresses: filterPurposes(addresses)
+      }
+    };
+  }
+  if (method === "getAccounts") {
+    const { purposes, ...rest } = params;
+    return {
+      method,
+      params: {
+        ...rest,
+        purposes: filterPurposes(purposes)
+      }
+    };
+  }
+  if (method === "getAddresses") {
+    const { purposes, ...rest } = params;
+    return {
+      method,
+      params: {
+        ...rest,
+        purposes: filterPurposes(purposes)
+      }
+    };
+  }
+  return {
+    method,
+    params
+  };
+};
+var bitcoinMethods = {
+  getAccounts: "getAccounts",
+  getAddresses: "getAddresses",
+  bitcoin_getAddressesV2: "bitcoin_getAddressesV2",
+  getBalance: "getBalance",
+  bitcoin_getBalanceV2: "bitcoin_getBalanceV2",
+  getInfo: "getInfo",
+  sendTransfer: "sendTransfer",
+  bitcoin_sendTransferV2: "bitcoin_sendTransferV2",
+  signMessage: "signMessage",
+  bitcoin_signMessageV2: "bitcoin_signMessageV2",
+  signMultipleMessages: "signMultipleMessages",
+  bitcoin_signMultipleMessagesV2: "bitcoin_signMultipleMessagesV2",
+  signPsbt: "signPsbt",
+  bitcoin_signPsbtV2: "bitcoin_signPsbtV2"
+};
+var stacksMethods = {
+  stx_callContract: "stx_callContract",
+  stx_deployContract: "stx_deployContract",
+  stx_getAccounts: "stx_getAccounts",
+  stx_getAddresses: "stx_getAddresses",
+  stx_signMessage: "stx_signMessage",
+  stx_signStructuredMessage: "stx_signStructuredMessage",
+  stx_signTransaction: "stx_signTransaction",
+  stx_signTransactions: "stx_signTransactions",
+  stx_transferStx: "stx_transferStx"
+};
+var sparkMethods = {
+  spark_getAddresses: "spark_getAddresses",
+  spark_getAddressesV2: "spark_getAddressesV2",
+  spark_getBalance: "spark_getBalance",
+  spark_transfer: "spark_transfer",
+  spark_transferToken: "spark_transferToken",
+  spark_signMessage: "spark_signMessage",
+  spark_flashnet_getJwt: "spark_flashnet_getJwt",
+  spark_flashnet_signIntent: "spark_flashnet_signIntent",
+  spark_flashnet_signStructuredMessage: "spark_flashnet_signStructuredMessage",
+  spark_flashnet_executeSwap: "spark_flashnet_executeSwap",
+  spark_flashnet_executeRouteSwap: "spark_flashnet_executeRouteSwap",
+  spark_flashnet_clawbackFunds: "spark_flashnet_clawbackFunds",
+  spark_flashnet_getClawbackEligibleTransfers: "spark_flashnet_getClawbackEligibleTransfers"
+};
+var runesMethods = {
+  runes_estimateEtch: "runes_estimateEtch",
+  runes_estimateMint: "runes_estimateMint",
+  runes_estimateRbfOrder: "runes_estimateRbfOrder",
+  runes_etch: "runes_etch",
+  runes_getBalance: "runes_getBalance",
+  runes_getOrder: "runes_getOrder",
+  runes_mint: "runes_mint",
+  runes_rbfOrder: "runes_rbfOrder",
+  runes_transfer: "runes_transfer"
+};
+var ordinalsMethods = {
+  ord_getInscriptions: "ord_getInscriptions",
+  ord_sendInscriptions: "ord_sendInscriptions"
+};
+var walletMethods = {
+  wallet_addNetwork: "wallet_addNetwork",
+  wallet_open: "wallet_open",
+  wallet_addNetworkV2: "wallet_addNetworkV2",
+  wallet_changeNetwork: "wallet_changeNetwork",
+  wallet_connect: "wallet_connect",
+  wallet_connectV2: "wallet_connectV2",
+  wallet_disconnect: "wallet_disconnect",
+  wallet_getAccount: "wallet_getAccount",
+  wallet_getAccountV2: "wallet_getAccountV2",
+  wallet_getCurrentPermissions: "wallet_getCurrentPermissions",
+  wallet_getNetwork: "wallet_getNetwork",
+  wallet_getNetworks: "wallet_getNetworks",
+  wallet_getWalletType: "wallet_getWalletType",
+  wallet_openBridge: "wallet_openBridge",
+  wallet_openBuy: "wallet_openBuy",
+  wallet_openReceive: "wallet_openReceive",
+  wallet_renouncePermissions: "wallet_renouncePermissions",
+  wallet_requestPermissions: "wallet_requestPermissions",
+  wallet_switchNetwork: "wallet_switchNetwork"
+};
+var methods = {
+  ...bitcoinMethods,
+  ...stacksMethods,
+  ...sparkMethods,
+  ...runesMethods,
+  ...ordinalsMethods,
+  ...walletMethods
+};
+var rpcIdSchema = string2();
+function createRequestSchema({ paramsSchema, method }) {
+  return object({
+    ...specRequestSchema.entries,
+    id: rpcIdSchema,
+    method: literal(method),
+    params: paramsSchema
+  });
+}
+var bitcoinGetAccountsParamsSchema = object({
+  purposes: array2(enum_(AddressPurpose)),
+  message: optional(string2())
+});
+var bitcoinGetAccountsRequestSchema = createRequestSchema({
+  paramsSchema: bitcoinGetAccountsParamsSchema,
+  method: bitcoinMethods.getAccounts
+});
+function createSuccessResponseSchema({ method, resultSchema }) {
+  return object({
+    ...specSuccessWithExtensionsResponseSchema.entries,
+    id: rpcIdSchema,
+    result: resultSchema,
+    "~sats-connect-method": literal(method)
+  });
+}
+var bitcoinGetAccountsResultSchema = array2(addressSchema);
+var bitcoinGetAccountsSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinGetAccountsResultSchema,
+  method: bitcoinMethods.getAccounts
+});
+var bitcoinGetAddressesParamsSchema = object({
+  purposes: array2(enum_(AddressPurpose)),
+  message: optional(string2())
+});
+var bitcoinGetAddressesRequestSchema = createRequestSchema({
+  paramsSchema: bitcoinGetAddressesParamsSchema,
+  method: bitcoinMethods.getAddresses
+});
+var getNetworkResultSchema = object({
+  bitcoin: object({ name: string2() }),
+  stacks: object({ name: string2() }),
+  spark: object({ name: string2() })
+});
+var bitcoinGetAddressesResultSchema = object({
+  addresses: array2(addressSchema),
+  network: getNetworkResultSchema
+});
+var bitcoinGetAddressesSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinGetAddressesResultSchema,
+  method: bitcoinMethods.getAddresses
+});
+var bitcoinGetAddressesV2ParamsSchema = object({
+  purposes: array2(enum_(AddressPurpose)),
+  message: optional(string2())
+});
+var bitcoinGetAddressesV2RequestSchema = createRequestSchema({
+  paramsSchema: bitcoinGetAddressesV2ParamsSchema,
+  method: bitcoinMethods.bitcoin_getAddressesV2
+});
+var walletAddNetworkParamsSchema = variant("chain", [
+  object({
+    chain: literal("bitcoin"),
+    type: enum_(BitcoinNetworkType),
+    name: string2(),
+    rpcUrl: string2(),
+    rpcFallbackUrl: optional(string2()),
+    indexerUrl: optional(string2()),
+    blockExplorerUrl: optional(string2()),
+    switch: optional(boolean())
+  }),
+  object({
+    chain: literal("stacks"),
+    name: string2(),
+    type: enum_(StacksNetworkType),
+    rpcUrl: string2(),
+    blockExplorerUrl: optional(string2()),
+    switch: optional(boolean())
+  }),
+  object({
+    chain: literal("starknet"),
+    name: string2(),
+    type: enum_(StarknetNetworkType),
+    rpcUrl: string2(),
+    blockExplorerUrl: optional(string2()),
+    switch: optional(boolean())
+  })
+]);
+var walletAddNetworkRequestSchema = createRequestSchema({
+  paramsSchema: walletAddNetworkParamsSchema,
+  method: walletMethods.wallet_addNetwork
+});
+var walletAddNetworkResultSchema = object({ id: string2() });
+var walletAddNetworkSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletAddNetworkResultSchema,
+  method: walletMethods.wallet_addNetwork
+});
+var accountActionsSchema = object({ read: optional(boolean()) });
+var walletActionsSchema = object({ readNetwork: optional(boolean()) });
+var accountPermissionSchema = object({
+  type: literal("account"),
+  resourceId: string2(),
+  clientId: string2(),
+  actions: accountActionsSchema
+});
+var walletPermissionSchema = object({
+  type: literal("wallet"),
+  resourceId: string2(),
+  clientId: string2(),
+  actions: walletActionsSchema
+});
+var permissionSchema = variant("type", [accountPermissionSchema, walletPermissionSchema]);
+var permission = variant("type", [accountPermissionSchema, walletPermissionSchema]);
+var permissionRequestParamsSchema = variant("type", [object({ ...omit(accountPermissionSchema, ["clientId"]).entries }), object({ ...omit(walletPermissionSchema, ["clientId"]).entries })]);
+var walletAddNetworkV2ParamsSchema = object({
+  network: networkConfigurationOptionsSchema,
+  switch: optional(boolean(), false)
+});
+var walletAddNetworkV2RequestSchema = createRequestSchema({
+  paramsSchema: walletAddNetworkV2ParamsSchema,
+  method: walletMethods.wallet_addNetworkV2
+});
+var walletAddNetworkV2ResultSchema = networkConfigurationSchema;
+var walletAddNetworkV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletAddNetworkV2ResultSchema,
+  method: walletMethods.wallet_addNetworkV2
+});
+var walletChangeNetworkParamsSchema = object({ name: enum_(BitcoinNetworkType) });
+var walletChangeNetworkRequestSchema = createRequestSchema({
+  paramsSchema: walletChangeNetworkParamsSchema,
+  method: walletMethods.wallet_changeNetwork
+});
+var walletChangeNetworkResultSchema = nullish(null_());
+var walletChangeNetworkSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletChangeNetworkResultSchema,
+  method: walletMethods.wallet_changeNetwork
+});
+var walletConnectParamsSchema = nullish(object({
+  permissions: optional(array2(permissionRequestParamsSchema)),
+  addresses: optional(array2(enum_(AddressPurpose))),
+  message: optional(pipe(string2(), maxLength(80, "The message must not exceed 80 characters."))),
+  network: optional(picklist([
+    "Mainnet",
+    "Testnet",
+    "Signet"
+  ]))
+}));
+var walletConnectRequestSchema = createRequestSchema({
+  paramsSchema: walletConnectParamsSchema,
+  method: walletMethods.wallet_connect
+});
+var walletGetNetworkParamsSchema = nullish(null_());
+var walletGetNetworkRequestSchema = createRequestSchema({
+  paramsSchema: walletGetNetworkParamsSchema,
+  method: walletMethods.wallet_getNetwork
+});
+var walletGetNetworkResultSchema = object({
+  bitcoin: object({ name: enum_(BitcoinNetworkType) }),
+  stacks: object({ name: enum_(StacksNetworkType) }),
+  spark: object({ name: enum_(SparkNetworkType) })
+});
+var walletGetNetworkSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletGetNetworkResultSchema,
+  method: walletMethods.wallet_getNetwork
+});
+var walletConnectResultSchema = object({
+  id: string2(),
+  addresses: array2(addressSchema),
+  walletType: walletTypeSchema,
+  network: walletGetNetworkResultSchema
+});
+var walletConnectSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletConnectResultSchema,
+  method: walletMethods.wallet_connect
+});
+var walletConnectV2ParamsSchema = nullish(object({
+  permissions: permissionRequestParamsSchema,
+  addressPurposes: optional(array2(enum_(AddressPurpose))),
+  message: optional(pipe(string2(), maxLength(80, "The message must not exceed 80 characters."))),
+  networkId: optional(string2())
+}));
+var walletConnectV2RequestSchema = createRequestSchema({
+  paramsSchema: walletConnectV2ParamsSchema,
+  method: walletMethods.wallet_connectV2
+});
+var walletGetNetworksParamsSchema = nullish(null_());
+var walletGetNetworksRequestSchema = createRequestSchema({
+  paramsSchema: walletGetNetworksParamsSchema,
+  method: walletMethods.wallet_getNetworks
+});
+var walletGetNetworksResultSchema = allResolvedNetworksSchema;
+var walletGetNetworksSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletGetNetworksResultSchema,
+  method: walletMethods.wallet_getNetworks
+});
+var walletConnectV2ResultSchema = object({
+  accountId: string2(),
+  addresses: array2(addressSchema),
+  walletType: walletTypeSchema,
+  networks: walletGetNetworksResultSchema
+});
+var walletConnectV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletConnectV2ResultSchema,
+  method: walletMethods.wallet_connectV2
+});
+var walletDisconnectParamsSchema = nullish(null_());
+var walletDisconnectRequestSchema = createRequestSchema({
+  paramsSchema: walletDisconnectParamsSchema,
+  method: walletMethods.wallet_disconnect
+});
+var walletDisconnectResultSchema = nullish(null_());
+var walletDisconnectSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletDisconnectResultSchema,
+  method: walletMethods.wallet_disconnect
+});
+var walletGetAccountParamsSchema = nullish(null_());
+var walletGetAccountRequestSchema = createRequestSchema({
+  paramsSchema: walletGetAccountParamsSchema,
+  method: walletMethods.wallet_getAccount
+});
+var walletGetAccountResultSchema = object({
+  id: string2(),
+  addresses: array2(addressSchema),
+  walletType: walletTypeSchema,
+  network: walletGetNetworkResultSchema
+});
+var walletGetAccountSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletGetAccountResultSchema,
+  method: walletMethods.wallet_getAccount
+});
+var walletGetAccountV2ParamsSchema = nullish(null_());
+var walletGetAccountV2RequestSchema = createRequestSchema({
+  paramsSchema: walletGetAccountV2ParamsSchema,
+  method: walletMethods.wallet_getAccountV2
+});
+var walletGetAccountV2ResultSchema = object({
+  id: string2(),
+  addresses: array2(addressSchema),
+  walletType: walletTypeSchema,
+  networks: walletGetNetworksResultSchema
+});
+var walletGetAccountV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletGetAccountV2ResultSchema,
+  method: walletMethods.wallet_getAccountV2
+});
+var walletGetCurrentPermissionsParamsSchema = nullish(null_());
+var walletGetCurrentPermissionsRequestSchema = createRequestSchema({
+  paramsSchema: walletGetCurrentPermissionsParamsSchema,
+  method: walletMethods.wallet_getCurrentPermissions
+});
+var walletGetCurrentPermissionsResultSchema = array2(permission);
+var walletGetCurrentPermissionsSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletGetCurrentPermissionsResultSchema,
+  method: walletMethods.wallet_getCurrentPermissions
+});
+var walletGetWalletTypeParamsSchema = nullish(null_());
+var walletGetWalletTypeRequestSchema = createRequestSchema({
+  paramsSchema: walletGetWalletTypeParamsSchema,
+  method: walletMethods.wallet_getWalletType
+});
+var walletGetWalletTypeResultSchema = walletTypeSchema;
+var walletGetWalletTypeSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletGetWalletTypeResultSchema,
+  method: walletMethods.wallet_getWalletType
+});
+var walletOpenParamsSchema = object({ path: optional(string2()) });
+var walletOpenRequestSchema = createRequestSchema({
+  paramsSchema: walletOpenParamsSchema,
+  method: walletMethods.wallet_open
+});
+var walletOpenResultSchema = nullish(null_());
+var walletOpenSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletOpenResultSchema,
+  method: walletMethods.wallet_open
+});
+var walletOpenBridgeParamsSchema = object({
+  fromAsset: string2(),
+  toAsset: string2()
+});
+var walletOpenBridgeRequestSchema = createRequestSchema({
+  paramsSchema: walletOpenBridgeParamsSchema,
+  method: walletMethods.wallet_openBridge
+});
+var walletOpenBridgeResultSchema = nullish(null_());
+var walletOpenBridgeSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletOpenBridgeResultSchema,
+  method: walletMethods.wallet_openBridge
+});
+var walletOpenBuyParamsSchema = object({ asset: string2() });
+var walletOpenBuyRequestSchema = createRequestSchema({
+  paramsSchema: walletOpenBuyParamsSchema,
+  method: walletMethods.wallet_openBuy
+});
+var walletOpenBuyResultSchema = nullish(null_());
+var walletOpenBuySuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletOpenBuyResultSchema,
+  method: walletMethods.wallet_openBuy
+});
+var walletOpenReceiveParamsSchema = object({ address: string2() });
+var walletOpenReceiveRequestSchema = createRequestSchema({
+  paramsSchema: walletOpenReceiveParamsSchema,
+  method: walletMethods.wallet_openReceive
+});
+var walletOpenReceiveResultSchema = addressSchema;
+var walletOpenReceiveSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletOpenReceiveResultSchema,
+  method: walletMethods.wallet_openReceive
+});
+var walletRenouncePermissionsParamsSchema = nullish(null_());
+var walletRenouncePermissionsRequestSchema = createRequestSchema({
+  paramsSchema: walletRenouncePermissionsParamsSchema,
+  method: walletMethods.wallet_renouncePermissions
+});
+var walletRenouncePermissionsResultSchema = nullish(null_());
+var walletRenouncePermissionsSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletRenouncePermissionsResultSchema,
+  method: walletMethods.wallet_renouncePermissions
+});
+var walletRequestPermissionsParamsSchema = nullish(array2(permissionRequestParamsSchema));
+var walletRequestPermissionsRequestSchema = createRequestSchema({
+  paramsSchema: walletRequestPermissionsParamsSchema,
+  method: walletMethods.wallet_requestPermissions
+});
+var walletRequestPermissionsResultSchema = literal(true);
+var walletRequestPermissionsSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletRequestPermissionsResultSchema,
+  method: walletMethods.wallet_requestPermissions
+});
+var walletSwitchNetworkParamsSchema = variant("selector", [object({
+  selector: literal("id"),
+  id: string2()
+})]);
+var walletSwitchNetworkRequestSchema = createRequestSchema({
+  paramsSchema: walletSwitchNetworkParamsSchema,
+  method: walletMethods.wallet_switchNetwork
+});
+var walletSwitchNetworkResultSchema = nullish(null_());
+var walletSwitchNetworkSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: walletSwitchNetworkResultSchema,
+  method: walletMethods.wallet_switchNetwork
+});
+var walletRequestSchema = variant("method", [
+  walletAddNetworkRequestSchema,
+  walletAddNetworkV2RequestSchema,
+  walletChangeNetworkRequestSchema,
+  walletConnectRequestSchema,
+  walletConnectV2RequestSchema,
+  walletDisconnectRequestSchema,
+  walletGetAccountRequestSchema,
+  walletGetAccountV2RequestSchema,
+  walletGetCurrentPermissionsRequestSchema,
+  walletGetNetworkRequestSchema,
+  walletGetNetworksRequestSchema,
+  walletGetWalletTypeRequestSchema,
+  walletOpenRequestSchema,
+  walletOpenBridgeRequestSchema,
+  walletOpenBuyRequestSchema,
+  walletOpenReceiveRequestSchema,
+  walletRenouncePermissionsRequestSchema,
+  walletRequestPermissionsRequestSchema,
+  walletSwitchNetworkRequestSchema
+]);
+var walletSuccessResponseSchema = variant("~sats-connect-method", [
+  walletAddNetworkSuccessResponseSchema,
+  walletAddNetworkV2SuccessResponseSchema,
+  walletChangeNetworkSuccessResponseSchema,
+  walletConnectSuccessResponseSchema,
+  walletConnectV2SuccessResponseSchema,
+  walletDisconnectSuccessResponseSchema,
+  walletGetAccountSuccessResponseSchema,
+  walletGetAccountV2SuccessResponseSchema,
+  walletGetCurrentPermissionsSuccessResponseSchema,
+  walletGetNetworksSuccessResponseSchema,
+  walletGetNetworkSuccessResponseSchema,
+  walletGetWalletTypeSuccessResponseSchema,
+  walletOpenSuccessResponseSchema,
+  walletOpenBridgeSuccessResponseSchema,
+  walletOpenBuySuccessResponseSchema,
+  walletOpenReceiveSuccessResponseSchema,
+  walletRenouncePermissionsSuccessResponseSchema,
+  walletRequestPermissionsSuccessResponseSchema,
+  walletSwitchNetworkSuccessResponseSchema
+]);
+var bitcoinGetAddressesV2ResultSchema = object({
+  addresses: array2(addressSchema),
+  networks: allResolvedNetworksSchema
+});
+var bitcoinGetAddressesV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinGetAddressesV2ResultSchema,
+  method: bitcoinMethods.bitcoin_getAddressesV2
+});
+var bitcoinGetBalanceParamsSchema = nullish(null_());
+var bitcoinGetBalanceRequestSchema = createRequestSchema({
+  paramsSchema: bitcoinGetBalanceParamsSchema,
+  method: bitcoinMethods.getBalance
+});
+var balanceResultSchema = object({
+  confirmed: string2(),
+  unconfirmed: string2(),
+  total: string2()
+});
+var bitcoinGetBalanceResultSchema = balanceResultSchema;
+var bitcoinGetBalanceSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinGetBalanceResultSchema,
+  method: bitcoinMethods.getBalance
+});
+var bitcoinGetBalanceV2ParamsSchema = nullish(null_());
+var bitcoinGetBalanceV2RequestSchema = createRequestSchema({
+  paramsSchema: bitcoinGetBalanceV2ParamsSchema,
+  method: bitcoinMethods.bitcoin_getBalanceV2
+});
+var bitcoinGetBalanceV2ResultSchema = balanceResultSchema;
+var bitcoinGetBalanceV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinGetBalanceV2ResultSchema,
+  method: bitcoinMethods.bitcoin_getBalanceV2
+});
+var bitcoinGetInfoParamsSchema = nullish(null_());
+var bitcoinGetInfoRequestSchema = createRequestSchema({
+  paramsSchema: bitcoinGetInfoParamsSchema,
+  method: bitcoinMethods.getInfo
+});
+var bitcoinGetInfoResultSchema = object({
+  version: string2(),
+  platform: optional(enum_(ProviderPlatform)),
+  methods: optional(array2(string2())),
+  supports: array2(string2())
+});
+var bitcoinGetInfoSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinGetInfoResultSchema,
+  method: bitcoinMethods.getInfo
+});
+var sendTransferParamsSchema = object({
+  recipients: array2(object({
+    address: string2(),
+    amount: number()
+  })),
+  broadcast: optional(boolean())
+});
+var sendTransferResultSchema = object({
+  txid: string2(),
+  transaction: optional(string2())
+});
+var bitcoinSendTransferParamsSchema = sendTransferParamsSchema;
+var bitcoinSendTransferRequestSchema = createRequestSchema({
+  paramsSchema: bitcoinSendTransferParamsSchema,
+  method: bitcoinMethods.sendTransfer
+});
+var bitcoinSendTransferResultSchema = sendTransferResultSchema;
+var bitcoinSendTransferSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinSendTransferResultSchema,
+  method: bitcoinMethods.sendTransfer
+});
+var bitcoinSendTransferV2ParamsSchema = sendTransferParamsSchema;
+var bitcoinSendTransferV2RequestSchema = createRequestSchema({
+  paramsSchema: bitcoinSendTransferV2ParamsSchema,
+  method: bitcoinMethods.bitcoin_sendTransferV2
+});
+var bitcoinSendTransferV2ResultSchema = sendTransferResultSchema;
+var bitcoinSendTransferV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinSendTransferV2ResultSchema,
+  method: bitcoinMethods.bitcoin_sendTransferV2
+});
+var signMessageParamsSchema = object({
+  address: string2(),
+  message: string2(),
+  protocol: optional(enum_(MessageSigningProtocols))
+});
+var signMessageResultSchema = object({
+  signature: string2(),
+  messageHash: string2(),
+  address: string2(),
+  protocol: enum_(MessageSigningProtocols)
+});
+var bitcoinSignMessageParamsSchema = signMessageParamsSchema;
+var bitcoinSignMessageRequestSchema = createRequestSchema({
+  paramsSchema: bitcoinSignMessageParamsSchema,
+  method: bitcoinMethods.signMessage
+});
+var bitcoinSignMessageResultSchema = signMessageResultSchema;
+var bitcoinSignMessageSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinSignMessageResultSchema,
+  method: bitcoinMethods.signMessage
+});
+var bitcoinSignMessageV2ParamsSchema = signMessageParamsSchema;
+var bitcoinSignMessageV2RequestSchema = createRequestSchema({
+  paramsSchema: bitcoinSignMessageV2ParamsSchema,
+  method: bitcoinMethods.bitcoin_signMessageV2
+});
+var bitcoinSignMessageV2ResultSchema = signMessageResultSchema;
+var bitcoinSignMessageV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinSignMessageV2ResultSchema,
+  method: bitcoinMethods.bitcoin_signMessageV2
+});
+var signMultipleMessagesParamsSchema = array2(signMessageParamsSchema);
+var signMultipleMessagesResultSchema = array2(object({
+  ...signMessageResultSchema.entries,
+  message: string2()
+}));
+var bitcoinSignMultipleMessagesParamsSchema = signMultipleMessagesParamsSchema;
+var bitcoinSignMultipleMessagesRequestSchema = createRequestSchema({
+  paramsSchema: bitcoinSignMultipleMessagesParamsSchema,
+  method: bitcoinMethods.signMultipleMessages
+});
+var bitcoinSignMultipleMessagesResultSchema = signMultipleMessagesResultSchema;
+var bitcoinSignMultipleMessagesSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinSignMultipleMessagesResultSchema,
+  method: bitcoinMethods.signMultipleMessages
+});
+var bitcoinSignMultipleMessagesV2ParamsSchema = signMultipleMessagesParamsSchema;
+var bitcoinSignMultipleMessagesV2RequestSchema = createRequestSchema({
+  paramsSchema: bitcoinSignMultipleMessagesV2ParamsSchema,
+  method: bitcoinMethods.bitcoin_signMultipleMessagesV2
+});
+var bitcoinSignMultipleMessagesV2ResultSchema = signMultipleMessagesResultSchema;
+var bitcoinSignMultipleMessagesV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinSignMultipleMessagesV2ResultSchema,
+  method: bitcoinMethods.bitcoin_signMultipleMessagesV2
+});
+var signPsbtParamsSchema = object({
+  psbt: string2(),
+  signInputs: optional(record(string2(), array2(number()))),
+  broadcast: optional(boolean(), false)
+});
+var signPsbtResultSchema = object({
+  psbt: string2(),
+  txid: optional(string2())
+});
+var bitcoinSignPsbtParamsSchema = signPsbtParamsSchema;
+var bitcoinSignPsbtRequestSchema = createRequestSchema({
+  paramsSchema: bitcoinSignPsbtParamsSchema,
+  method: bitcoinMethods.signPsbt
+});
+var bitcoinSignPsbtResultSchema = signPsbtResultSchema;
+var bitcoinSignPsbtSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinSignPsbtResultSchema,
+  method: bitcoinMethods.signPsbt
+});
+var bitcoinSignPsbtV2ParamsSchema = signPsbtParamsSchema;
+var bitcoinSignPsbtV2RequestSchema = createRequestSchema({
+  paramsSchema: bitcoinSignPsbtV2ParamsSchema,
+  method: bitcoinMethods.bitcoin_signPsbtV2
+});
+var bitcoinSignPsbtV2ResultSchema = signPsbtResultSchema;
+var bitcoinSignPsbtV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: bitcoinSignPsbtV2ResultSchema,
+  method: bitcoinMethods.bitcoin_signPsbtV2
+});
+var bitcoinRequestSchema = variant("method", [
+  bitcoinGetAccountsRequestSchema,
+  bitcoinGetAddressesRequestSchema,
+  bitcoinGetAddressesV2RequestSchema,
+  bitcoinGetBalanceRequestSchema,
+  bitcoinGetBalanceV2RequestSchema,
+  bitcoinGetInfoRequestSchema,
+  bitcoinSendTransferRequestSchema,
+  bitcoinSendTransferV2RequestSchema,
+  bitcoinSignMessageRequestSchema,
+  bitcoinSignMessageV2RequestSchema,
+  bitcoinSignMultipleMessagesRequestSchema,
+  bitcoinSignMultipleMessagesV2RequestSchema,
+  bitcoinSignPsbtRequestSchema,
+  bitcoinSignPsbtV2RequestSchema
+]);
+var bitcoinSuccessResponseSchema = variant("~sats-connect-method", [
+  bitcoinGetAccountsSuccessResponseSchema,
+  bitcoinGetAddressesSuccessResponseSchema,
+  bitcoinGetAddressesV2SuccessResponseSchema,
+  bitcoinGetBalanceSuccessResponseSchema,
+  bitcoinGetBalanceV2SuccessResponseSchema,
+  bitcoinGetInfoSuccessResponseSchema,
+  bitcoinSendTransferSuccessResponseSchema,
+  bitcoinSendTransferV2SuccessResponseSchema,
+  bitcoinSignMessageSuccessResponseSchema,
+  bitcoinSignMessageV2SuccessResponseSchema,
+  bitcoinSignMultipleMessagesSuccessResponseSchema,
+  bitcoinSignMultipleMessagesV2SuccessResponseSchema,
+  bitcoinSignPsbtSuccessResponseSchema,
+  bitcoinSignPsbtV2SuccessResponseSchema
+]);
+var ordinalsGetInscriptionsParamsSchema = object({
+  offset: number(),
+  limit: number()
+});
+var ordinalsGetInscriptionsRequestSchema = createRequestSchema({
+  paramsSchema: ordinalsGetInscriptionsParamsSchema,
+  method: ordinalsMethods.ord_getInscriptions
+});
+var ordinalsGetInscriptionsResultSchema = object({
+  total: number(),
+  limit: number(),
+  offset: number(),
+  inscriptions: array2(object({
+    inscriptionId: string2(),
+    inscriptionNumber: string2(),
+    address: string2(),
+    collectionName: optional(string2()),
+    postage: string2(),
+    contentLength: string2(),
+    contentType: string2(),
+    timestamp: number(),
+    offset: number(),
+    genesisTransaction: string2(),
+    output: string2()
+  }))
+});
+var ordinalsGetInscriptionsSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: ordinalsGetInscriptionsResultSchema,
+  method: ordinalsMethods.ord_getInscriptions
+});
+var ordinalsSendInscriptionsParamsSchema = object({ transfers: array2(object({
+  address: string2(),
+  inscriptionId: string2()
+})) });
+var ordinalsSendInscriptionsRequestSchema = createRequestSchema({
+  paramsSchema: ordinalsSendInscriptionsParamsSchema,
+  method: ordinalsMethods.ord_sendInscriptions
+});
+var ordinalsSendInscriptionsResultSchema = object({ txid: string2() });
+var ordinalsSendInscriptionsSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: ordinalsSendInscriptionsResultSchema,
+  method: ordinalsMethods.ord_sendInscriptions
+});
+var ordinalsRequestSchema = variant("method", [ordinalsGetInscriptionsRequestSchema, ordinalsSendInscriptionsRequestSchema]);
+var ordinalsSuccessResponseSchema = variant("~sats-connect-method", [ordinalsGetInscriptionsSuccessResponseSchema, ordinalsSendInscriptionsSuccessResponseSchema]);
+var etchTermsSchema$1 = object({
+  amount: optional(string2()),
+  cap: optional(string2()),
+  heightStart: optional(string2()),
+  heightEnd: optional(string2()),
+  offsetStart: optional(string2()),
+  offsetEnd: optional(string2())
+});
+var inscriptionDetailsSchema$1 = object({
+  contentType: string2(),
+  contentBase64: string2()
+});
+var runesEstimateEtchParamsSchema = object({
+  runeName: string2(),
+  divisibility: optional(number()),
+  symbol: optional(string2()),
+  premine: optional(string2()),
+  isMintable: boolean(),
+  terms: optional(etchTermsSchema$1),
+  inscriptionDetails: optional(inscriptionDetailsSchema$1),
+  delegateInscriptionId: optional(string2()),
+  destinationAddress: string2(),
+  feeRate: number(),
+  appServiceFee: optional(number()),
+  appServiceFeeAddress: optional(string2()),
+  network: optional(enum_(BitcoinNetworkType))
+});
+var runesEstimateEtchRequestSchema = createRequestSchema({
+  paramsSchema: runesEstimateEtchParamsSchema,
+  method: runesMethods.runes_estimateEtch
+});
+var runesEstimateEtchResultSchema = object({
+  totalSize: number(),
+  totalCost: number(),
+  costBreakdown: object({
+    postage: number(),
+    networkFee: number(),
+    serviceFee: number(),
+    appServiceFee: number()
+  })
+});
+var runesEstimateEtchSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: runesEstimateEtchResultSchema,
+  method: runesMethods.runes_estimateEtch
+});
+var runesEstimateMintParamsSchema = object({
+  runeName: string2(),
+  repeats: number(),
+  destinationAddress: string2(),
+  feeRate: number(),
+  appServiceFee: optional(number()),
+  appServiceFeeAddress: optional(string2()),
+  network: optional(enum_(BitcoinNetworkType))
+});
+var runesEstimateMintRequestSchema = createRequestSchema({
+  paramsSchema: runesEstimateMintParamsSchema,
+  method: runesMethods.runes_estimateMint
+});
+var runesEstimateMintResultSchema = object({
+  totalSize: number(),
+  totalCost: number(),
+  costBreakdown: object({
+    postage: number(),
+    networkFee: number(),
+    serviceFee: number(),
+    appServiceFee: number()
+  })
+});
+var runesEstimateMintSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: runesEstimateMintResultSchema,
+  method: runesMethods.runes_estimateMint
+});
+var runesEstimateRbfOrderParamsSchema = object({
+  orderId: string2(),
+  newFeeRate: number(),
+  network: optional(enum_(BitcoinNetworkType))
+});
+var runesEstimateRbfOrderRequestSchema = createRequestSchema({
+  paramsSchema: runesEstimateRbfOrderParamsSchema,
+  method: runesMethods.runes_estimateRbfOrder
+});
+var runesEstimateRbfOrderResultSchema = object({
+  rbfCost: number(),
+  fundingAddress: string2()
+});
+var runesEstimateRbfOrderSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: runesEstimateRbfOrderResultSchema,
+  method: runesMethods.runes_estimateRbfOrder
+});
+var etchTermsSchema = object({
+  amount: optional(string2()),
+  cap: optional(string2()),
+  heightStart: optional(string2()),
+  heightEnd: optional(string2()),
+  offsetStart: optional(string2()),
+  offsetEnd: optional(string2())
+});
+var inscriptionDetailsSchema = object({
+  contentType: string2(),
+  contentBase64: string2()
+});
+var runesEtchParamsSchema = object({
+  runeName: string2(),
+  divisibility: optional(number()),
+  symbol: optional(string2()),
+  premine: optional(string2()),
+  isMintable: boolean(),
+  terms: optional(etchTermsSchema),
+  inscriptionDetails: optional(inscriptionDetailsSchema),
+  delegateInscriptionId: optional(string2()),
+  destinationAddress: string2(),
+  refundAddress: string2(),
+  feeRate: number(),
+  appServiceFee: optional(number()),
+  appServiceFeeAddress: optional(string2()),
+  network: optional(enum_(BitcoinNetworkType))
+});
+var runesEtchRequestSchema = createRequestSchema({
+  paramsSchema: runesEtchParamsSchema,
+  method: runesMethods.runes_etch
+});
+var runesEtchResultSchema = object({
+  orderId: string2(),
+  fundTransactionId: string2(),
+  fundingAddress: string2()
+});
+var runesEtchSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: runesEtchResultSchema,
+  method: runesMethods.runes_etch
+});
+var runesGetBalanceParamsSchema = nullish(null_());
+var runesGetBalanceRequestSchema = createRequestSchema({
+  paramsSchema: runesGetBalanceParamsSchema,
+  method: runesMethods.runes_getBalance
+});
+var runesGetBalanceResultSchema = object({ balances: array2(object({
+  runeName: string2(),
+  amount: string2(),
+  divisibility: number(),
+  symbol: string2(),
+  inscriptionId: nullish(string2()),
+  spendableBalance: string2()
+})) });
+var runesGetBalanceSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: runesGetBalanceResultSchema,
+  method: runesMethods.runes_getBalance
+});
+var runesGetOrderParamsSchema = object({
+  id: string2(),
+  network: optional(enum_(BitcoinNetworkType))
+});
+var runesGetOrderRequestSchema = createRequestSchema({
+  paramsSchema: runesGetOrderParamsSchema,
+  method: runesMethods.runes_getOrder
+});
+var runesGetOrderResultSchema = object({
+  id: string2(),
+  orderType: union([literal("rune_mint"), literal("rune_etch")]),
+  state: union([
+    literal("new"),
+    literal("pending"),
+    literal("executing"),
+    literal("complete"),
+    literal("failed"),
+    literal("refunded"),
+    literal("stale")
+  ]),
+  fundingAddress: string2(),
+  reason: optional(string2()),
+  createdAt: string2()
+});
+var runesGetOrderSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: runesGetOrderResultSchema,
+  method: runesMethods.runes_getOrder
+});
+var runesMintParamsSchema = object({
+  appServiceFee: optional(number()),
+  appServiceFeeAddress: optional(string2()),
+  destinationAddress: string2(),
+  feeRate: number(),
+  refundAddress: string2(),
+  repeats: number(),
+  runeName: string2(),
+  network: optional(enum_(BitcoinNetworkType))
+});
+var runesMintRequestSchema = createRequestSchema({
+  paramsSchema: runesMintParamsSchema,
+  method: runesMethods.runes_mint
+});
+var runesMintResultSchema = object({
+  orderId: string2(),
+  fundTransactionId: string2(),
+  fundingAddress: string2()
+});
+var runesMintSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: runesMintResultSchema,
+  method: runesMethods.runes_mint
+});
+var runesRbfOrderParamsSchema = object({
+  orderId: string2(),
+  newFeeRate: number(),
+  network: optional(enum_(BitcoinNetworkType))
+});
+var runesRbfOrderRequestSchema = createRequestSchema({
+  paramsSchema: runesRbfOrderParamsSchema,
+  method: runesMethods.runes_rbfOrder
+});
+var runesRbfOrderResultSchema = object({
+  orderId: string2(),
+  fundRBFTransactionId: string2(),
+  fundingAddress: string2()
+});
+var runesRbfOrderSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: runesRbfOrderResultSchema,
+  method: runesMethods.runes_rbfOrder
+});
+var runesTransferParamsSchema = object({
+  recipients: array2(object({
+    runeName: string2(),
+    amount: string2(),
+    address: string2()
+  })),
+  network: optional(enum_(BitcoinNetworkType))
+});
+var runesTransferRequestSchema = createRequestSchema({
+  paramsSchema: runesTransferParamsSchema,
+  method: runesMethods.runes_transfer
+});
+var runesTransferResultSchema = object({ txid: string2() });
+var runesTransferSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: runesTransferResultSchema,
+  method: runesMethods.runes_transfer
+});
+var runesRequestSchema = variant("method", [
+  runesEstimateEtchRequestSchema,
+  runesEstimateMintRequestSchema,
+  runesEstimateRbfOrderRequestSchema,
+  runesEtchRequestSchema,
+  runesGetBalanceRequestSchema,
+  runesGetOrderRequestSchema,
+  runesMintRequestSchema,
+  runesRbfOrderRequestSchema,
+  runesTransferRequestSchema
+]);
+var runesSuccessResponseSchema = variant("~sats-connect-method", [
+  runesEstimateEtchSuccessResponseSchema,
+  runesEstimateMintSuccessResponseSchema,
+  runesEstimateRbfOrderSuccessResponseSchema,
+  runesEtchSuccessResponseSchema,
+  runesGetBalanceSuccessResponseSchema,
+  runesGetOrderSuccessResponseSchema,
+  runesMintSuccessResponseSchema,
+  runesRbfOrderSuccessResponseSchema,
+  runesTransferSuccessResponseSchema
+]);
+var sparkFlashnetClawbackFundsParamsSchema = object({
+  sparkTransferId: string2(),
+  lpIdentityPublicKey: string2()
+});
+var sparkFlashnetClawbackFundsRequestSchema = createRequestSchema({
+  paramsSchema: sparkFlashnetClawbackFundsParamsSchema,
+  method: sparkMethods.spark_flashnet_clawbackFunds
+});
+var sparkFlashnetClawbackFundsResultSchema = object({
+  requestId: string2(),
+  accepted: boolean(),
+  internalRequestId: optional(string2()),
+  sparkStatusTrackingId: optional(string2()),
+  error: optional(string2())
+});
+var sparkFlashnetClawbackFundsSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkFlashnetClawbackFundsResultSchema,
+  method: sparkMethods.spark_flashnet_clawbackFunds
+});
+var sparkFlashnetExecuteRouteSwapParamsSchema = object({
+  hops: array2(object({
+    poolId: string2(),
+    assetInAddress: string2(),
+    assetOutAddress: string2(),
+    hopIntegratorFeeRateBps: optional(number())
+  })),
+  initialAssetAddress: string2(),
+  inputAmount: string2(),
+  maxRouteSlippageBps: string2(),
+  minAmountOut: optional(string2()),
+  integratorFeeRateBps: optional(number()),
+  integratorPublicKey: optional(string2())
+});
+var sparkFlashnetExecuteRouteSwapRequestSchema = createRequestSchema({
+  paramsSchema: sparkFlashnetExecuteRouteSwapParamsSchema,
+  method: sparkMethods.spark_flashnet_executeRouteSwap
+});
+var sparkFlashnetExecuteRouteSwapResultSchema = object({
+  requestId: string2(),
+  accepted: boolean(),
+  outputAmount: string2(),
+  executionPrice: string2(),
+  finalOutboundTransferId: string2(),
+  error: optional(string2())
+});
+var sparkFlashnetExecuteRouteSwapSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkFlashnetExecuteRouteSwapResultSchema,
+  method: sparkMethods.spark_flashnet_executeRouteSwap
+});
+var sparkFlashnetExecuteSwapParamsSchema = object({
+  poolId: string2(),
+  assetInAddress: string2(),
+  assetOutAddress: string2(),
+  amountIn: string2(),
+  maxSlippageBps: number(),
+  minAmountOut: optional(string2()),
+  integratorFeeRateBps: optional(number()),
+  integratorPublicKey: optional(string2())
+});
+var sparkFlashnetExecuteSwapRequestSchema = createRequestSchema({
+  paramsSchema: sparkFlashnetExecuteSwapParamsSchema,
+  method: sparkMethods.spark_flashnet_executeSwap
+});
+var sparkFlashnetExecuteSwapResultSchema = object({
+  requestId: string2(),
+  accepted: boolean(),
+  amountOut: optional(string2()),
+  feeAmount: optional(string2()),
+  executionPrice: optional(string2()),
+  assetOutAddress: optional(string2()),
+  assetInAddress: optional(string2()),
+  outboundTransferId: optional(string2()),
+  error: optional(string2())
+});
+var sparkFlashnetExecuteSwapSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkFlashnetExecuteSwapResultSchema,
+  method: sparkMethods.spark_flashnet_executeSwap
+});
+var sparkGetClawbackEligibleTransfersParamsSchema = nullish(null_());
+var sparkGetClawbackEligibleTransfersRequestSchema = createRequestSchema({
+  paramsSchema: sparkGetClawbackEligibleTransfersParamsSchema,
+  method: sparkMethods.spark_flashnet_getClawbackEligibleTransfers
+});
+var sparkGetClawbackEligibleTransfersResultSchema = object({ eligibleTransfers: array2(object({
+  txId: string2(),
+  createdAt: string2(),
+  lpIdentityPublicKey: string2()
+})) });
+var sparkGetClawbackEligibleTransfersSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkGetClawbackEligibleTransfersResultSchema,
+  method: sparkMethods.spark_flashnet_getClawbackEligibleTransfers
+});
+var sparkFlashnetGetJwtParamsSchema = null_();
+var sparkFlashnetGetJwtRequestSchema = createRequestSchema({
+  paramsSchema: sparkFlashnetGetJwtParamsSchema,
+  method: sparkMethods.spark_flashnet_getJwt
+});
+var sparkFlashnetGetJwtResultSchema = object({ jwt: string2() });
+var sparkFlashnetGetJwtSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkFlashnetGetJwtResultSchema,
+  method: sparkMethods.spark_flashnet_getJwt
+});
+var sparkFlashnetAddLiquidityIntentSchema = object({
+  type: literal("addLiquidity"),
+  data: object({
+    userPublicKey: string2(),
+    poolId: string2(),
+    assetAAmount: string2(),
+    assetBAmount: string2(),
+    assetAMinAmountIn: string2(),
+    assetBMinAmountIn: string2(),
+    assetATransferId: string2(),
+    assetBTransferId: string2(),
+    nonce: string2()
+  })
+});
+var sparkFlashnetClawbackIntentSchema = object({
+  type: literal("clawback"),
+  data: object({
+    senderPublicKey: string2(),
+    sparkTransferId: string2(),
+    lpIdentityPublicKey: string2(),
+    nonce: string2()
+  })
+});
+var sparkFlashnetConfirmInitialDepositIntentSchema = object({
+  type: literal("confirmInitialDeposit"),
+  data: object({
+    poolId: string2(),
+    assetASparkTransferId: string2(),
+    poolOwnerPublicKey: string2(),
+    nonce: string2()
+  })
+});
+var sparkFlashnetCreateConstantProductPoolIntentSchema = object({
+  type: literal("createConstantProductPool"),
+  data: object({
+    poolOwnerPublicKey: string2(),
+    assetAAddress: string2(),
+    assetBAddress: string2(),
+    lpFeeRateBps: union([number(), string2()]),
+    totalHostFeeRateBps: union([number(), string2()]),
+    nonce: string2()
+  })
+});
+var sparkFlashnetCreateSingleSidedPoolIntentSchema = object({
+  type: literal("createSingleSidedPool"),
+  data: object({
+    assetAAddress: string2(),
+    assetBAddress: string2(),
+    assetAInitialReserve: string2(),
+    virtualReserveA: union([number(), string2()]),
+    virtualReserveB: union([number(), string2()]),
+    threshold: union([number(), string2()]),
+    lpFeeRateBps: union([number(), string2()]),
+    totalHostFeeRateBps: union([number(), string2()]),
+    poolOwnerPublicKey: string2(),
+    nonce: string2()
+  })
+});
+var sparkFlashnetRemoveLiquidityIntentSchema = object({
+  type: literal("removeLiquidity"),
+  data: object({
+    userPublicKey: string2(),
+    poolId: string2(),
+    lpTokensToRemove: string2(),
+    nonce: string2()
+  })
+});
+var sparkFlashnetRouteSwapIntentSchema = object({
+  type: literal("executeRouteSwap"),
+  data: object({
+    userPublicKey: string2(),
+    initialSparkTransferId: string2(),
+    hops: array2(object({
+      poolId: string2(),
+      inputAssetAddress: string2(),
+      outputAssetAddress: string2(),
+      hopIntegratorFeeRateBps: optional(union([number(), string2()]))
+    })),
+    inputAmount: string2(),
+    maxRouteSlippageBps: union([number(), string2()]),
+    minAmountOut: string2(),
+    defaultIntegratorFeeRateBps: optional(union([number(), string2()])),
+    nonce: string2()
+  })
+});
+var sparkFlashnetSwapIntentSchema = object({
+  type: literal("executeSwap"),
+  data: object({
+    userPublicKey: string2(),
+    poolId: string2(),
+    transferId: string2(),
+    assetInAddress: string2(),
+    assetOutAddress: string2(),
+    amountIn: string2(),
+    maxSlippageBps: union([number(), string2()]),
+    minAmountOut: string2(),
+    totalIntegratorFeeRateBps: optional(union([number(), string2()])),
+    nonce: string2()
+  })
+});
+var sparkFlashnetSignIntentParamsSchema = union([
+  sparkFlashnetSwapIntentSchema,
+  sparkFlashnetRouteSwapIntentSchema,
+  sparkFlashnetAddLiquidityIntentSchema,
+  sparkFlashnetClawbackIntentSchema,
+  sparkFlashnetConfirmInitialDepositIntentSchema,
+  sparkFlashnetCreateConstantProductPoolIntentSchema,
+  sparkFlashnetCreateSingleSidedPoolIntentSchema,
+  sparkFlashnetRemoveLiquidityIntentSchema
+]);
+var sparkFlashnetSignIntentRequestSchema = createRequestSchema({
+  paramsSchema: sparkFlashnetSignIntentParamsSchema,
+  method: sparkMethods.spark_flashnet_signIntent
+});
+var sparkFlashnetSignIntentResultSchema = object({ signature: string2() });
+var sparkFlashnetSignIntentSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkFlashnetSignIntentResultSchema,
+  method: sparkMethods.spark_flashnet_signIntent
+});
+var sparkFlashnetSignStructuredMessageParamsSchema = object({ message: string2() });
+var sparkFlashnetSignStructuredMessageRequestSchema = createRequestSchema({
+  paramsSchema: sparkFlashnetSignStructuredMessageParamsSchema,
+  method: sparkMethods.spark_flashnet_signStructuredMessage
+});
+var sparkFlashnetSignStructuredMessageResultSchema = object({
+  message: string2(),
+  signature: string2()
+});
+var sparkFlashnetSignStructuredMessageSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkFlashnetSignStructuredMessageResultSchema,
+  method: sparkMethods.spark_flashnet_signStructuredMessage
+});
+var sparkGetAddressesParamsSchema = nullish(object({ message: optional(string2()) }));
+var sparkGetAddressesRequestSchema = createRequestSchema({
+  paramsSchema: sparkGetAddressesParamsSchema,
+  method: sparkMethods.spark_getAddresses
+});
+var sparkGetAddressesResultSchema = object({
+  addresses: array2(addressSchema),
+  network: walletGetNetworkResultSchema
+});
+var sparkGetAddressesSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkGetAddressesResultSchema,
+  method: sparkMethods.spark_getAddresses
+});
+var sparkGetAddressesV2ParamsSchema = nullish(object({ message: optional(string2()) }));
+var sparkGetAddressesV2RequestSchema = createRequestSchema({
+  paramsSchema: sparkGetAddressesV2ParamsSchema,
+  method: sparkMethods.spark_getAddressesV2
+});
+var sparkGetAddressesV2ResultSchema = object({
+  addresses: array2(addressSchema),
+  network: sparkNetworkConfigurationSchema
+});
+var sparkGetAddressesV2SuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkGetAddressesV2ResultSchema,
+  method: sparkMethods.spark_getAddressesV2
+});
+var sparkGetBalanceParamsSchema = nullish(null_());
+var sparkGetBalanceRequestSchema = createRequestSchema({
+  paramsSchema: sparkGetBalanceParamsSchema,
+  method: sparkMethods.spark_getBalance
+});
+var sparkGetBalanceResultSchema = object({
+  balance: string2(),
+  tokenBalances: array2(object({
+    balance: string2(),
+    tokenMetadata: object({
+      tokenIdentifier: string2(),
+      tokenName: string2(),
+      tokenTicker: string2(),
+      decimals: number(),
+      maxSupply: string2()
+    })
+  }))
+});
+var sparkGetBalanceSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkGetBalanceResultSchema,
+  method: sparkMethods.spark_getBalance
+});
+var sparkSignMessageParamsSchema = object({ message: string2() });
+var sparkSignMessageRequestSchema = createRequestSchema({
+  paramsSchema: sparkSignMessageParamsSchema,
+  method: sparkMethods.spark_signMessage
+});
+var sparkSignMessageResultSchema = object({ signature: string2() });
+var sparkSignMessageSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkSignMessageResultSchema,
+  method: sparkMethods.spark_signMessage
+});
+var sparkTransferParamsSchema = object({
+  amountSats: union([number(), string2()]),
+  receiverSparkAddress: string2()
+});
+var sparkTransferRequestSchema = createRequestSchema({
+  paramsSchema: sparkTransferParamsSchema,
+  method: sparkMethods.spark_transfer
+});
+var sparkTransferResultSchema = object({ id: string2() });
+var sparkTransferSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkTransferResultSchema,
+  method: sparkMethods.spark_transfer
+});
+var sparkTransferTokenParamsSchema = object({
+  tokenAmount: union([number(), string2()]),
+  tokenIdentifier: string2(),
+  receiverSparkAddress: string2()
+});
+var sparkTransferTokenRequestSchema = createRequestSchema({
+  paramsSchema: sparkTransferTokenParamsSchema,
+  method: sparkMethods.spark_transferToken
+});
+var sparkTransferTokenResultSchema = object({ id: string2() });
+var sparkTransferTokenSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: sparkTransferTokenResultSchema,
+  method: sparkMethods.spark_transferToken
+});
+var sparkRequestSchema = variant("method", [
+  sparkGetAddressesRequestSchema,
+  sparkGetAddressesV2RequestSchema,
+  sparkGetBalanceRequestSchema,
+  sparkTransferRequestSchema,
+  sparkTransferTokenRequestSchema,
+  sparkSignMessageRequestSchema,
+  sparkFlashnetGetJwtRequestSchema,
+  sparkFlashnetSignIntentRequestSchema,
+  sparkFlashnetSignStructuredMessageRequestSchema,
+  sparkFlashnetExecuteSwapRequestSchema,
+  sparkFlashnetExecuteRouteSwapRequestSchema,
+  sparkFlashnetClawbackFundsRequestSchema,
+  sparkGetClawbackEligibleTransfersRequestSchema
+]);
+var sparkSuccessResponseSchema = variant("~sats-connect-method", [
+  sparkGetAddressesSuccessResponseSchema,
+  sparkGetAddressesV2SuccessResponseSchema,
+  sparkGetBalanceSuccessResponseSchema,
+  sparkTransferSuccessResponseSchema,
+  sparkTransferTokenSuccessResponseSchema,
+  sparkSignMessageSuccessResponseSchema,
+  sparkFlashnetGetJwtSuccessResponseSchema,
+  sparkFlashnetSignIntentSuccessResponseSchema,
+  sparkFlashnetSignStructuredMessageSuccessResponseSchema,
+  sparkFlashnetExecuteSwapSuccessResponseSchema,
+  sparkFlashnetExecuteRouteSwapSuccessResponseSchema,
+  sparkFlashnetClawbackFundsSuccessResponseSchema,
+  sparkGetClawbackEligibleTransfersSuccessResponseSchema
+]);
+var stacksCallContractParamsSchema = object({
+  contract: string2(),
+  functionName: string2(),
+  arguments: optional(array2(string2())),
+  functionArgs: optional(array2(string2())),
+  postConditions: optional(array2(string2())),
+  postConditionMode: optional(union([literal("allow"), literal("deny")]))
+});
+var stacksCallContractRequestSchema = createRequestSchema({
+  paramsSchema: stacksCallContractParamsSchema,
+  method: stacksMethods.stx_callContract
+});
+var stacksCallContractResultSchema = object({
+  txid: string2(),
+  transaction: string2()
+});
+var stacksCallContractSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: stacksCallContractResultSchema,
+  method: stacksMethods.stx_callContract
+});
+var stacksDeployContractParamsSchema = object({
+  name: string2(),
+  clarityCode: string2(),
+  clarityVersion: optional(number()),
+  postConditions: optional(array2(string2())),
+  postConditionMode: optional(union([literal("allow"), literal("deny")]))
+});
+var stacksDeployContractRequestSchema = createRequestSchema({
+  paramsSchema: stacksDeployContractParamsSchema,
+  method: stacksMethods.stx_deployContract
+});
+var stacksDeployContractResultSchema = object({
+  txid: string2(),
+  transaction: string2()
+});
+var stacksDeployContractSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: stacksDeployContractResultSchema,
+  method: stacksMethods.stx_deployContract
+});
+var stacksGetAccountsParamsSchema = nullish(null_());
+var stacksGetAccountsRequestSchema = createRequestSchema({
+  paramsSchema: stacksGetAccountsParamsSchema,
+  method: stacksMethods.stx_getAccounts
+});
+var stacksLegacyAccountSchema = object({
+  address: string2(),
+  publicKey: string2(),
+  gaiaHubUrl: string2(),
+  gaiaAppKey: string2(),
+  walletType: optional(picklist([
+    "software",
+    "ledger",
+    "keystone"
+  ]))
+});
+var stacksMultisigAccountSchema = strictObject({
+  address: string2(),
+  walletType: literal("multisig"),
+  multisig: stacksMultisigSchema
+});
+var stacksAccountSchema = union([stacksLegacyAccountSchema, stacksMultisigAccountSchema]);
+var stacksGetAccountsResultSchema = object({
+  addresses: array2(stacksAccountSchema),
+  network: walletGetNetworkResultSchema
+});
+var stacksGetAccountsSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: stacksGetAccountsResultSchema,
+  method: stacksMethods.stx_getAccounts
+});
+var stacksGetAddressesParamsSchema = nullish(object({ message: optional(string2()) }));
+var stacksGetAddressesRequestSchema = createRequestSchema({
+  paramsSchema: stacksGetAddressesParamsSchema,
+  method: stacksMethods.stx_getAddresses
+});
+var stacksGetAddressesResultSchema = object({
+  addresses: array2(addressSchema),
+  network: walletGetNetworkResultSchema
+});
+var stacksGetAddressesSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: stacksGetAddressesResultSchema,
+  method: stacksMethods.stx_getAddresses
+});
+var stacksSignMessageParamsSchema = object({ message: string2() });
+var stacksSignMessageRequestSchema = createRequestSchema({
+  paramsSchema: stacksSignMessageParamsSchema,
+  method: stacksMethods.stx_signMessage
+});
+var stacksSignMessageResultSchema = object({
+  signature: string2(),
+  publicKey: string2()
+});
+var stacksSignMessageSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: stacksSignMessageResultSchema,
+  method: stacksMethods.stx_signMessage
+});
+var stacksSignStructuredMessageParamsSchema = object({
+  domain: string2(),
+  message: string2(),
+  publicKey: optional(string2())
+});
+var stacksSignStructuredMessageRequestSchema = createRequestSchema({
+  paramsSchema: stacksSignStructuredMessageParamsSchema,
+  method: stacksMethods.stx_signStructuredMessage
+});
+var stacksSignStructuredMessageResultSchema = object({
+  signature: string2(),
+  publicKey: string2()
+});
+var stacksSignStructuredMessageSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: stacksSignStructuredMessageResultSchema,
+  method: stacksMethods.stx_signStructuredMessage
+});
+var stacksSignTransactionParamsSchema = object({
+  transaction: string2(),
+  pubkey: optional(string2()),
+  broadcast: optional(boolean())
+});
+var stacksSignTransactionRequestSchema = createRequestSchema({
+  paramsSchema: stacksSignTransactionParamsSchema,
+  method: stacksMethods.stx_signTransaction
+});
+var stacksSignTransactionResultSchema = object({ transaction: string2() });
+var stacksSignTransactionSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: stacksSignTransactionResultSchema,
+  method: stacksMethods.stx_signTransaction
+});
+var stacksSignTransactionsBroadcastErrorDataSchema = object({ transactions: array2(object({
+  index: number(),
+  transaction: string2(),
+  status: picklist([
+    "broadcast",
+    "failed",
+    "not_broadcast"
+  ]),
+  txid: optional(string2()),
+  error: optional(string2())
+})) });
+var stacksSignTransactionsParamsSchema = object({
+  transactions: pipe(array2(pipe(string2(), check(() => {
+    return true;
+  }, "Invalid hex-encoded Stacks transaction."))), minLength(1)),
+  broadcast: optional(boolean(), true)
+});
+var stacksSignTransactionsRequestSchema = createRequestSchema({
+  paramsSchema: stacksSignTransactionsParamsSchema,
+  method: stacksMethods.stx_signTransactions
+});
+var stacksSignTransactionsResultSchema = object({
+  transactions: array2(string2()),
+  txids: optional(array2(string2()))
+});
+var stacksSignTransactionsSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: stacksSignTransactionsResultSchema,
+  method: stacksMethods.stx_signTransactions
+});
+var stacksTransferStxParamsSchema = object({
+  amount: union([number(), string2()]),
+  recipient: string2(),
+  memo: optional(string2()),
+  version: optional(string2()),
+  postConditionMode: optional(number()),
+  postConditions: optional(array2(string2())),
+  pubkey: optional(string2())
+});
+var stacksTransferStxRequestSchema = createRequestSchema({
+  paramsSchema: stacksTransferStxParamsSchema,
+  method: stacksMethods.stx_transferStx
+});
+var stacksTransferStxResultSchema = object({
+  txid: string2(),
+  transaction: string2()
+});
+var stacksTransferStxSuccessResponseSchema = createSuccessResponseSchema({
+  resultSchema: stacksTransferStxResultSchema,
+  method: stacksMethods.stx_transferStx
+});
+var stacksRequestSchema = variant("method", [
+  stacksCallContractRequestSchema,
+  stacksDeployContractRequestSchema,
+  stacksGetAccountsRequestSchema,
+  stacksGetAddressesRequestSchema,
+  stacksSignMessageRequestSchema,
+  stacksSignStructuredMessageRequestSchema,
+  stacksSignTransactionRequestSchema,
+  stacksSignTransactionsRequestSchema,
+  stacksTransferStxRequestSchema
+]);
+var stacksSuccessResponseSchema = variant("~sats-connect-method", [
+  stacksCallContractSuccessResponseSchema,
+  stacksDeployContractSuccessResponseSchema,
+  stacksGetAccountsSuccessResponseSchema,
+  stacksGetAddressesSuccessResponseSchema,
+  stacksSignMessageSuccessResponseSchema,
+  stacksSignStructuredMessageSuccessResponseSchema,
+  stacksSignTransactionSuccessResponseSchema,
+  stacksSignTransactionsSuccessResponseSchema,
+  stacksTransferStxSuccessResponseSchema
+]);
+var rpcRequestSchema = variant("method", [
+  bitcoinRequestSchema,
+  stacksRequestSchema,
+  sparkRequestSchema,
+  runesRequestSchema,
+  ordinalsRequestSchema,
+  walletRequestSchema
+]);
+var rpcSuccessResponseSchema = variant("~sats-connect-method", [
+  bitcoinSuccessResponseSchema,
+  stacksSuccessResponseSchema,
+  sparkSuccessResponseSchema,
+  runesSuccessResponseSchema,
+  ordinalsSuccessResponseSchema,
+  walletSuccessResponseSchema
+]);
+var cache = {};
+var requestInternal = async (provider, method, params) => {
+  const response = await provider.request(method, params);
+  if (is(specErrorResponseSchema, response)) return {
+    status: "error",
+    error: response.error
+  };
+  if (is(specSuccessWithExtensionsResponseSchema, response)) return {
+    status: "success",
+    result: response.result
+  };
+  return {
+    status: "error",
+    error: {
+      code: RpcErrorCode.INTERNAL_ERROR,
+      message: "Received unknown response from provider.",
+      data: response
+    }
+  };
+};
+var request = async (method, params, providerId) => {
+  let provider = window.XverseProviders?.BitcoinProvider || window.BitcoinProvider;
+  if (providerId) provider = await getProviderById(providerId);
+  if (!provider) throw new Error("no wallet provider was found");
+  if (!method) throw new Error("A wallet method is required");
+  if (!cache.providerInfo) {
+    const infoResult = await requestInternal(provider, "getInfo", null);
+    if (infoResult.status === "success") cache.providerInfo = infoResult.result;
+  }
+  if (cache.providerInfo) {
+    if (method === "getInfo") return {
+      status: "success",
+      result: cache.providerInfo
+    };
+    const sanitized = sanitizeRequest(method, params, cache.providerInfo);
+    if (sanitized.overrideResponse) return sanitized.overrideResponse;
+    method = sanitized.method;
+    params = sanitized.params;
+  }
+  return requestInternal(provider, method, params);
+};
+var addListener = (...rawArgs) => {
+  const [listenerInfo, providerId] = (() => {
+    if (rawArgs.length === 1) return [rawArgs[0], void 0];
+    if (rawArgs.length === 2) if (typeof rawArgs[1] === "function") return [{
+      eventName: rawArgs[0],
+      cb: rawArgs[1]
+    }, void 0];
+    else return rawArgs;
+    if (rawArgs.length === 3) return [{
+      eventName: rawArgs[0],
+      cb: rawArgs[1]
+    }, rawArgs[2]];
+    throw new Error("Unexpected number of arguments. Expecting 2 (or 3 for legacy requests).", { cause: rawArgs });
+  })();
+  let provider = window.XverseProviders?.BitcoinProvider || window.BitcoinProvider;
+  if (providerId) provider = getProviderById(providerId);
+  if (!provider) throw new Error("no wallet provider was found");
+  if (!provider.addListener) {
+    console.error(`The wallet provider you are using does not support the addListener method. Please update your wallet provider.`);
+    return () => {
+    };
+  }
+  return provider.addListener(listenerInfo);
+};
+var XverseAdapter = class extends SatsConnectAdapter {
+  id = DefaultAdaptersInfo.xverse.id;
+  requestInternal = async (method, params) => {
+    return request(method, params, this.id);
+  };
+  addListener = (listenerInfo) => {
+    return addListener(listenerInfo, this.id);
+  };
+};
+var BaseAdapter = class extends SatsConnectAdapter {
+  id = "";
+  constructor(providerId) {
+    super();
+    this.id = providerId;
+  }
+  requestInternal = async (method, params) => {
+    return request(method, params, this.id);
+  };
+  addListener = (..._args) => {
+    throw new Error("Method not supported for `BaseAdapter`.");
+  };
+};
+var DefaultAdaptersInfo = {
+  fordefi: {
+    id: "FordefiProviders.UtxoProvider",
+    name: "Fordefi",
+    webUrl: "https://www.fordefi.com/",
+    chromeWebStoreUrl: "https://chromewebstore.google.com/detail/fordefi/hcmehenccjdmfbojapcbcofkgdpbnlle",
+    icon: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgY2xpcC1wYXRoPSJ1cmwoI2NsaXAwXzEzNDk0XzY2MjU0KSI+CjxwYXRoIGQ9Ik0xMC44NzY5IDE1LjYzNzhIMS41VjE4LjM5OUMxLjUgMTkuODAxMyAyLjYzNDQ3IDIwLjkzOCA0LjAzMzkyIDIwLjkzOEg4LjI0OTkyTDEwLjg3NjkgMTUuNjM3OFoiIGZpbGw9IiM3OTk0RkYiLz4KPHBhdGggZD0iTTEuNSA5Ljc3NTUxSDE5LjA1MTZMMTcuMDEzOSAxMy44NzExSDEuNVY5Ljc3NTUxWiIgZmlsbD0iIzQ4NkRGRiIvPgo8cGF0aCBkPSJNNy42NTk5NiAzSDEuNTI0NDFWOC4wMDcwNEgyMi40NjEyVjNIMTYuMzI1NlY2LjczOTQ0SDE1LjA2MDZWM0g4LjkyNTAyVjYuNzM5NDRINy42NTk5NlYzWiIgZmlsbD0iIzVDRDFGQSIvPgo8L2c+CjxkZWZzPgo8Y2xpcFBhdGggaWQ9ImNsaXAwXzEzNDk0XzY2MjU0Ij4KPHJlY3Qgd2lkdGg9IjIxIiBoZWlnaHQ9IjE4IiBmaWxsPSJ3aGl0ZSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMS41IDMpIi8+CjwvY2xpcFBhdGg+CjwvZGVmcz4KPC9zdmc+Cg=="
+  },
+  xverse: {
+    id: "XverseProviders.BitcoinProvider",
+    name: "Xverse",
+    webUrl: "https://www.xverse.app/",
+    googlePlayStoreUrl: "https://play.google.com/store/apps/details?id=com.secretkeylabs.xverse",
+    iOSAppStoreUrl: "https://apps.apple.com/app/xverse-bitcoin-web3-wallet/id1552272513",
+    chromeWebStoreUrl: "https://chromewebstore.google.com/detail/xverse-wallet/idnnbdplmphpflfnlkomgpfbpcgelopg",
+    icon: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAyIiBoZWlnaHQ9IjEwMiIgdmlld0JveD0iMCAwIDEwMiAxMDIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxnIGlkPSJJY29uX0FydCAoRWRpdCBNZSkiPgo8cmVjdCB3aWR0aD0iMTAyIiBoZWlnaHQ9IjEwMiIgZmlsbD0iIzE4MTgxOCIvPgo8ZyBpZD0iTG9nby9FbWJsZW0iIGNsaXAtcGF0aD0idXJsKCNjbGlwMF8yMF8xMjIzKSI+CjxwYXRoIGlkPSJWZWN0b3IiIGQ9Ik03NC42NTQyIDczLjg4ODNWNjUuMjMxMkM3NC42NTQyIDY0Ljg4OCA3NC41MTc3IDY0LjU2MDYgNzQuMjc0NSA2NC4zMTc0TDM3LjQzOTcgMjcuNDgyNUMzNy4xOTY1IDI3LjIzOTIgMzYuODY5MSAyNy4xMDI4IDM2LjUyNTggMjcuMTAyOEgyNy44NjlDMjcuNDQxNiAyNy4xMDI4IDI3LjA5MzggMjcuNDUwNiAyNy4wOTM4IDI3Ljg3OFYzNS45MjExQzI3LjA5MzggMzYuMjY0NCAyNy4yMzAyIDM2LjU5MTcgMjcuNDczNCAzNi44MzVMNDAuNjk1MiA1MC4wNTY3QzQwLjk5NzUgNTAuMzU5MSA0MC45OTc1IDUwLjg1MDEgNDAuNjk1MiA1MS4xNTI0TDI3LjMyMTEgNjQuNTI2NUMyNy4xNzU2IDY0LjY3MiAyNy4wOTM4IDY0Ljg2OTggMjcuMDkzOCA2NS4wNzQ0VjczLjg4ODNDMjcuMDkzOCA3NC4zMTUzIDI3LjQ0MTYgNzQuNjYzNSAyNy44NjkgNzQuNjYzNUg0Mi4zMzQyQzQyLjc2MTYgNzQuNjYzNSA0My4xMDk0IDc0LjMxNTMgNDMuMTA5NCA3My44ODgzVjY4LjY5NThDNDMuMTA5NCA2OC40OTEyIDQzLjE5MTIgNjguMjkzNSA0My4zMzY4IDY4LjE0NzlMNTAuNTExNCA2MC45NzMzQzUwLjgxMzggNjAuNjcwOSA1MS4zMDQ4IDYwLjY3MDkgNTEuNjA3MiA2MC45NzMzTDY0LjkxOTggNzQuMjg2MUM2NS4xNjMxIDc0LjUyOTMgNjUuNDkwNCA3NC42NjU4IDY1LjgzMzcgNzQuNjY1OEg3My44NzY3Qzc0LjMwNDIgNzQuNjY1OCA3NC42NTE5IDc0LjMxNzYgNzQuNjUxOSA3My44OTA2TDc0LjY1NDIgNzMuODg4M1oiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGlkPSJWZWN0b3JfMiIgZD0iTTU1LjM1OCAzOC41NjcySDYyLjYwMzFDNjMuMDMyOCAzOC41NjcyIDYzLjM4MjkgMzguOTE3MyA2My4zODI5IDM5LjM0NjlWNDYuNTkyMUM2My4zODI5IDQ3LjI4NzcgNjQuMjI0IDQ3LjYzNTUgNjQuNzE1MSA0Ny4xNDIyTDc0LjY1NDEgMzcuMTg3M0M3NC43OTk0IDM3LjA0MTggNzQuODgxNiAzNi44NDQgNzQuODgxNiAzNi42MzcxVjI3LjkxODlDNzQuODgxNiAyNy40ODkyIDc0LjUzMzQgMjcuMTM5MSA3NC4xMDE3IDI3LjEzOTFMNjUuMjUzOCAyNy4xMjc3QzY1LjA0NyAyNy4xMjc3IDY0Ljg0OTIgMjcuMjA5NiA2NC43MDE0IDI3LjM1NTFMNTQuODA1NiAzNy4yMzVDNTQuMzE0NSAzNy43MjYgNTQuNjYyMyAzOC41NjcyIDU1LjM1NTcgMzguNTY3Mkg1NS4zNThaIiBmaWxsPSIjRUU3QTMwIi8+CjwvZz4KPC9nPgo8ZGVmcz4KPGNsaXBQYXRoIGlkPSJjbGlwMF8yMF8xMjIzIj4KPHJlY3Qgd2lkdGg9IjQ3LjgxMjUiIGhlaWdodD0iNDcuODEyNSIgZmlsbD0id2hpdGUiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI3LjA5MzggMjcuMDkzOCkiLz4KPC9jbGlwUGF0aD4KPC9kZWZzPgo8L3N2Zz4K"
+  },
+  unisat: {
+    id: "unisat",
+    name: "Unisat",
+    webUrl: "https://unisat.io/",
+    icon: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDE4MCAxODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIiBmaWxsPSJibGFjayIvPgo8ZyBjbGlwLXBhdGg9InVybCgjY2xpcDBfMTAwNTBfNDE3MSkiPgo8cGF0aCBkPSJNMTEzLjY2IDI5LjI4OTdMMTQzLjk3IDU5LjMwOTdDMTQ2LjU1IDYxLjg1OTcgMTQ3LjgyIDY0LjQzOTcgMTQ3Ljc4IDY3LjAzOTdDMTQ3Ljc0IDY5LjYzOTcgMTQ2LjYzIDcyLjAwOTcgMTQ0LjQ2IDc0LjE1OTdDMTQyLjE5IDc2LjQwOTcgMTM5Ljc0IDc3LjU0OTcgMTM3LjEyIDc3LjU5OTdDMTM0LjUgNzcuNjM5NyAxMzEuOSA3Ni4zNzk3IDEyOS4zMiA3My44Mjk3TDk4LjMxOTkgNDMuMTI5N0M5NC43OTk5IDM5LjYzOTcgOTEuMzk5OSAzNy4xNjk3IDg4LjEyOTkgMzUuNzE5N0M4NC44NTk5IDM0LjI2OTcgODEuNDE5OSAzNC4wMzk3IDc3LjgxOTkgMzUuMDM5N0M3NC4yMDk5IDM2LjAyOTcgNzAuMzM5OSAzOC41Nzk3IDY2LjE4OTkgNDIuNjc5N0M2MC40Njk5IDQ4LjM0OTcgNTcuNzM5OSA1My42Njk3IDU4LjAxOTkgNTguNjM5N0M1OC4yOTk5IDYzLjYwOTcgNjEuMTM5OSA2OC43Njk3IDY2LjUyOTkgNzQuMDk5N0w5Ny43Nzk5IDEwNS4wNkMxMDAuMzkgMTA3LjY0IDEwMS42NyAxMTAuMjIgMTAxLjYzIDExMi43OEMxMDEuNTkgMTE1LjM1IDEwMC40NyAxMTcuNzIgOTguMjU5OSAxMTkuOTFDOTYuMDU5OSAxMjIuMDkgOTMuNjI5OSAxMjMuMjMgOTAuOTg5OSAxMjMuMzJDODguMzQ5OSAxMjMuNDEgODUuNzE5OSAxMjIuMTYgODMuMTE5OSAxMTkuNThMNTIuODA5OSA4OS41NTk3QzQ3Ljg3OTkgODQuNjc5NyA0NC4zMTk5IDgwLjA1OTcgNDIuMTI5OSA3NS42OTk3QzM5LjkzOTkgNzEuMzM5NyAzOS4xMTk5IDY2LjQwOTcgMzkuNjg5OSA2MC45MDk3QzQwLjE5OTkgNTYuMTk5NyA0MS43MDk5IDUxLjYzOTcgNDQuMjI5OSA0Ny4yMTk3QzQ2LjczOTkgNDIuNzk5NyA1MC4zMzk5IDM4LjI3OTcgNTUuMDA5OSAzMy42NDk3QzYwLjU2OTkgMjguMTM5NyA2NS44Nzk5IDIzLjkxOTcgNzAuOTM5OSAyMC45Nzk3Qzc1Ljk4OTkgMTguMDM5NyA4MC44Nzk5IDE2LjQwOTcgODUuNTk5OSAxNi4wNjk3QzkwLjMyOTkgMTUuNzI5NyA5NC45ODk5IDE2LjY2OTcgOTkuNTk5OSAxOC44ODk3QzEwNC4yMSAyMS4xMDk3IDEwOC44OSAyNC41Njk3IDExMy42NSAyOS4yODk3SDExMy42NloiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl8xMDA1MF80MTcxKSIvPgo8cGF0aCBkPSJNNjYuMTA5OSAxNTAuNDJMMzUuODA5OSAxMjAuNEMzMy4yMjk5IDExNy44NCAzMS45NTk5IDExNS4yNyAzMS45OTk5IDExMi42N0MzMi4wMzk5IDExMC4wNyAzMy4xNDk5IDEwNy43IDM1LjMxOTkgMTA1LjU1QzM3LjU4OTkgMTAzLjMgNDAuMDM5OSAxMDIuMTYgNDIuNjU5OSAxMDIuMTFDNDUuMjc5OSAxMDIuMDcgNDcuODc5OSAxMDMuMzIgNTAuNDU5OSAxMDUuODhMODEuNDQ5OSAxMzYuNThDODQuOTc5OSAxNDAuMDcgODguMzY5OSAxNDIuNTQgOTEuNjM5OSAxNDMuOTlDOTQuOTA5OSAxNDUuNDQgOTguMzQ5OSAxNDUuNjYgMTAxLjk2IDE0NC42N0MxMDUuNTcgMTQzLjY4IDEwOS40NCAxNDEuMTMgMTEzLjU5IDEzNy4wMkMxMTkuMzEgMTMxLjM1IDEyMi4wNCAxMjYuMDMgMTIxLjc2IDEyMS4wNkMxMjEuNDggMTE2LjA5IDExOC42NCAxMTAuOTMgMTEzLjI1IDEwNS41OUw5Ni41OTk5IDg5LjI0MDFDOTMuOTg5OSA4Ni42NjAxIDkyLjcwOTkgODQuMDgwMSA5Mi43NDk5IDgxLjUyMDFDOTIuNzg5OSA3OC45NTAxIDkzLjkwOTkgNzYuNTgwMSA5Ni4xMTk5IDc0LjM5MDFDOTguMzE5OSA3Mi4yMTAxIDEwMC43NSA3MS4wNzAxIDEwMy4zOSA3MC45ODAxQzEwNi4wMyA3MC44OTAxIDEwOC42NiA3Mi4xNDAxIDExMS4yNiA3NC43MjAxTDEyNi45NiA5MC4xMzAxQzEzMS44OSA5NS4wMTAxIDEzNS40NSA5OS42MzAxIDEzNy42NCAxMDMuOTlDMTM5LjgzIDEwOC4zNSAxNDAuNjUgMTEzLjI4IDE0MC4wOCAxMTguNzhDMTM5LjU3IDEyMy40OSAxMzguMDYgMTI4LjA1IDEzNS41NCAxMzIuNDdDMTMzLjAzIDEzNi44OSAxMjkuNDMgMTQxLjQxIDEyNC43NiAxNDYuMDRDMTE5LjIgMTUxLjU1IDExMy44OSAxNTUuNzcgMTA4LjgzIDE1OC43MUMxMDMuNzcgMTYxLjY1IDk4Ljg3OTkgMTYzLjI5IDk0LjE0OTkgMTYzLjYzQzg5LjQxOTkgMTYzLjk3IDg0Ljc1OTkgMTYzLjAzIDgwLjE0OTkgMTYwLjgxQzc1LjUzOTkgMTU4LjU5IDcwLjg1OTkgMTU1LjEzIDY2LjA5OTkgMTUwLjQxTDY2LjEwOTkgMTUwLjQyWiIgZmlsbD0idXJsKCNwYWludDFfbGluZWFyXzEwMDUwXzQxNzEpIi8+CjxwYXRoIGQ9Ik04NS4wMDk5IDcyLjk1OTJDOTEuMTU2OCA3Mi45NTkyIDk2LjEzOTkgNjcuOTc2MSA5Ni4xMzk5IDYxLjgyOTJDOTYuMTM5OSA1NS42ODIzIDkxLjE1NjggNTAuNjk5MiA4NS4wMDk5IDUwLjY5OTJDNzguODYzIDUwLjY5OTIgNzMuODc5OSA1NS42ODIzIDczLjg3OTkgNjEuODI5MkM3My44Nzk5IDY3Ljk3NjEgNzguODYzIDcyLjk1OTIgODUuMDA5OSA3Mi45NTkyWiIgZmlsbD0idXJsKCNwYWludDJfcmFkaWFsXzEwMDUwXzQxNzEpIi8+CjwvZz4KPGRlZnM+CjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwX2xpbmVhcl8xMDA1MF80MTcxIiB4MT0iMTM4Ljk4NSIgeTE9IjQ2Ljc3OTUiIHgyPSI0NS4wNTI5IiB5Mj0iODguNTIzMyIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjMjAxQzFCIi8+CjxzdG9wIG9mZnNldD0iMC4zNiIgc3RvcC1jb2xvcj0iIzc3MzkwRCIvPgo8c3RvcCBvZmZzZXQ9IjAuNjciIHN0b3AtY29sb3I9IiNFQTgxMDEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjRjRCODUyIi8+CjwvbGluZWFyR3JhZGllbnQ+CjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQxX2xpbmVhcl8xMDA1MF80MTcxIiB4MT0iNDMuMzgxMiIgeTE9IjEzNC4xNjciIHgyPSIxNTIuMjMxIiB5Mj0iMTAxLjc3MSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjMUYxRDFDIi8+CjxzdG9wIG9mZnNldD0iMC4zNyIgc3RvcC1jb2xvcj0iIzc3MzkwRCIvPgo8c3RvcCBvZmZzZXQ9IjAuNjciIHN0b3AtY29sb3I9IiNFQTgxMDEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjRjRGQjUyIi8+CjwvbGluZWFyR3JhZGllbnQ+CjxyYWRpYWxHcmFkaWVudCBpZD0icGFpbnQyX3JhZGlhbF8xMDA1MF80MTcxIiBjeD0iMCIgY3k9IjAiIHI9IjEiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDg1LjAwOTkgNjEuODM5Mikgc2NhbGUoMTEuMTMpIj4KPHN0b3Agc3RvcC1jb2xvcj0iI0Y0Qjg1MiIvPgo8c3RvcCBvZmZzZXQ9IjAuMzMiIHN0b3AtY29sb3I9IiNFQTgxMDEiLz4KPHN0b3Agb2Zmc2V0PSIwLjY0IiBzdG9wLWNvbG9yPSIjNzczOTBEIi8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzIxMUMxRCIvPgo8L3JhZGlhbEdyYWRpZW50Pgo8Y2xpcFBhdGggaWQ9ImNsaXAwXzEwMDUwXzQxNzEiPgo8cmVjdCB3aWR0aD0iMTE1Ljc3IiBoZWlnaHQ9IjE0Ny43IiBmaWxsPSJ3aGl0ZSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzIgMTYpIi8+CjwvY2xpcFBhdGg+CjwvZGVmcz4KPC9zdmc+Cg=="
+  }
+};
+var defaultAdapters = {
+  [DefaultAdaptersInfo.fordefi.id]: FordefiAdapter,
+  [DefaultAdaptersInfo.xverse.id]: XverseAdapter,
+  [DefaultAdaptersInfo.unisat.id]: UnisatAdapter
+};
+
+// wallet.js
+var SIGNET = BitcoinNetworkType.Signet;
+var UNISAT_ID = DefaultAdaptersInfo.unisat.id;
+var NO_BROADCAST = /signing without broadcasting is not supported/i;
+function listWallets(win = globalThis) {
+  const defaults2 = Object.values(DefaultAdaptersInfo).map((info) => ({
+    id: info.id,
+    name: info.name,
+    installed: Boolean(providerAt(win, info.id)),
+    source: "sats-connect"
+  }));
+  const known = new Set(defaults2.map((w) => w.id));
+  const extra = (win.btc_providers || []).filter((p) => p && p.id && !known.has(p.id)).map((p) => ({
+    id: p.id,
+    name: p.name || p.id,
+    installed: Boolean(providerAt(win, p.id)),
+    source: "btc_providers"
+  }));
+  return [...defaults2, ...extra];
+}
+function providerAt(win, id) {
+  return String(id).split(".").reduce((acc, part) => acc?.[part], win);
+}
+function adapterFor(id) {
+  const Ctor = defaultAdapters[id];
+  return Ctor ? new Ctor() : new BaseAdapter(id);
+}
+function pubkeyHex(address, publicKey) {
+  let s = String(publicKey || "").replace(/^0x/, "").toLowerCase();
+  if (!/^[0-9a-f]*$/.test(s) || s.length % 2) return "";
+  const taproot = String(address || "").toLowerCase().startsWith("tb1p");
+  if (taproot && s.length === 66 && (s.startsWith("02") || s.startsWith("03"))) s = s.slice(2);
+  return s;
+}
+function sessionFromAddresses(addresses, network, providerId) {
+  const payment = addresses.find((a) => a.purpose === AddressPurpose.Payment || a.purpose === "payment");
+  const ordinals = addresses.find((a) => a.purpose === AddressPurpose.Ordinals || a.purpose === "ordinals") || payment;
+  if (!payment) throw new Error("The wallet did not share a payment address.");
+  if (network && network !== SIGNET && network !== "Signet") {
+    throw new Error(`Wallet is on ${network}, not Signet. In the wallet, open the network menu and choose Signet, then connect again.`);
+  }
+  for (const addr of [payment.address, ordinals.address]) assertSignetAddress(addr);
+  return {
+    paymentAddress: payment.address,
+    paymentPubkey: pubkeyHex(payment.address, payment.publicKey),
+    ordinalsAddress: ordinals.address,
+    ordinalsPubkey: pubkeyHex(ordinals.address, ordinals.publicKey),
+    network: "Signet",
+    providerId
+  };
+}
+async function connectUnisat(win) {
+  const unisat = win.unisat;
+  if (!unisat?.requestAccounts) throw new Error("UniSat is not installed.");
+  let chain4;
+  try {
+    chain4 = await unisat.switchChain("BITCOIN_SIGNET");
+  } catch (err) {
+    throw new Error(`UniSat did not switch to Bitcoin Signet. Open UniSat and choose Bitcoin Signet, then connect again. ${err.message || ""}`.trim());
+  }
+  if (chain4?.enum !== "BITCOIN_SIGNET") {
+    throw new Error("UniSat is not on Bitcoin Signet. Open UniSat and choose Bitcoin Signet, then connect again.");
+  }
+  const accounts = await unisat.requestAccounts();
+  const publicKey = await unisat.getPublicKey();
+  const address = accounts?.[0];
+  return sessionFromAddresses([
+    { address, publicKey, purpose: "payment" },
+    { address, publicKey, purpose: "ordinals" }
+  ], "Signet", UNISAT_ID);
+}
+function base64ToHex(b64) {
+  const raw = atob(b64);
+  let hex4 = "";
+  for (let i = 0; i < raw.length; i++) hex4 += raw.charCodeAt(i).toString(16).padStart(2, "0");
+  return hex4;
+}
+function hexToBase64(hex4) {
+  const clean2 = String(hex4).replace(/^0x/, "").trim();
+  if (clean2.startsWith("cHNidP")) return clean2;
+  let raw = "";
+  for (let i = 0; i < clean2.length; i += 2) raw += String.fromCharCode(Number.parseInt(clean2.slice(i, i + 2), 16));
+  return btoa(raw);
+}
+async function signUnisat(win, psbtBase64, inputsToSign) {
+  if (!win.unisat?.signPsbt) throw new Error("UniSat is not installed.");
+  const signedHex = await win.unisat.signPsbt(base64ToHex(psbtBase64), {
+    autoFinalized: false,
+    toSignInputs: inputsToSign.map((input) => {
+      const row = { index: input.index };
+      if (input.address) row.address = input.address;
+      if (input.publicKey) row.publicKey = input.publicKey;
+      return row;
+    })
+  });
+  return hexToBase64(signedHex);
+}
+function createWallet(options = {}) {
+  const win = options.win || globalThis;
+  let adapter2 = null;
+  let connected = null;
+  return {
+    list: () => listWallets(win),
+    connected: () => connected,
+    async connect(providerId) {
+      if (providerId === UNISAT_ID) {
+        connected = await connectUnisat(win);
+        adapter2 = null;
+        return connected;
+      }
+      adapter2 = options.makeAdapter ? options.makeAdapter(providerId) : adapterFor(providerId);
+      const response = await adapter2.request("wallet_connect", {
+        addresses: [AddressPurpose.Payment, AddressPurpose.Ordinals],
+        network: "Signet",
+        message: "INK signet lab"
+      });
+      if (!response || response.status === "error") {
+        throw new Error(response?.error?.message || "Wallet connect failed.");
+      }
+      const result = response.result;
+      const network = result.network?.bitcoin?.name;
+      connected = sessionFromAddresses(result.addresses || [], network, providerId);
+      return connected;
+    },
+    async signPsbt(psbtBase64, inputsToSign, { broadcast: broadcast2 = false } = {}) {
+      if (broadcast2 !== false) throw new Error("This page never asks a wallet to broadcast.");
+      if (!connected) throw new Error("Connect a signet wallet first.");
+      if (connected.providerId === UNISAT_ID) return signUnisat(win, psbtBase64, inputsToSign);
+      const signInputs = {};
+      for (const input of inputsToSign) {
+        (signInputs[input.address] ||= []).push(input.index);
+      }
+      try {
+        const response = await adapter2.request("signPsbt", { psbt: psbtBase64, signInputs, broadcast: false });
+        if (!response || response.status === "error") {
+          const message = response?.error?.message || "Wallet refused to sign.";
+          if (NO_BROADCAST.test(message)) return signUnisat(win, psbtBase64, inputsToSign);
+          throw new Error(message);
+        }
+        return response.result.psbt;
+      } catch (err) {
+        if (NO_BROADCAST.test(err.message || "")) return signUnisat(win, psbtBase64, inputsToSign);
+        throw err;
+      }
+    },
+    async disconnect() {
+      try {
+        await adapter2?.request("wallet_disconnect", null);
+      } catch {
+      }
+      adapter2 = null;
+      connected = null;
+    }
+  };
 }
 
 // src/ui.js
@@ -8365,6 +21274,9 @@ var plan = null;
 var revealKey = null;
 var built = null;
 var downloaded = false;
+var mode = "key";
+var destTouched = false;
+var wallet = createWallet();
 function log(msg) {
   const el = $("#log");
   el.textContent = msg;
@@ -8389,9 +21301,9 @@ function showFunding() {
   $("#addr").textContent = funding.address;
   $("#dest").value = $("#dest").value || funding.address;
   for (const a of document.querySelectorAll("[data-faucet]")) {
-    const url = new URL(a.dataset.faucet);
-    url.searchParams.set("address", funding.address);
-    a.href = url.toString();
+    const url2 = new URL(a.dataset.faucet);
+    url2.searchParams.set("address", funding.address);
+    a.href = url2.toString();
   }
 }
 function contentFromForm() {
@@ -8422,8 +21334,8 @@ function downloadJson(name, obj) {
   URL.revokeObjectURL(a.href);
 }
 async function fetchFees() {
-  const url = signetUrl("/signet/api/v1/fees/recommended");
-  const res = await fetch(url);
+  const url2 = signetUrl("/signet/api/v1/fees/recommended");
+  const res = await fetch(url2);
   if (!res.ok) throw new Error(`Fee API ${res.status}`);
   const data = await res.json();
   const rate = Number(data.halfHourFee || data.fastestFee || data.minimumFee);
@@ -8435,7 +21347,9 @@ async function onPrepare() {
   setBusy(true);
   log("");
   try {
+    if (mode === "wallet" && !wallet.connected()) throw new Error("Connect a signet wallet first.");
     const content = await contentFromForm();
+    if (mode === "wallet" && !destTouched) $("#dest").value = wallet.connected().ordinalsAddress;
     const dest = assertSignetAddress($("#dest").value);
     const feeRate = assertFeeRate($("#fee").value);
     revealKey = createKey();
@@ -8463,32 +21377,99 @@ async function onPrepare() {
 }
 function onDownload() {
   if (!plan) return;
-  downloadJson(`ink-signet-recovery-${plan.commitAddress.slice(0, 12)}.json`, recoveryFile(plan, funding));
+  const fundingKey = mode === "wallet" ? void 0 : funding;
+  downloadJson(`ink-signet-recovery-${plan.commitAddress.slice(0, 12)}.json`, recoveryFile(plan, fundingKey));
   downloaded = true;
   $("#buildBtn").disabled = false;
   log("Recovery file downloaded. You can build the commit now.");
+}
+async function dropInscribed(utxos) {
+  const kept = [];
+  let skipped = 0;
+  for (const u of utxos) {
+    if (Number(u.vout) !== 0) {
+      kept.push(u);
+      continue;
+    }
+    try {
+      const res = await fetch(signetUrl(`/signet/api/tx/${u.txid}/hex`));
+      if (!res.ok) {
+        kept.push(u);
+        continue;
+      }
+      const text = (await res.text()).trim();
+      if (!/^[0-9a-fA-F]+$/.test(text) || text.length % 2) {
+        kept.push(u);
+        continue;
+      }
+      if (utxoCreatedByInscription(hex.decode(text), 0)) {
+        skipped += 1;
+        continue;
+      }
+    } catch {
+      kept.push(u);
+      continue;
+    }
+    kept.push(u);
+  }
+  return { kept, skipped };
+}
+function showBuilt(commit, reveal, extra) {
+  built = { commit, reveal };
+  $("#commitHex").value = commit.hex;
+  $("#revealHex").value = reveal.hex;
+  $("#feeLine").textContent = [
+    `Commit ${commit.bytes} bytes, ${commit.vbytes} vB, fee ${sats(commit.fee)}`,
+    `Reveal ${reveal.bytes} bytes, ${reveal.vbytes} vB, fee ${sats(reveal.fee)}`,
+    `Postage ${sats(plan.postage)} to ${plan.destination}`,
+    changeLine(commit.change),
+    extra || ""
+  ].filter(Boolean).join("\n");
+  $("#buildBox").hidden = false;
+}
+async function onBuildWallet() {
+  const session = wallet.connected();
+  if (!session) throw new Error("Connect a signet wallet first.");
+  assertSignetAddress(session.paymentAddress);
+  const res = await fetch(signetUrl(`/signet/api/address/${session.paymentAddress}/utxo`));
+  if (!res.ok) throw new Error(`UTXO lookup failed (${res.status}).`);
+  const utxos = await res.json();
+  const { kept, skipped } = await dropInscribed(utxos);
+  const psbt = buildCommitPsbt({
+    paymentAddress: session.paymentAddress,
+    paymentPubkey: session.paymentPubkey,
+    utxos: kept,
+    plan
+  });
+  const inputsToSign = psbt.inputs.map((input, index) => ({
+    index,
+    address: session.paymentAddress,
+    publicKey: session.paymentPubkey
+  }));
+  log("Waiting for the wallet to sign the commit. It will not broadcast.");
+  const signed = await wallet.signPsbt(psbt.psbtBase64, inputsToSign, { broadcast: false });
+  const commit = finalizeCommitPsbt(signed, plan);
+  const reveal = buildReveal({ plan, commitTxid: commit.txid, commitVout: 0, commitValue: plan.commitValue });
+  const skippedNote = skipped ? `Left ${skipped} inscribed output${skipped === 1 ? "" : "s"} unspent.` : "";
+  showBuilt(commit, reveal, skippedNote);
+  log("Wallet signed the commit. The page signed the reveal. Nothing has been broadcast yet.");
 }
 async function onBuild() {
   if (!plan || !downloaded) return;
   setBusy(true);
   log("");
   try {
-    const url = signetUrl(`/signet/api/address/${funding.address}/utxo`);
-    const res = await fetch(url);
+    if (mode === "wallet") {
+      await onBuildWallet();
+      return;
+    }
+    const url2 = signetUrl(`/signet/api/address/${funding.address}/utxo`);
+    const res = await fetch(url2);
     if (!res.ok) throw new Error(`UTXO lookup failed (${res.status}).`);
     const utxos = await res.json();
     const commit = buildCommit({ funding, utxos, plan });
     const reveal = buildReveal({ plan, commitTxid: commit.txid, commitVout: 0, commitValue: plan.commitValue });
-    built = { commit, reveal };
-    $("#commitHex").value = commit.hex;
-    $("#revealHex").value = reveal.hex;
-    $("#feeLine").textContent = [
-      `Commit ${commit.bytes} bytes, ${commit.vbytes} vB, fee ${sats(commit.fee)}`,
-      `Reveal ${reveal.bytes} bytes, ${reveal.vbytes} vB, fee ${sats(reveal.fee)}`,
-      `Postage ${sats(plan.postage)} to ${plan.destination}`,
-      changeLine(commit.change)
-    ].join("\n");
-    $("#buildBox").hidden = false;
+    showBuilt(commit, reveal);
     log("Signed locally. Nothing has been broadcast yet.");
   } catch (err) {
     log(err.message || String(err));
@@ -8497,7 +21478,7 @@ async function onBuild() {
   }
 }
 function changeLine(change) {
-  return change > 0n ? `Change ${sats(change)} back to the funding address.` : "No change output.";
+  return change > 0n ? `Change ${sats(change)} back to the address that funded the commit.` : "No change output.";
 }
 async function broadcast(raw) {
   const res = await fetch(signetUrl("/signet/api/tx"), {
@@ -8620,6 +21601,80 @@ function resetPlan() {
   $("#broadcastBox").hidden = true;
   $("#buildBtn").disabled = true;
 }
+function renderWallets() {
+  const list = $("#walletList");
+  list.replaceChildren();
+  const session = wallet.connected();
+  for (const w of wallet.list()) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.wallet = w.name;
+    btn.textContent = w.installed ? w.name : `${w.name} (not detected)`;
+    btn.disabled = !w.installed;
+    btn.setAttribute("aria-pressed", String(Boolean(session && session.providerId === w.id)));
+    btn.onclick = () => {
+      connectWallet(w.id);
+    };
+    list.appendChild(btn);
+  }
+}
+function showSession() {
+  const session = wallet.connected();
+  const status = $("#walletStatus");
+  $("#disconnect").hidden = !session;
+  if (!session) {
+    status.textContent = "No wallet connected. Install Xverse or UniSat, switch it to Signet, then choose it above.";
+    return;
+  }
+  const same = session.paymentAddress === session.ordinalsAddress;
+  status.textContent = same ? `Connected on Signet. This wallet uses one address for payment and the inscription: ${session.paymentAddress}` : `Connected on Signet. Payment (funds the commit): ${session.paymentAddress}. Ordinals (receives the inscription): ${session.ordinalsAddress}`;
+  if (!destTouched) $("#dest").value = session.ordinalsAddress;
+}
+async function connectWallet(id) {
+  setBusy(true);
+  log("");
+  try {
+    await wallet.connect(id);
+    showSession();
+    renderWallets();
+    resetPlan();
+    log("Wallet connected on Signet. The reveal is still signed by a one-time key on this page.");
+  } catch (err) {
+    showSession();
+    log(err.message || String(err));
+  } finally {
+    setBusy(false);
+  }
+}
+function setMode(next) {
+  mode = next;
+  $("#keyPanel").hidden = mode !== "key";
+  $("#walletPanel").hidden = mode !== "wallet";
+  $("#modeKey").setAttribute("aria-pressed", String(mode === "key"));
+  $("#modeWallet").setAttribute("aria-pressed", String(mode === "wallet"));
+  if (mode === "wallet") {
+    renderWallets();
+    showSession();
+    if (!destTouched && wallet.connected()) $("#dest").value = wallet.connected().ordinalsAddress;
+  } else if (!destTouched) {
+    $("#dest").value = funding.address;
+  }
+  resetPlan();
+}
+$("#modeKey").onclick = () => {
+  setMode("key");
+};
+$("#modeWallet").onclick = () => {
+  setMode("wallet");
+};
+$("#disconnect").onclick = async () => {
+  await wallet.disconnect();
+  showSession();
+  renderWallets();
+  if (!destTouched) $("#dest").value = "";
+  resetPlan();
+  log("Wallet disconnected.");
+};
 $("#newKey").onclick = () => {
   if (!confirm("Replace the throwaway signet key in this browser? Coins on the old address will not move with it.")) return;
   funding = createKey();
@@ -8644,15 +21699,41 @@ $("#broadcast").onclick = () => {
 $("#recoverFile").addEventListener("change", onRecover);
 $("#file").addEventListener("change", resetPlan);
 $("#text").addEventListener("input", resetPlan);
+$("#dest").addEventListener("input", () => {
+  destTouched = true;
+});
 $("#dest").addEventListener("change", resetPlan);
 $("#fee").addEventListener("change", resetPlan);
 funding = loadFunding();
 showFunding();
+renderWallets();
 fetchFees().catch((err) => {
   $("#fee").value = "1";
   $("#feeNote").textContent = `Could not read the fee API (${err.message}). Defaulted to 1 sat/vB.`;
 });
 /*! Bundled license information:
+
+ieee754/index.js:
+  (*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> *)
+
+buffer/index.js:
+  (*!
+   * The buffer module from node.js, for the browser.
+   *
+   * @author   Feross Aboukhadijeh <https://feross.org>
+   * @license  MIT
+   *)
+
+@noble/hashes/utils.js:
+  (*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
+
+@noble/secp256k1/lib/index.js:
+  (*! noble-secp256k1 - MIT License (c) 2019 Paul Miller (paulmillr.com) *)
+
+@scure/base/index.js:
+@scure/base/index.js:
+@scure/base/index.js:
+  (*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
 
 @noble/curves/utils.js:
 @noble/curves/abstract/modular.js:
@@ -8660,9 +21741,4 @@ fetchFees().catch((err) => {
 @noble/curves/abstract/weierstrass.js:
 @noble/curves/secp256k1.js:
   (*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
-
-@scure/base/index.js:
-@scure/base/index.js:
-@scure/base/index.js:
-  (*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
 */

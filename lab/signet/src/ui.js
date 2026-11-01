@@ -1,8 +1,11 @@
+import { hex } from '@scure/base';
 import {
-  FAUCETS, MAX_BODY, NETWORK_NAME, POSTAGE,
-  assertFeeRate, assertSignetAddress, buildCommit, buildReveal, createKey,
-  keyFromHex, planFromRecovery, preparePlan, recoveryFile, signetUrl, textBody,
+  MAX_BODY, NETWORK_NAME,
+  assertFeeRate, assertSignetAddress, buildCommit, buildCommitPsbt, buildReveal, createKey,
+  finalizeCommitPsbt, keyFromHex, planFromRecovery, preparePlan, recoveryFile, signetUrl, textBody,
+  utxoCreatedByInscription,
 } from './inscribe.js';
+import { createWallet } from '../wallet.js';
 
 const STORE = 'ink-signet-funding-v1';
 const $ = (s) => document.querySelector(s);
@@ -13,6 +16,9 @@ let plan = null;
 let revealKey = null;
 let built = null;
 let downloaded = false;
+let mode = 'key';
+let destTouched = false;
+const wallet = createWallet();
 
 function log(msg) {
   const el = $('#log');
@@ -88,7 +94,9 @@ async function onPrepare() {
   setBusy(true);
   log('');
   try {
+    if (mode === 'wallet' && !wallet.connected()) throw new Error('Connect a signet wallet first.');
     const content = await contentFromForm();
+    if (mode === 'wallet' && !destTouched) $('#dest').value = wallet.connected().ordinalsAddress;
     const dest = assertSignetAddress($('#dest').value);
     const feeRate = assertFeeRate($('#fee').value);
     revealKey = createKey();
@@ -117,10 +125,85 @@ async function onPrepare() {
 
 function onDownload() {
   if (!plan) return;
-  downloadJson(`ink-signet-recovery-${plan.commitAddress.slice(0, 12)}.json`, recoveryFile(plan, funding));
+  const fundingKey = mode === 'wallet' ? undefined : funding;
+  downloadJson(`ink-signet-recovery-${plan.commitAddress.slice(0, 12)}.json`, recoveryFile(plan, fundingKey));
   downloaded = true;
   $('#buildBtn').disabled = false;
   log('Recovery file downloaded. You can build the commit now.');
+}
+
+async function dropInscribed(utxos) {
+  const kept = [];
+  let skipped = 0;
+  for (const u of utxos) {
+    if (Number(u.vout) !== 0) {
+      kept.push(u);
+      continue;
+    }
+    try {
+      const res = await fetch(signetUrl(`/signet/api/tx/${u.txid}/hex`));
+      if (!res.ok) {
+        kept.push(u);
+        continue;
+      }
+      const text = (await res.text()).trim();
+      if (!/^[0-9a-fA-F]+$/.test(text) || text.length % 2) {
+        kept.push(u);
+        continue;
+      }
+      if (utxoCreatedByInscription(hex.decode(text), 0)) {
+        skipped += 1;
+        continue;
+      }
+    } catch {
+      kept.push(u);
+      continue;
+    }
+    kept.push(u);
+  }
+  return { kept, skipped };
+}
+
+function showBuilt(commit, reveal, extra) {
+  built = { commit, reveal };
+  $('#commitHex').value = commit.hex;
+  $('#revealHex').value = reveal.hex;
+  $('#feeLine').textContent = [
+    `Commit ${commit.bytes} bytes, ${commit.vbytes} vB, fee ${sats(commit.fee)}`,
+    `Reveal ${reveal.bytes} bytes, ${reveal.vbytes} vB, fee ${sats(reveal.fee)}`,
+    `Postage ${sats(plan.postage)} to ${plan.destination}`,
+    changeLine(commit.change),
+    extra || '',
+  ].filter(Boolean).join('\n');
+  $('#buildBox').hidden = false;
+}
+
+async function onBuildWallet() {
+  const session = wallet.connected();
+  if (!session) throw new Error('Connect a signet wallet first.');
+  assertSignetAddress(session.paymentAddress);
+  const res = await fetch(signetUrl(`/signet/api/address/${session.paymentAddress}/utxo`));
+  if (!res.ok) throw new Error(`UTXO lookup failed (${res.status}).`);
+  const utxos = await res.json();
+  const { kept, skipped } = await dropInscribed(utxos);
+  const psbt = buildCommitPsbt({
+    paymentAddress: session.paymentAddress,
+    paymentPubkey: session.paymentPubkey,
+    utxos: kept,
+    plan,
+  });
+  const inputsToSign = psbt.inputs.map((input, index) => ({
+    index,
+    address: session.paymentAddress,
+    publicKey: session.paymentPubkey,
+  }));
+  log('Waiting for the wallet to sign the commit. It will not broadcast.');
+  const signed = await wallet.signPsbt(psbt.psbtBase64, inputsToSign, { broadcast: false });
+  const commit = finalizeCommitPsbt(signed, plan);
+  const reveal = buildReveal({ plan, commitTxid: commit.txid, commitVout: 0, commitValue: plan.commitValue });
+  const skippedNote = skipped ? `Left ${skipped} inscribed output${skipped === 1 ? '' : 's'} unspent.` : '';
+  showBuilt(commit, reveal, skippedNote);
+  log('Wallet signed the commit. The page signed the reveal. Nothing has been broadcast yet.');
 }
 
 async function onBuild() {
@@ -128,22 +211,17 @@ async function onBuild() {
   setBusy(true);
   log('');
   try {
+    if (mode === 'wallet') {
+      await onBuildWallet();
+      return;
+    }
     const url = signetUrl(`/signet/api/address/${funding.address}/utxo`);
     const res = await fetch(url);
     if (!res.ok) throw new Error(`UTXO lookup failed (${res.status}).`);
     const utxos = await res.json();
     const commit = buildCommit({ funding, utxos, plan });
     const reveal = buildReveal({ plan, commitTxid: commit.txid, commitVout: 0, commitValue: plan.commitValue });
-    built = { commit, reveal };
-    $('#commitHex').value = commit.hex;
-    $('#revealHex').value = reveal.hex;
-    $('#feeLine').textContent = [
-      `Commit ${commit.bytes} bytes, ${commit.vbytes} vB, fee ${sats(commit.fee)}`,
-      `Reveal ${reveal.bytes} bytes, ${reveal.vbytes} vB, fee ${sats(reveal.fee)}`,
-      `Postage ${sats(plan.postage)} to ${plan.destination}`,
-      changeLine(commit.change),
-    ].join('\n');
-    $('#buildBox').hidden = false;
+    showBuilt(commit, reveal);
     log('Signed locally. Nothing has been broadcast yet.');
   } catch (err) {
     log(err.message || String(err));
@@ -153,7 +231,7 @@ async function onBuild() {
 }
 
 function changeLine(change) {
-  return change > 0n ? `Change ${sats(change)} back to the funding address.` : 'No change output.';
+  return change > 0n ? `Change ${sats(change)} back to the address that funded the commit.` : 'No change output.';
 }
 
 async function broadcast(raw) {
@@ -287,6 +365,81 @@ function resetPlan() {
   $('#buildBtn').disabled = true;
 }
 
+function renderWallets() {
+  const list = $('#walletList');
+  list.replaceChildren();
+  const session = wallet.connected();
+  for (const w of wallet.list()) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.wallet = w.name;
+    btn.textContent = w.installed ? w.name : `${w.name} (not detected)`;
+    btn.disabled = !w.installed;
+    btn.setAttribute('aria-pressed', String(Boolean(session && session.providerId === w.id)));
+    btn.onclick = () => { connectWallet(w.id); };
+    list.appendChild(btn);
+  }
+}
+
+function showSession() {
+  const session = wallet.connected();
+  const status = $('#walletStatus');
+  $('#disconnect').hidden = !session;
+  if (!session) {
+    status.textContent = 'No wallet connected. Install Xverse or UniSat, switch it to Signet, then choose it above.';
+    return;
+  }
+  const same = session.paymentAddress === session.ordinalsAddress;
+  status.textContent = same
+    ? `Connected on Signet. This wallet uses one address for payment and the inscription: ${session.paymentAddress}`
+    : `Connected on Signet. Payment (funds the commit): ${session.paymentAddress}. Ordinals (receives the inscription): ${session.ordinalsAddress}`;
+  if (!destTouched) $('#dest').value = session.ordinalsAddress;
+}
+
+async function connectWallet(id) {
+  setBusy(true);
+  log('');
+  try {
+    await wallet.connect(id);
+    showSession();
+    renderWallets();
+    resetPlan();
+    log('Wallet connected on Signet. The reveal is still signed by a one-time key on this page.');
+  } catch (err) {
+    showSession();
+    log(err.message || String(err));
+  } finally {
+    setBusy(false);
+  }
+}
+
+function setMode(next) {
+  mode = next;
+  $('#keyPanel').hidden = mode !== 'key';
+  $('#walletPanel').hidden = mode !== 'wallet';
+  $('#modeKey').setAttribute('aria-pressed', String(mode === 'key'));
+  $('#modeWallet').setAttribute('aria-pressed', String(mode === 'wallet'));
+  if (mode === 'wallet') {
+    renderWallets();
+    showSession();
+    if (!destTouched && wallet.connected()) $('#dest').value = wallet.connected().ordinalsAddress;
+  } else if (!destTouched) {
+    $('#dest').value = funding.address;
+  }
+  resetPlan();
+}
+
+$('#modeKey').onclick = () => { setMode('key'); };
+$('#modeWallet').onclick = () => { setMode('wallet'); };
+$('#disconnect').onclick = async () => {
+  await wallet.disconnect();
+  showSession();
+  renderWallets();
+  if (!destTouched) $('#dest').value = '';
+  resetPlan();
+  log('Wallet disconnected.');
+};
+
 $('#newKey').onclick = () => {
   if (!confirm('Replace the throwaway signet key in this browser? Coins on the old address will not move with it.')) return;
   funding = createKey();
@@ -304,11 +457,13 @@ $('#broadcast').onclick = () => { onBroadcast(); };
 $('#recoverFile').addEventListener('change', onRecover);
 $('#file').addEventListener('change', resetPlan);
 $('#text').addEventListener('input', resetPlan);
+$('#dest').addEventListener('input', () => { destTouched = true; });
 $('#dest').addEventListener('change', resetPlan);
 $('#fee').addEventListener('change', resetPlan);
 
 funding = loadFunding();
 showFunding();
+renderWallets();
 fetchFees().catch((err) => {
   $('#fee').value = '1';
   $('#feeNote').textContent = `Could not read the fee API (${err.message}). Defaulted to 1 sat/vB.`;

@@ -266,12 +266,10 @@ export function inspectReveal(reveal) {
 }
 
 export function recoveryFile(plan, funding) {
-  return {
+  const file = {
     network: NETWORK_NAME,
     keyWif: btc.WIF(NET).encode(plan.revealPriv),
     keyHex: hex.encode(plan.revealPriv),
-    fundingKeyWif: funding.wif,
-    fundingKeyHex: funding.hex,
     revealScript: hex.encode(plan.revealScript),
     commitAddress: plan.commitAddress,
     destination: plan.destination,
@@ -281,6 +279,11 @@ export function recoveryFile(plan, funding) {
     postage: Number(plan.postage),
     commitValue: Number(plan.commitValue),
   };
+  if (funding?.wif && funding?.hex) {
+    file.fundingKeyWif = funding.wif;
+    file.fundingKeyHex = funding.hex;
+  }
+  return file;
 }
 
 export function planFromRecovery(file) {
@@ -301,6 +304,152 @@ export function planFromRecovery(file) {
     throw new Error('Reveal script does not match this key and content.');
   }
   return { plan, reveal };
+}
+
+const INPUT_VBYTES = { wpkh: 68, sh: 91, tr: 57.5, pkh: 148, wsh: 100 };
+const OUT_VBYTES = { wpkh: 31, sh: 32, tr: 43, pkh: 34, wsh: 43 };
+
+export function scriptPubKey(address) {
+  const decoded = btc.Address(NET).decode(assertSignetAddress(address));
+  return { type: decoded.type, script: btc.OutScript.encode(decoded) };
+}
+
+function estimateCommitVbytes(nIn, withChange, type) {
+  const outputs = OUT_VBYTES.tr + (withChange ? (OUT_VBYTES[type] || 31) : 0);
+  return Math.ceil(10.5 + nIn * (INPUT_VBYTES[type] || 68) + outputs);
+}
+
+function pubkeyBytes(pubkeyHex) {
+  const s = String(pubkeyHex || '').replace(/^0x/, '');
+  if (!s || !/^[0-9a-fA-F]+$/.test(s) || s.length % 2) return null;
+  return hex.decode(s);
+}
+
+function unsignedCommit({ inputs, script, type, pubkey, commitAddress, commitValue, changeAddress, change }) {
+  const tx = new btc.Transaction();
+  for (const u of inputs) {
+    const input = {
+      txid: u.txid,
+      index: u.vout,
+      witnessUtxo: { script, amount: u.value },
+    };
+    if (type === 'tr') {
+      if (!pubkey || pubkey.length !== 32) throw new Error('A 32-byte taproot key is required to spend this payment address.');
+      input.tapInternalKey = pubkey;
+    } else if (type === 'sh') {
+      if (!pubkey || pubkey.length !== 33) throw new Error('A 33-byte compressed key is required to spend this nested segwit address.');
+      input.redeemScript = btc.p2wpkh(pubkey, NET).script;
+    }
+    tx.addInput(input);
+  }
+  tx.addOutputAddress(commitAddress, commitValue, NET);
+  if (change >= 546n) tx.addOutputAddress(changeAddress, change, NET);
+  return tx;
+}
+
+export function bytesToBase64(bytes) {
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+
+export function base64ToBytes(b64) {
+  const s = atob(b64);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+
+/** Unsigned commit PSBT. The wallet signs it and the page finalizes. */
+export function buildCommitPsbt({ paymentAddress, paymentPubkey, utxos, plan }) {
+  const { script, type } = scriptPubKey(paymentAddress);
+  assertSignetAddress(plan.commitAddress);
+  assertSignetAddress(paymentAddress);
+  const pubkey = pubkeyBytes(paymentPubkey);
+  const clean = (utxos || [])
+    .map((u) => ({ txid: String(u.txid), vout: Number(u.vout), value: BigInt(u.value) }))
+    .filter((u) => u.txid && Number.isInteger(u.vout) && u.value > 0n)
+    .sort((a, b) => (a.value > b.value ? -1 : 1));
+  if (!clean.length) throw new Error('No signet UTXOs on the payment address yet.');
+  const spend = { script, type, pubkey, commitAddress: plan.commitAddress, commitValue: plan.commitValue, changeAddress: paymentAddress };
+  let sum = 0n;
+  const picked = [];
+  for (const u of clean) {
+    picked.push(u);
+    sum += u.value;
+    if (sum < plan.commitValue) continue;
+    const bareV = estimateCommitVbytes(picked.length, false, type);
+    const bareFee = feeFor(bareV, plan.feeRate);
+    const bareChange = sum - plan.commitValue - bareFee;
+    if (bareChange < 0n) continue;
+    if (bareChange < 546n) {
+      const tx = unsignedCommit({ ...spend, inputs: picked, change: 0n });
+      return psbtResult(tx, plan, sum, 0n, bareFee, picked);
+    }
+    const withV = estimateCommitVbytes(picked.length, true, type);
+    const fee = feeFor(withV, plan.feeRate);
+    const change = sum - plan.commitValue - fee;
+    if (change >= 546n) {
+      const tx = unsignedCommit({ ...spend, inputs: picked, change });
+      return psbtResult(tx, plan, sum, change, fee, picked);
+    }
+    const tx = unsignedCommit({ ...spend, inputs: picked, change: 0n });
+    return psbtResult(tx, plan, sum, 0n, bareFee, picked);
+  }
+  throw new Error(`Not enough signet coins. Found ${sum} sats. The commit output needs ${plan.commitValue} sats plus the commit fee.`);
+}
+
+function psbtResult(tx, plan, inputSum, change, fee, inputs) {
+  const psbt = tx.toPSBT();
+  return {
+    psbtBase64: bytesToBase64(psbt),
+    fee,
+    change,
+    inputSum,
+    inputs,
+    commitValue: plan.commitValue,
+  };
+}
+
+export function finalizeCommitPsbt(psbtBase64, plan) {
+  const tx = btc.Transaction.fromPSBT(base64ToBytes(psbtBase64));
+  tx.finalize();
+  const raw = tx.extract();
+  const out = tx.getOutput(0);
+  if (out.amount !== plan.commitValue) throw new Error('Signed commit does not pay the expected amount to the commit address.');
+  const script = scriptPubKey(plan.commitAddress).script;
+  if (!sameBytes(out.script, script)) throw new Error('Signed commit does not pay the commit address.');
+  const fee = tx.fee;
+  if (fee < feeFor(tx.vsize, plan.feeRate)) {
+    throw new Error(`Signed commit fee is ${fee} sats, under ${plan.feeRate} sat/vB.`);
+  }
+  return {
+    tx,
+    hex: hex.encode(raw),
+    txid: tx.id,
+    vbytes: tx.vsize,
+    bytes: raw.length,
+    fee,
+    change: tx.outputs.length > 1 ? tx.getOutput(1).amount : 0n,
+    inputSum: tx.inputs.reduce((s, i) => s + i.witnessUtxo.amount, 0n),
+  };
+}
+
+/** True when the transaction that created this output reveals an inscription onto vout 0. */
+export function utxoCreatedByInscription(rawTx, vout) {
+  try {
+    const tx = btc.Transaction.fromRaw(rawTx, { allowUnknownOutputs: true });
+    if (Number(vout) !== 0) return false;
+    for (let i = 0; i < tx.inputs.length; i++) {
+      const witness = tx.getInput(i).finalScriptWitness;
+      if (!witness) continue;
+      const parsed = ordinals.parseWitness(witness);
+      if (parsed && parsed.length) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
 }
 
 export function textBody(text) {

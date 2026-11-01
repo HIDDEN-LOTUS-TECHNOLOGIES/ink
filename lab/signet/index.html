@@ -12,16 +12,32 @@
 <main class="wrap lab">
   <p class="banner">Signet test only, coins have no value.</p>
   <h1>Signet inscribe</h1>
-  <p class="lede">A proof that an inscription can be built, signed, and broadcast with no ord node. The browser talks only to the public mempool.space signet API. No wallet extension. No mainnet.</p>
+  <p class="lede">A proof that an inscription can be built, signed, and broadcast with no ord node. The browser talks only to the public mempool.space signet API. Fund it with a throwaway key or a signet wallet. No mainnet.</p>
 
-  <h2>1. Throwaway key</h2>
-  <p>This address is generated in the browser and kept in localStorage. Send signet coins to it from a faucet, then come back.</p>
-  <p class="addr" id="addr"></p>
+  <h2>1. Funding</h2>
+  <p>Use a throwaway key kept in this browser, or connect a signet wallet. The reveal is always signed by a one-time key on this page. The wallet only signs the commit, and it does not broadcast.</p>
   <p class="row">
-    <a class="btn" data-faucet="https://signetfaucet.com/" href="https://signetfaucet.com/" target="_blank" rel="noopener">Signet faucet</a>
-    <a class="btn" data-faucet="https://alt.signetfaucet.com/" href="https://alt.signetfaucet.com/" target="_blank" rel="noopener">Alt faucet</a>
-    <button type="button" id="newKey">New key</button>
+    <button type="button" id="modeKey" aria-pressed="true">Throwaway key</button>
+    <button type="button" id="modeWallet" aria-pressed="false">Connect wallet</button>
   </p>
+
+  <div id="keyPanel">
+    <p>This address is generated in the browser and kept in localStorage. Send signet coins to it from a faucet, then come back.</p>
+    <p class="addr" id="addr"></p>
+    <p class="row">
+      <a class="btn" data-faucet="https://signetfaucet.com/" href="https://signetfaucet.com/" target="_blank" rel="noopener">Signet faucet</a>
+      <a class="btn" data-faucet="https://alt.signetfaucet.com/" href="https://alt.signetfaucet.com/" target="_blank" rel="noopener">Alt faucet</a>
+      <button type="button" id="newKey">New key</button>
+    </p>
+  </div>
+
+  <div id="walletPanel" hidden>
+    <p>Pick a wallet. Xverse funds the commit from the payment address and receives the inscription on the ordinals address. UniSat uses one address for both. The wallet has to be on Signet. If it is not, the page tells you how to switch.</p>
+    <div id="walletList" class="wallet-list"></div>
+    <p id="walletStatus" class="meta"></p>
+    <p><button type="button" id="disconnect" hidden>Disconnect</button></p>
+    <p class="meta"><a href="./WALLETS.md">Which wallets this page can talk to</a></p>
+  </div>
 
   <h2>2. Content</h2>
   <label for="file">Text or image file, up to 50 KB</label>
