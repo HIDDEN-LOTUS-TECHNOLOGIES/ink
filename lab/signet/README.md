@@ -4,6 +4,8 @@ This page builds and broadcasts a Bitcoin inscription without an ord node. It is
 
 The page is not linked from the INK home page.
 
+The file picker accepts text, HTML, CSS, SVG, PNG, JPEG, GIF, WebP, JSON, PDF, audio (MP3, WAV, OGG), and video (MP4, WebM). Bodies are limited to 390 KB, the usual room in one Bitcoin transaction. Typed text is inscribed as `text/plain;charset=utf-8`. When a browser leaves the file type empty, the extension is used; an unknown extension becomes `application/octet-stream`.
+
 ## What runs where
 
 Everything except the public API calls and the wallet prompt runs in the browser. The libraries are pinned copies of [micro-ordinals](https://github.com/paulmillr/micro-ordinals) 0.4.0, [@scure/btc-signer](https://github.com/paulmillr/scure-btc-signer) 2.2.0 (Paul Miller), and [@sats-connect/core](https://www.npmjs.com/package/@sats-connect/core) 0.19.0, bundled into `app.js`. Versions are locked in `package-lock.json`.
