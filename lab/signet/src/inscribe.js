@@ -8,7 +8,7 @@ export const NETWORK_NAME = 'signet';
 export const NET = btc.TEST_NETWORK;
 export const SIGNET_API_ORIGIN = 'https://mempool.space';
 export const POSTAGE = 546n;
-export const MAX_BODY = 50 * 1024;
+export const MAX_BODY = 390 * 1024;
 export const FAUCETS = [
   'https://signetfaucet.com/',
   'https://alt.signetfaucet.com/',
@@ -76,6 +76,35 @@ function describeKey(priv) {
     script: pay.script,
     payment: pay,
   };
+}
+
+const EXT_MIME = {
+  txt: 'text/plain',
+  html: 'text/html',
+  htm: 'text/html',
+  css: 'text/css',
+  js: 'text/javascript',
+  json: 'application/json',
+  svg: 'image/svg+xml',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  pdf: 'application/pdf',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+};
+
+// Browsers often leave file.type empty. Prefer it when present, else use the extension.
+export function contentTypeForFile(filename, browserType) {
+  const offered = String(browserType || '').trim();
+  if (offered) return offered;
+  const ext = String(filename || '').split('.').pop().toLowerCase();
+  return EXT_MIME[ext] || 'application/octet-stream';
 }
 
 export function assertBody(body) {

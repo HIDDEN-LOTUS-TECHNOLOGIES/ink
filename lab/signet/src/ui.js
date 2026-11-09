@@ -1,7 +1,7 @@
 import { hex } from '@scure/base';
 import {
   MAX_BODY, NETWORK_NAME,
-  assertFeeRate, assertSignetAddress, buildCommit, buildCommitPsbt, buildReveal, createKey,
+  assertFeeRate, assertSignetAddress, buildCommit, buildCommitPsbt, buildReveal, contentTypeForFile, createKey,
   finalizeCommitPsbt, keyFromHex, planFromRecovery, preparePlan, recoveryFile, signetUrl, textBody,
   utxoCreatedByInscription,
 } from './inscribe.js';
@@ -59,7 +59,7 @@ function contentFromForm() {
       reader.onerror = () => reject(new Error('Could not read the file.'));
       reader.onload = () => resolve({
         body: new Uint8Array(reader.result),
-        contentType: file.type || 'application/octet-stream',
+        contentType: contentTypeForFile(file.name, file.type),
         label: file.name,
       });
       reader.readAsArrayBuffer(file);

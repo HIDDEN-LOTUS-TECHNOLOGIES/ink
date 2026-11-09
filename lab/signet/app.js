@@ -12998,7 +12998,7 @@ var NETWORK_NAME = "signet";
 var NET = TEST_NETWORK;
 var SIGNET_API_ORIGIN = "https://mempool.space";
 var POSTAGE = 546n;
-var MAX_BODY = 50 * 1024;
+var MAX_BODY = 390 * 1024;
 var MAINNET_ADDR = /^(bc1|[13])/i;
 var SIGNET_ADDR = /^(tb1|[mn2])/i;
 function assertSignetAddress(address) {
@@ -13054,6 +13054,32 @@ function describeKey(priv) {
     script: pay.script,
     payment: pay
   };
+}
+var EXT_MIME = {
+  txt: "text/plain",
+  html: "text/html",
+  htm: "text/html",
+  css: "text/css",
+  js: "text/javascript",
+  json: "application/json",
+  svg: "image/svg+xml",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  pdf: "application/pdf",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  mp4: "video/mp4",
+  webm: "video/webm"
+};
+function contentTypeForFile(filename, browserType) {
+  const offered = String(browserType || "").trim();
+  if (offered) return offered;
+  const ext = String(filename || "").split(".").pop().toLowerCase();
+  return EXT_MIME[ext] || "application/octet-stream";
 }
 function assertBody(body) {
   if (!(body instanceof Uint8Array)) throw new Error("Content must be bytes.");
@@ -21315,7 +21341,7 @@ function contentFromForm() {
       reader.onerror = () => reject(new Error("Could not read the file."));
       reader.onload = () => resolve({
         body: new Uint8Array(reader.result),
-        contentType: file.type || "application/octet-stream",
+        contentType: contentTypeForFile(file.name, file.type),
         label: file.name
       });
       reader.readAsArrayBuffer(file);
