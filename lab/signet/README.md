@@ -33,3 +33,5 @@ Wallet support is listed in [WALLETS.md](./WALLETS.md).
 ## Faucets
 
 The funding address is a signet `tb1q…` address. Fund it from [signetfaucet.com](https://signetfaucet.com/) or [alt.signetfaucet.com](https://alt.signetfaucet.com/). Then return to this page.
+
+Faucets are run by third parties and are sometimes down. If one fails, try the other or come back later.
