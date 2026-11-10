@@ -1,0 +1,27 @@
+body{text-transform:none}
+.plan h1{font:700 clamp(1.8rem,5vw,3rem)/1 var(--mono);margin:0 0 .4rem}
+.plan h2{color:var(--fg);margin:1.6rem 0 .4rem}
+.plan p,.plan li,.plan label,.plan td,.plan th,.plan code{text-transform:none}
+.plan label{display:block;margin:.7rem 0 .2rem;color:var(--mut);font-size:.85rem}
+.plan input,.plan button{width:100%;max-width:42rem;background:#111;color:var(--fg);border:1px solid var(--line);font:400 .9rem var(--mono);padding:.5rem .6rem}
+.plan button{width:auto;background:none;color:var(--acc);border:1px solid var(--acc);font:700 .78rem var(--mono);letter-spacing:.05em;padding:.55rem .8rem;cursor:pointer}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}
+.plan input{text-transform:none}
+.disclaimer{border:1px solid var(--acc);color:var(--fg);padding:.55rem .7rem;max-width:42rem}
+#status:empty{margin:0}
+#status.error,.plan .error{color:#ffb4a8}
+.plan .rejected{max-width:42rem}
+.plan .rejected h2,.plan .rejected li{color:#ffb4a8}
+.plan .rejected li{margin:.25rem 0;overflow-wrap:anywhere}
+.tablewrap{overflow:auto;max-width:100%}
+.plan table{width:max-content;min-width:100%;border-collapse:collapse;font-size:.85rem}
+.plan th,.plan td{border-bottom:1px solid var(--line);padding:.35rem .45rem;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+.plan th{color:var(--mut);font-size:.78rem}
+.plan td.num,.plan th.num{white-space:nowrap;text-align:right;overflow-wrap:normal}
+.plan tfoot th,.plan tfoot td{color:var(--fg);font-weight:700;border-top:1px solid var(--line)}
+.plan code{color:var(--mut);font:400 .85rem var(--mono)}
+.plan > .meta{margin-top:2rem}
+@media(max-width:480px){
+  .plan input{max-width:none}
+  .row button{width:100%}
+}
