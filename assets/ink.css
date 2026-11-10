@@ -84,7 +84,19 @@ footer{border-top:1px solid var(--line);margin-top:5rem;padding:2rem 0;color:var
 #g.orphanz.glitch-on .item:nth-child(4n){animation-duration:15s}
 #g.orphanz.glitch-on .item:hover{animation:none;filter:invert(1)}
 @media (prefers-reduced-motion:reduce){#g.orphanz.glitch-on .item{animation:none}}
-.tools ul{list-style:none;margin:0;padding:0;max-width:44rem}
-.tools li{margin:0 0 .55rem}
-.tools a{font-weight:700}
-.tools li span{color:var(--mut);font-size:.9rem}
+/* Homepage tool tiles. Tile rules stay under .tools; the hero tweak only matches a hero followed by this nav. */
+.hero:has(+ .tools){padding-bottom:1.5rem}
+.tools h2{margin-top:0}
+.tools ul{list-style:none;margin:0;padding:1rem 0 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;border-top:2px solid var(--blue);max-width:none}
+.tools li{margin:0;min-width:0;display:flex}
+.tools a{flex:1;display:flex;flex-direction:column;gap:.45rem;min-width:0;border:1px solid var(--line);padding:1rem;color:var(--txt);font-weight:400;text-decoration:none;transition:border-color .2s}
+.tools a:hover,.tools a:focus-visible{border-color:var(--acc);text-decoration:none}
+.tools .kicker{display:flex;justify-content:space-between;align-items:baseline;gap:.75rem;font:700 .75rem/1 var(--mono);letter-spacing:.16em;color:var(--mut)}
+.tools .idx{color:var(--acc)}
+.tools .name{display:block;margin-top:.35rem;color:var(--fg);font:700 1.15rem/1.25 var(--mono)}
+.tools .desc{display:block;color:var(--mut);font-size:.9rem;line-height:1.45}.tools .keep{white-space:nowrap}
+.tools .cta{display:inline-flex;align-items:center;gap:.4rem;align-self:flex-start;margin-top:auto;padding-top:.85rem;color:var(--acc);font:700 .8rem/1 var(--mono);letter-spacing:.12em;transition:transform .2s}
+.tools a:hover .cta,.tools a:focus-visible .cta{text-decoration:underline;text-underline-offset:.22em;transform:translateX(.28rem)}
+@media(max-width:960px){.tools ul{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.tools ul{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.tools a,.tools .cta{transition:none}.tools a:hover .cta,.tools a:focus-visible .cta{transform:none}}
