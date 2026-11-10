@@ -2,6 +2,8 @@
 // CollectionTrait lived in a React editor type that is not part of this port.
 // Collection item CSV (id, name, traits) is the Kit's JSON <-> CSV path.
 
+import { THUMB_KEYS } from './convert.js';
+
 export function parseCSVLine(line) {
   const result = [];
   let current = '';
@@ -103,7 +105,7 @@ function csvCell(value) {
   return s;
 }
 
-const RESERVED = new Set(['id', 'name', 'n', 'score']);
+const RESERVED = new Set(['id', 'name', 'n', 'score', ...THUMB_KEYS]);
 
 /** Collection items to a trait CSV and back. Used for the Kit round trip. */
 export function itemsToCsv(items) {
@@ -114,11 +116,16 @@ export function itemsToCsv(items) {
       if (!seen.has(k)) { seen.add(k); keys.push(k); }
     }
   }
-  const header = ['id', 'name', 'n', 'score', ...keys];
+  const thumbKeys = THUMB_KEYS.filter((key) => items.some((item) => item[key] != null && item[key] !== ''));
+  const header = ['id', 'name', 'n', 'score', ...thumbKeys, ...keys.filter((key) => !thumbKeys.includes(key))];
   const lines = [header.map(csvCell).join(',')];
   for (const item of items) {
     const row = [item.id || '', item.name || '', item.n ?? '', item.score ?? ''];
-    for (const k of keys) row.push(item.t && k in item.t ? item.t[k] : '');
+    for (const k of thumbKeys) row.push(item[k] ?? '');
+    for (const k of keys) {
+      if (thumbKeys.includes(k)) continue;
+      row.push(item.t && k in item.t ? item.t[k] : '');
+    }
     lines.push(row.map(csvCell).join(','));
   }
   return lines.join('\n');
@@ -144,16 +151,23 @@ export function csvToItems(csv) {
     if (n !== '' && n != null) item.n = Number(n);
     const score = rec.score ?? rec.Score;
     if (score !== '' && score != null) item.score = Number(score);
+    for (const key of THUMB_KEYS) {
+      const headerKey = header.find((h) => h.toLowerCase() === key);
+      if (headerKey && rec[headerKey] !== '') item[key] = rec[headerKey];
+    }
     return item;
   });
 }
 
 export function itemsToMagicEden(items) {
-  return items.map((item) => ({
-    id: item.id,
-    meta: {
+  return items.map((item) => {
+    const meta = {
       name: item.name,
       attributes: Object.entries(item.t || {}).map(([trait_type, value]) => ({ trait_type, value: String(value) })),
-    },
-  }));
+    };
+    for (const key of THUMB_KEYS) {
+      if (item[key] != null && item[key] !== '') meta[key] = String(item[key]);
+    }
+    return { id: item.id, meta };
+  });
 }

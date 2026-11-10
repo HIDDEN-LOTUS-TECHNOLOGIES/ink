@@ -6,6 +6,8 @@ body{text-transform:none}
 .kit input,.kit textarea,.kit select,.kit button{width:100%;max-width:42rem;background:#111;color:var(--fg);border:1px solid var(--line);font:400 .9rem var(--mono);padding:.5rem .6rem}
 .kit textarea{min-height:7rem}
 .kit button,.kit a.btn{width:auto;background:none;color:var(--acc);border:1px solid var(--acc);font:700 .78rem var(--mono);letter-spacing:.05em;padding:.55rem .8rem;cursor:pointer;text-decoration:none}
+.kit button:disabled{opacity:.4;cursor:not-allowed}
+.kit .note{color:var(--mut);font-size:.85rem;max-width:42rem;margin:.2rem 0 .6rem}
 .row{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}
 #summary,#cborOut,#parentOut,#roundOut{white-space:pre-wrap;background:#111;border:1px solid var(--line);padding:.7rem;overflow:auto}
 .tablewrap{overflow:auto;max-height:28rem;border:1px solid var(--line)}
@@ -28,6 +30,7 @@ th{cursor:pointer;color:var(--mut)}
 #dist details{border-bottom:1px solid var(--line);padding:.3rem 0}
 #issues .critical,#issues .error{color:#ffb4a8}
 #issues .warn{color:#e7d38a}
+#issues .info{color:var(--mut)}
 @media(max-width:480px){
   .row button,.row a.btn{width:100%}
   .tablewrap{max-height:20rem}

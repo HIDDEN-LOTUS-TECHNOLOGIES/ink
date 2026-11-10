@@ -1,7 +1,11 @@
 // Ported from packz-framework src/services/MetadataValidator.ts (8e01e71).
 // File-size policy: no hard cap unless one is passed in. Warn past 400 KB.
+// Trait hygiene warnings are reported only. Values are not rewritten.
+
+import { hasOffChainImageUrl, isGammaOnChainItem } from './convert.js';
 
 const INSCRIPTION_ID_PATTERN = /^[a-f0-9]{64}i\d+$/i;
+const OFFCHAIN_IMAGE_NOTE = 'These are off-chain image URLs, not on-chain metadata.';
 
 function attributesOf(item) {
   if (Array.isArray(item?.meta?.attributes)) return item.meta.attributes;
@@ -78,6 +82,22 @@ export class MetadataValidator {
       });
     }
 
+    if (data.some((item) => hasOffChainImageUrl(item))) {
+      warnings.push({
+        field: 'image',
+        message: OFFCHAIN_IMAGE_NOTE,
+        severity: 'info',
+      });
+    }
+    const gammaRows = data.filter((item) => isGammaOnChainItem(item)).length;
+    if (gammaRows > 0) {
+      warnings.push({
+        field: 'id',
+        message: `${gammaRows} ${gammaRows === 1 ? 'row has' : 'rows have'} no inscription id yet. id-based exports are disabled for those rows.`,
+      });
+    }
+    warnings.push(...this.traitHygiene(data));
+
     const totalTraits = data.reduce((sum, item) => sum + ((attributesOf(item) || []).length), 0);
     const stats = {
       totalItems: data.length,
@@ -95,12 +115,13 @@ export class MetadataValidator {
 
   static validateMetadataItem(item, index) {
     const errors = [];
+    const gamma = isGammaOnChainItem(item);
     if (!item || !item.id) {
-      errors.push({ field: 'id', message: 'Missing inscription ID', severity: 'critical', index });
+      if (!gamma) errors.push({ field: 'id', message: 'Missing inscription ID', severity: 'critical', index });
     } else if (!INSCRIPTION_ID_PATTERN.test(String(item.id))) {
       errors.push({ field: 'id', message: `Invalid inscription ID format: ${item.id}`, severity: 'error', index });
     }
-    const name = item?.meta?.name || item?.name;
+    const name = item?.meta?.name || item?.name || (gamma ? item.file : '');
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       errors.push({ field: 'name', message: 'Missing or invalid name', severity: 'error', index });
     }
@@ -209,14 +230,76 @@ export class MetadataValidator {
     }
   }
 
+  static traitKeysOf(item) {
+    const keys = [];
+    for (const attr of attributesOf(item) || []) {
+      if (!attr || typeof attr.trait_type !== 'string' || attr.trait_type === '') continue;
+      keys.push(attr.trait_type);
+    }
+    return keys;
+  }
+
+  static traitHygiene(data) {
+    const warnings = [];
+    const perItem = data.map((item) => this.traitKeysOf(item));
+    const universe = [];
+    const seenKey = new Set();
+    const seenFold = new Map();
+    for (const keys of perItem) {
+      for (const key of keys) {
+        if (!seenKey.has(key)) {
+          seenKey.add(key);
+          universe.push(key);
+        }
+        const fold = key.toLowerCase();
+        if (!seenFold.has(fold)) seenFold.set(fold, []);
+        const variants = seenFold.get(fold);
+        if (!variants.includes(key)) variants.push(key);
+      }
+    }
+    for (const key of universe) {
+      const missing = perItem.filter((keys) => !keys.includes(key)).length;
+      if (missing > 0) {
+        warnings.push({
+          field: 'attributes',
+          message: `Trait "${key}" is missing on ${missing} ${missing === 1 ? 'item' : 'items'}. Use "None" instead of leaving it out.`,
+        });
+      }
+    }
+    for (const variants of seenFold.values()) {
+      if (variants.length < 2) continue;
+      const label = variants.length === 2
+        ? `${variants[0]} and ${variants[1]}`
+        : `${variants.slice(0, -1).join(', ')}, and ${variants[variants.length - 1]}`;
+      warnings.push({
+        field: 'attributes',
+        message: `Trait keys differ only by case: ${label}.`,
+      });
+    }
+    perItem.forEach((keys, index) => {
+      const counts = new Map();
+      for (const key of keys) counts.set(key, (counts.get(key) || 0) + 1);
+      for (const [key, count] of counts) {
+        if (count < 2) continue;
+        warnings.push({
+          field: 'attributes',
+          index,
+          message: `Duplicate trait_type "${key}" on one item.`,
+        });
+      }
+    });
+    return warnings;
+  }
+
   static buildResult(valid, errors, warnings, stats) {
+    const flagged = warnings.filter((w) => w.severity !== 'info');
     let summary;
-    if (valid && errors.length === 0 && warnings.length === 0) summary = '✅ All validation checks passed. Metadata is ready for deployment.';
+    if (valid && errors.length === 0 && flagged.length === 0) summary = '✅ All validation checks passed. Metadata is ready for deployment.';
     else if (errors.length > 0) {
       const critical = errors.filter((e) => e.severity === 'critical').length;
       summary = `❌ Validation failed: ${errors.length} error(s)${critical > 0 ? ` (${critical} critical)` : ''}`;
-      if (warnings.length > 0) summary += `, ${warnings.length} warning(s)`;
-    } else summary = `⚠️ ${warnings.length} warning(s) found. Review before deploying.`;
+      if (flagged.length > 0) summary += `, ${flagged.length} warning(s)`;
+    } else summary = `⚠️ ${flagged.length} warning(s) found. Review before deploying.`;
     logResult(valid, errors, warnings, stats);
     return { valid, errors, warnings, summary, stats };
   }

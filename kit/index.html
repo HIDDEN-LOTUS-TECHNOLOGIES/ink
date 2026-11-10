@@ -22,7 +22,7 @@
   <p class="lede">Check a collection file, turn it between JSON and CSV, preview ink rarity, and encode Tag 5 CBOR or a Tag 3 parent. Everything stays in this browser.</p>
 
   <h2>Collection</h2>
-  <label for="file">Choose Magic Eden JSON, ink JSON, or a trait CSV</label>
+  <label for="file">Choose Magic Eden JSON, ink JSON, Gamma on-chain JSON, or a trait CSV</label>
   <input id="file" type="file" accept="application/json,text/csv,.json,.csv">
   <label for="raw">Or paste</label>
   <textarea id="raw" placeholder='[{"id":"...i0","meta":{"name":"1","attributes":[{"trait_type":"Hat","value":"cap"}]}}]'></textarea>
@@ -32,7 +32,11 @@
     <button type="button" id="toCsv">Download CSV</button>
     <button type="button" id="toJson">Download JSON</button>
     <button type="button" id="round">JSON to CSV to JSON</button>
+    <button type="button" id="toIds" disabled>Download ids.txt</button>
+    <button type="button" id="toInscriptions" disabled>UniSat inscriptions.json</button>
+    <button type="button" id="toMeta" disabled>UniSat meta.json</button>
   </p>
+  <p class="note">Slug must match the folder name. Submission happens at unisat.io/submit. This page submits nothing.</p>
   <p id="status"></p>
   <p id="roundOut"></p>
   <h2>Validation</h2>
