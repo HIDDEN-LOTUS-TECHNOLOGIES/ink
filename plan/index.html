@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Estimate the commit and reveal cost of a batch of ordinal inscriptions from files. Nothing is signed or broadcast.">
+<link rel="canonical" href="https://ink.hiddenlotus.tech/plan/">
+<meta property="og:image" content="https://ink.hiddenlotus.tech/og.png">
+<meta property="og:title" content="INK batch inscription cost">
+<meta property="og:description" content="Estimate the commit and reveal cost of a batch of ordinal inscriptions from files. Nothing is signed or broadcast.">
+<meta property="og:url" content="https://ink.hiddenlotus.tech/plan/">
+<meta name="twitter:card" content="summary_large_image">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://mempool.space; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; base-uri 'self'; form-action 'self'">
+<title>INK batch inscription cost</title>
+<link rel="stylesheet" href="/assets/ink.css">
+<link rel="stylesheet" href="plan.css">
+</head>
+<body>
+<main class="wrap plan">
+  <p class="sys"><a href="/">INK</a> / Batch cost</p>
+  <h1>Batch inscription cost</h1>
+  <p class="lede">Pick one or more files. This page builds an ord envelope for each file in the browser and estimates a mainnet commit and reveal. Each file can be up to 390 KB, the same cap as the <a href="/estimate/">inscription cost</a> page. A file over that limit is named and left out. The rest of the batch stays.</p>
+  <p class="disclaimer">Estimate only. Nothing is signed or broadcast.</p>
+
+  <label for="files">Any files, up to 390 KB each</label>
+  <input id="files" type="file" multiple>
+  <p class="row"><button type="button" id="clear">Clear files</button></p>
+  <label for="postage">Postage, sats per inscription</label>
+  <input id="postage" type="number" min="0" max="100000000" step="1" value="546" inputmode="numeric">
+  <label for="rate">Custom fee rate, sat/vB, for the whole batch</label>
+  <input id="rate" type="number" min="0.01" max="1000" step="0.1" inputmode="decimal" placeholder="Optional">
+  <p id="status" role="status"></p>
+  <div id="rejected" class="rejected"></div>
+  <div id="out"></div>
+
+  <h2>Formula</h2>
+  <p>Each file is its own inscription. The commit is one P2TR key-path input and two P2TR outputs, 154 vbytes. The reveal is one P2TR script-path input and one P2TR output. The envelope matches the inscription cost page: a 32-byte placeholder, <code>OP_CHECKSIG</code>, then <code>OP_FALSE OP_IF "ord"</code>, the content type, and the body in pushes of 520 bytes. The placeholder is only there so the script is the right length. No key is created.</p>
+  <p><code>witness bytes = 1 + 65 + compact size of the script + script + 34</code></p>
+  <p><code>reveal vbytes = ceil((378 + witness bytes) / 4)</code></p>
+  <p>Witness bytes count once toward weight. Bytes outside the witness count four times. Virtual size is <code>ceil(weight / 4)</code>.</p>
+  <p><code>file sats = ceil(commit vbytes × sat/vB) + ceil(reveal vbytes × sat/vB) + postage</code></p>
+  <p>Postage defaults to 546 sats on every inscription. Changing it changes the sats locked in each reveal output. It does not change the virtual size. The totals row adds the file sats, so a fractional sat/vB is rounded up on each commit and each reveal before the files are summed. Recommended rates are the mainnet <code>fastestFee</code>, <code>halfHourFee</code>, <code>hourFee</code>, and <code>economyFee</code> from mempool.space. The custom sat/vB applies to every file. The optional USD line uses <code>/api/v1/prices</code> on the same host. Either request can fail and the size estimate still stands.</p>
+
+  <noscript><p>This estimate runs in the browser and needs JavaScript.</p></noscript>
+  <p class="meta">Reads <code>/api/v1/fees/recommended</code> and <code>/api/v1/prices</code> on mempool.space. No wallet, no keys, no signing, no broadcast.</p>
+</main>
+<script type="module" src="./plan.js"></script>
+</body>
+</html>
