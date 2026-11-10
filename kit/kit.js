@@ -48,6 +48,14 @@ function skippedIdRows() {
   return items.filter((item) => !isValidInscriptionId(item.id)).length;
 }
 
+function leftOutStatus(file) {
+  const skipped = skippedIdRows();
+  if (!skipped) return;
+  const row = skipped === 1 ? '1 row has' : `${skipped} rows have`;
+  const those = skipped === 1 ? 'That row was' : 'Those rows were';
+  setStatus(`${row} no inscription id yet. ${those} left out of ${file}.`);
+}
+
 function rankedRows() {
   const copy = items.map((i) => ({ ...i, t: { ...(i.t || {}) } }));
   standardScores(copy);
@@ -178,16 +186,14 @@ $('#toIds').addEventListener('click', () => {
   const text = toIdList(items);
   if (!text) return setStatus('These rows have no inscription id yet. id-based exports are disabled for those rows.');
   download('ids.txt', text, 'text/plain');
-  const skipped = skippedIdRows();
-  if (skipped) setStatus(`${skipped} ${skipped === 1 ? 'row has' : 'rows have'} no inscription id yet. Those rows were left out of ids.txt.`);
+  leftOutStatus('ids.txt');
 });
 
 $('#toInscriptions').addEventListener('click', () => {
   const rows = toUnisatInscriptions(items);
   if (!rows.length) return setStatus('These rows have no inscription id yet. id-based exports are disabled for those rows.');
   download('inscriptions.json', JSON.stringify(rows), 'application/json');
-  const skipped = skippedIdRows();
-  if (skipped) setStatus(`${skipped} ${skipped === 1 ? 'row has' : 'rows have'} no inscription id yet. Those rows were left out of inscriptions.json.`);
+  leftOutStatus('inscriptions.json');
 });
 
 $('#toMeta').addEventListener('click', () => {
