@@ -84,3 +84,7 @@ footer{border-top:1px solid var(--line);margin-top:5rem;padding:2rem 0;color:var
 #g.orphanz.glitch-on .item:nth-child(4n){animation-duration:15s}
 #g.orphanz.glitch-on .item:hover{animation:none;filter:invert(1)}
 @media (prefers-reduced-motion:reduce){#g.orphanz.glitch-on .item{animation:none}}
+.tools ul{list-style:none;margin:0;padding:0;max-width:44rem}
+.tools li{margin:0 0 .55rem}
+.tools a{font-weight:700}
+.tools li span{color:var(--mut);font-size:.9rem}
