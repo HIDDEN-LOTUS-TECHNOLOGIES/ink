@@ -64,6 +64,10 @@ function fileCountLabel(count) {
   return count === 1 ? '1 file' : `${formatNum(count)} files`;
 }
 
+function syncClear() {
+  $('#clear').disabled = !($('#files').files && $('#files').files.length);
+}
+
 function renderRejected(rejected) {
   const box = $('#rejected');
   box.replaceChildren();
@@ -185,6 +189,7 @@ function render() {
 async function onFiles() {
   const gen = ++generation;
   const list = $('#files').files ? [...$('#files').files] : [];
+  syncClear();
   if (!list.length) {
     chosen = [];
     render();
@@ -222,6 +227,7 @@ function clearFiles() {
   generation += 1;
   $('#files').value = '';
   chosen = [];
+  syncClear();
   render();
 }
 
@@ -244,4 +250,5 @@ $('#clear').addEventListener('click', clearFiles);
 $('#postage').addEventListener('input', () => { render(); });
 $('#rate').addEventListener('input', () => { render(); });
 $('#postage').value = String(POSTAGE_DEFAULT);
+syncClear();
 boot();

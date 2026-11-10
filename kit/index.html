@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
 <meta name="description" content="Check a collection file, turn it between JSON and CSV, preview ink rarity, and encode Tag 5 CBOR or a Tag 3 parent. Everything stays in this browser.">
 <link rel="canonical" href="https://ink.hiddenlotus.tech/kit/">
 <meta property="og:image" content="https://ink.hiddenlotus.tech/og.png">
@@ -12,14 +16,17 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'">
 <title>INK Metadata Kit</title>
-<link rel="stylesheet" href="/assets/ink.css">
-<link rel="stylesheet" href="kit.css">
+<link rel="stylesheet" href="/assets/ink.css?v=polish1">
+<link rel="stylesheet" href="kit.css?v=polish1">
 </head>
 <body>
+<header class="wrap"><a class="mark" href="/"><img src="/assets/img/droplet-logo.svg" alt="" width="34" height="34"><span><b>INK</b> <em>by HLT</em></span></a><span class="sys">STATUS // ONLINE</span></header>
 <main class="wrap kit">
-  <p class="sys"><a href="/">INK</a> / Metadata Kit</p>
-  <h1>Metadata Kit</h1>
+  <section class="hero">
+  <p class="crumb"><a href="/">Home</a> / Metadata Kit</p>
+  <h1 class="page-title">Metadata Kit</h1>
   <p class="lede">Check a collection file, turn it between JSON and CSV, preview ink rarity, and encode Tag 5 CBOR or a Tag 3 parent. Everything stays in this browser.</p>
+  </section>
 
   <h2>Collection</h2>
   <label for="file">Choose Magic Eden JSON, ink JSON, Gamma on-chain JSON, or a trait CSV</label>
@@ -73,6 +80,7 @@
 
   <p class="meta">Ported from HLT's packz-framework.</p>
 </main>
+<footer class="wrap"><span>INK BY <a href="https://hiddenlotus.tech">HIDDEN LOTUS TECHNOLOGIES</a> · <a href="https://x.com/hiddenl0tus">@hiddenl0tus</a></span><span>Art renders live from <a href="https://ordinals.com">ordinals.com</a>. Collections belong to their creators.</span></footer>
 <script type="module" src="./kit.js"></script>
 </body>
 </html>

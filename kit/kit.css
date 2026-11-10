@@ -1,16 +1,22 @@
 body{text-transform:none}
-.kit h1{font:700 clamp(1.8rem,5vw,3rem)/1 var(--mono);margin:0 0 .4rem}
-.kit h2{color:var(--fg);margin:1.6rem 0 .4rem}
+.kit h2{margin:1.6rem 0 .4rem}
 .kit p,.kit li,.kit label,.kit td,.kit th{text-transform:none}
 .kit label{display:block;margin:.7rem 0 .2rem;color:var(--mut);font-size:.85rem}
 .kit input,.kit textarea,.kit select,.kit button{width:100%;max-width:42rem;background:#111;color:var(--fg);border:1px solid var(--line);font:400 .9rem var(--mono);padding:.5rem .6rem}
+.kit input,.kit textarea,.kit select{text-transform:none}
 .kit textarea{min-height:7rem}
 .kit button,.kit a.btn{width:auto;background:none;color:var(--acc);border:1px solid var(--acc);font:700 .78rem var(--mono);letter-spacing:.05em;padding:.55rem .8rem;cursor:pointer;text-decoration:none}
+.kit button:hover:not(:disabled){background:var(--acc);color:#000}
 .kit button:disabled{opacity:.4;cursor:not-allowed}
-.kit .note{color:var(--mut);font-size:.85rem;max-width:42rem;margin:.2rem 0 .6rem}
+.kit .note{color:var(--mut);font-size:.85rem;max-width:42rem;margin:.2rem 0 .6rem;text-transform:none}
 .row{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}
-#summary,#cborOut,#parentOut,#roundOut{white-space:pre-wrap;background:#111;border:1px solid var(--line);padding:.7rem;overflow:auto}
+#cborOut,#parentOut,#roundOut{white-space:pre-wrap;background:#111;border:1px solid var(--line);padding:.7rem;overflow:auto}
+#roundOut:empty,#cborOut:empty,#parentOut:empty,#status:empty,#tiers:empty,#dist:empty,#issues:empty{display:none}
+#summary{color:var(--mut);white-space:pre-wrap;text-transform:none}
 .tablewrap{overflow:auto;max-height:28rem;border:1px solid var(--line)}
+.tablewrap:not(:has(#table tr)){display:none}
+.kit h2:has(+ #tiers:empty){display:none}
+#cborPick:empty,label[for="cborPick"]:has(+ #cborPick:empty){display:none}
 table{width:100%;border-collapse:collapse;font-size:.82rem}
 th,td{border-bottom:1px solid var(--line);padding:.35rem .4rem;text-align:left;vertical-align:top}
 th{cursor:pointer;color:var(--mut)}
