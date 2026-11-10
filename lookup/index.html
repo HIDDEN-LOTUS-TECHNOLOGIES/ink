@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
 <meta name="description" content="Look up an ordinal by inscription id: number, content type, metadata traits, children, and a content preview.">
 <link rel="canonical" href="https://ink.hiddenlotus.tech/lookup/">
 <meta property="og:image" content="https://ink.hiddenlotus.tech/og.png">
@@ -10,16 +14,19 @@
 <meta property="og:description" content="Look up an ordinal by inscription id: number, content type, metadata traits, children, and a content preview.">
 <meta property="og:url" content="https://ink.hiddenlotus.tech/lookup/">
 <meta name="twitter:card" content="summary_large_image">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://ordinals.com https://mempool.space; img-src https://ordinals.com; media-src https://ordinals.com; frame-src https://ordinals.com; style-src 'self'; script-src 'self'; font-src 'self'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://ordinals.com https://mempool.space; img-src 'self' https://ordinals.com; media-src https://ordinals.com; frame-src https://ordinals.com; style-src 'self'; script-src 'self'; font-src 'self'; base-uri 'self'; form-action 'self'">
 <title>INK inscription lookup</title>
-<link rel="stylesheet" href="/assets/ink.css">
-<link rel="stylesheet" href="lookup.css">
+<link rel="stylesheet" href="/assets/ink.css?v=polish1">
+<link rel="stylesheet" href="lookup.css?v=polish1">
 </head>
 <body>
+<header class="wrap"><a class="mark" href="/"><img src="/assets/img/droplet-logo.svg" alt="" width="34" height="34"><span><b>INK</b> <em>by HLT</em></span></a><span class="sys">STATUS // ONLINE</span></header>
 <main class="wrap lookup">
-  <p class="sys"><a href="/">INK</a> / Inscription lookup</p>
-  <h1>Inscription lookup</h1>
-  <p class="lede">Paste an inscription id. The page reads its number, content type, metadata traits, parents, children, and content from ordinals.com, then asks mempool.space about the reveal transaction. Nothing is written to Bitcoin.</p>
+  <section class="hero">
+    <p class="crumb"><a href="/">Home</a> / Inscription lookup</p>
+    <h1 class="page-title">Inscription lookup</h1>
+    <p class="lede">Paste an inscription id. The page reads its number, content type, metadata traits, parents, children, and content from ordinals.com, then asks mempool.space about the reveal transaction. Nothing is written to Bitcoin.</p>
+  </section>
 
   <form id="form">
     <label for="inscriptionId">Inscription id</label>
@@ -32,8 +39,9 @@
   <p id="status" role="status"></p>
   <div id="out"></div>
   <noscript><p>This lookup runs in the browser and needs JavaScript.</p></noscript>
-  <p class="meta">Reads <code>/r/inscription</code>, <code>/r/metadata</code>, <code>/r/children</code>, <code>/r/parents</code>, and <code>/content</code> on ordinals.com. Metadata hex is CBOR, decoded here. mempool.space fees and the reveal transaction are skipped if that request fails.</p>
+  <p class="help">Reads <code>/r/inscription</code>, <code>/r/metadata</code>, <code>/r/children</code>, <code>/r/parents</code>, and <code>/content</code> on ordinals.com. Metadata hex is CBOR, decoded here. mempool.space fees and the reveal transaction are skipped if that request fails.</p>
 </main>
+<footer class="wrap"><span>INK BY <a href="https://hiddenlotus.tech">HIDDEN LOTUS TECHNOLOGIES</a> · <a href="https://x.com/hiddenl0tus">@hiddenl0tus</a></span><span>Art renders live from <a href="https://ordinals.com">ordinals.com</a>. Collections belong to their creators.</span></footer>
 <script type="module" src="./lookup.js"></script>
 </body>
 </html>

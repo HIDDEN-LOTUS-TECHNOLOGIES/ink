@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
 <meta name="description" content="Estimate the commit and reveal cost of an ordinal inscription from a file or some text. Nothing is signed or broadcast.">
 <link rel="canonical" href="https://ink.hiddenlotus.tech/estimate/">
 <meta property="og:image" content="https://ink.hiddenlotus.tech/og.png">
@@ -12,19 +16,22 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://mempool.space; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; base-uri 'self'; form-action 'self'">
 <title>INK inscription cost</title>
-<link rel="stylesheet" href="/assets/ink.css">
-<link rel="stylesheet" href="estimate.css">
+<link rel="stylesheet" href="/assets/ink.css?v=polish1">
+<link rel="stylesheet" href="estimate.css?v=polish1">
 </head>
 <body>
+<header class="wrap"><a class="mark" href="/"><img src="/assets/img/droplet-logo.svg" alt="" width="34" height="34"><span><b>INK</b> <em>by HLT</em></span></a><span class="sys">STATUS // ONLINE</span></header>
 <main class="wrap estimate">
-  <p class="sys"><a href="/">INK</a> / Inscription cost</p>
-  <h1>Inscription cost</h1>
-  <p class="lede">Pick a file or type text. This page builds the ord envelope in the browser and estimates the mainnet commit and reveal. A chosen file is used instead of the text box. The limit is 390 KB, the same as the signet lab.</p>
+  <section class="hero">
+    <p class="crumb"><a href="/">Home</a> / Inscription cost</p>
+    <h1 class="page-title">Inscription cost</h1>
+    <p class="lede">Pick a file or type text. This page builds the ord envelope in the browser and estimates the mainnet commit and reveal. A chosen file is used instead of the text box. The limit is 390 KB, the same as the signet lab.</p>
+  </section>
   <p class="disclaimer">Estimate only. Nothing is signed or broadcast.</p>
 
   <label for="file">Any file, up to 390 KB</label>
   <input id="file" type="file">
-  <p class="row"><button type="button" id="clear">Clear file</button></p>
+  <p class="row"><button type="button" id="clear" disabled>Clear file</button></p>
   <label for="text">Or type text</label>
   <textarea id="text" spellcheck="false" placeholder="Hello from mainnet"></textarea>
   <label for="postage">Postage, sats</label>
@@ -34,7 +41,8 @@
   <p id="status" role="status"></p>
   <div id="out"></div>
 
-  <h2>Formula</h2>
+  <details class="formula">
+  <summary>Formula</summary>
   <p>The commit estimate is one P2TR key-path input and two P2TR outputs, the commit output and a change output.</p>
   <p><code>commit vbytes = ceil(10.5 + 57.5 + 43 + 43) = 154</code></p>
   <p>10.5 is the version, the locktime, the input and output counts, and the segwit marker and flag (2 witness bytes / 4). 57.5 is one P2TR key-path input: 41 non-witness bytes plus a 66-byte witness. 43 is one P2TR output, counted twice.</p>
@@ -49,10 +57,12 @@
   <p><code>reveal fee = ceil(reveal vbytes × sat/vB)</code></p>
   <p><code>total sats = commit fee + reveal fee + postage</code></p>
   <p>Recommended rates are the mainnet <code>fastestFee</code>, <code>halfHourFee</code>, <code>hourFee</code>, and <code>economyFee</code> from mempool.space. The optional USD line uses <code>/api/v1/prices</code> on the same host. Either request can fail and the size estimate still stands.</p>
+  </details>
 
   <noscript><p>This estimate runs in the browser and needs JavaScript.</p></noscript>
-  <p class="meta">Reads <code>/api/v1/fees/recommended</code> and <code>/api/v1/prices</code> on mempool.space. No wallet, no keys, no signing, no broadcast.</p>
+  <p class="help">Reads <code>/api/v1/fees/recommended</code> and <code>/api/v1/prices</code> on mempool.space. No wallet, no keys, no signing, no broadcast.</p>
 </main>
+<footer class="wrap"><span>INK BY <a href="https://hiddenlotus.tech">HIDDEN LOTUS TECHNOLOGIES</a> · <a href="https://x.com/hiddenl0tus">@hiddenl0tus</a></span><span>Art renders live from <a href="https://ordinals.com">ordinals.com</a>. Collections belong to their creators.</span></footer>
 <script type="module" src="./estimate.js"></script>
 </body>
 </html>

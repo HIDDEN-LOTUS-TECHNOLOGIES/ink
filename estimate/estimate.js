@@ -43,6 +43,11 @@ function clearOut() {
   $('#out').replaceChildren();
 }
 
+function syncClear() {
+  const chosen = $('#file').files && $('#file').files.length;
+  $('#clear').disabled = !chosen;
+}
+
 function addSection(parent, title) {
   parent.append(h('h2', null, title));
 }
@@ -180,6 +185,7 @@ function render() {
 async function onFile() {
   const file = $('#file').files && $('#file').files[0];
   fileChoice = null;
+  syncClear();
   if (!file) {
     render();
     return;
@@ -187,6 +193,7 @@ async function onFile() {
   if (file.size > MAX_BODY) {
     clearOut();
     $('#file').value = '';
+    syncClear();
     setStatus(`File is ${file.size} bytes. The limit is ${MAX_BODY} bytes.`, true);
     return;
   }
@@ -219,10 +226,12 @@ $('#file').addEventListener('change', () => { onFile(); });
 $('#clear').addEventListener('click', () => {
   $('#file').value = '';
   fileChoice = null;
+  syncClear();
   render();
 });
 $('#text').addEventListener('input', () => { render(); });
 $('#postage').addEventListener('input', () => { render(); });
 $('#rate').addEventListener('input', () => { render(); });
 $('#postage').value = String(POSTAGE_DEFAULT);
+syncClear();
 boot();
