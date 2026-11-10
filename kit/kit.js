@@ -2,7 +2,7 @@ import { rankByScore, standardScores, tierCounts, tierFor } from '../assets/rari
 import { CBORGenerator, estimateAddedVbytes, toHex } from './cbor.js';
 import { csvToItems, itemsToCsv, parseMetadataCSV } from './metadataCsv.js';
 import { MetadataValidator } from './metadataValidator.js';
-import { isInkItem, normalizeCollection, sameItems, toMagicEden } from './convert.js';
+import { isGammaOnChain, isInkItem, itemLabel, normalizeCollection, sameItems, toIdList, toMagicEden, toUnisatInscriptions, toUnisatMeta } from './convert.js';
 import { decodeParentTag3Hex, isValidInscriptionId, parentTag3Hex, parseInscriptionId } from './parentInscription.js';
 
 const $ = (s) => document.querySelector(s);
@@ -28,6 +28,26 @@ function setStatus(msg) {
   $('#status').textContent = msg;
 }
 
+function shownName(item) {
+  const label = itemLabel(item);
+  if (item?.file && item.name && label !== item.name) return `${label} · ${item.name}`;
+  return label;
+}
+
+function syncExports() {
+  const ready = items.some((item) => isValidInscriptionId(item.id));
+  const reason = items.length && !ready ? 'These rows have no inscription id yet.' : '';
+  $('#toIds').disabled = !ready;
+  $('#toInscriptions').disabled = !ready;
+  $('#toIds').title = reason;
+  $('#toInscriptions').title = reason;
+  $('#toMeta').disabled = items.length === 0;
+}
+
+function skippedIdRows() {
+  return items.filter((item) => !isValidInscriptionId(item.id)).length;
+}
+
 function rankedRows() {
   const copy = items.map((i) => ({ ...i, t: { ...(i.t || {}) } }));
   standardScores(copy);
@@ -48,8 +68,13 @@ function renderValidation(text, data) {
     if (stats.traitKeys.length) lines.push(`Keys: ${stats.traitKeys.join(', ')}`);
   }
   $('#summary').textContent = lines.join('\n');
-  const rows = [...result.errors, ...result.warnings].slice(0, 80);
-  $('#issues').innerHTML = rows.map((row) => `<li class="${row.severity || 'warn'}">${esc(row.field)}${row.index != null ? ` #${row.index}` : ''}: ${esc(row.message)}</li>`).join('') || '<li>No item issues.</li>';
+  const notes = result.warnings.filter((row) => row.severity === 'info');
+  const warns = result.warnings.filter((row) => row.severity !== 'info');
+  const rows = [...notes, ...warns, ...result.errors].slice(0, 80);
+  $('#issues').innerHTML = rows.map((row) => {
+    if (row.severity === 'info') return `<li class="info">${esc(row.message)}</li>`;
+    return `<li class="${row.severity || 'warn'}">${esc(row.field)}${row.index != null ? ` #${row.index}` : ''}: ${esc(row.message)}</li>`;
+  }).join('') || '<li>No item issues.</li>';
   if (Array.isArray(data)) renderRarity();
 }
 
@@ -63,7 +88,7 @@ function renderRarity() {
   });
   const counts = tierCounts(rows.map((r) => r.rank), rows.length || 1);
   $('#tiers').innerHTML = Object.entries(counts).map(([name, n]) => `<span class="${name}"><i></i>${esc(name)} ${n}</span>`).join('');
-  $('#table').innerHTML = rows.slice(0, 200).map((r) => `<tr data-n="${r.n}"><td>${r.rank}</td><td>${r.score ?? ''}</td><td><span class="chip" data-tier="${esc(r.tier)}">${esc(r.tierLabel)}</span></td><td>${esc(r.n)}</td><td>${esc(r.name)}</td><td>${esc(Object.entries(r.t).map(([k, v]) => `${k}: ${v}`).join(' · '))}</td></tr>`).join('');
+  $('#table').innerHTML = rows.slice(0, 200).map((r) => `<tr data-n="${r.n}"><td>${r.rank}</td><td>${r.score ?? ''}</td><td><span class="chip" data-tier="${esc(r.tier)}">${esc(r.tierLabel)}</span></td><td>${esc(r.n)}</td><td>${esc(shownName(r))}</td><td>${esc(Object.entries(r.t).map(([k, v]) => `${k}: ${v}`).join(' · '))}</td></tr>`).join('');
   const dist = {};
   for (const row of rows) {
     for (const [k, v] of Object.entries(row.t || {})) {
@@ -75,32 +100,41 @@ function renderRarity() {
     const values = Object.entries(dist[k]).sort((a, b) => a[1] - b[1] || String(a[0]).localeCompare(String(b[0])));
     return `<details><summary>${esc(k)}</summary><ul>${values.slice(0, 12).map(([v, n]) => `<li>${esc(v)} <span>${n}</span></li>`).join('')}</ul></details>`;
   }).join('');
-  $('#cborPick').innerHTML = rows.slice(0, 300).map((r) => `<option value="${r.n}">#${r.n} ${esc(r.name)}</option>`).join('');
+  $('#cborPick').innerHTML = rows.slice(0, 300).map((r) => `<option value="${r.n}">#${r.n} ${esc(shownName(r))}</option>`).join('');
 }
 
 function loadText(text) {
   rawText = text;
   const trimmed = text.trim();
-  if (!trimmed) { setStatus('Empty file.'); return; }
-  if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-    const data = JSON.parse(trimmed);
-    items = normalizeCollection(data);
-    renderValidation(trimmed, data);
-    setStatus(`Loaded ${items.length} items from JSON.`);
-    return;
+  try {
+    if (!trimmed) {
+      items = [];
+      setStatus('Empty file.');
+      return;
+    }
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      const data = JSON.parse(trimmed);
+      items = normalizeCollection(data);
+      renderValidation(trimmed, data);
+      if (isGammaOnChain(data)) setStatus(`Loaded ${items.length} items from Gamma on-chain JSON. These rows have no inscription id yet.`);
+      else setStatus(`Loaded ${items.length} items from JSON.`);
+      return;
+    }
+    const header = trimmed.split(/\r?\n/, 1)[0].toLowerCase();
+    if (header.includes('layer_name') && header.includes('trait_name')) {
+      const parsed = parseMetadataCSV(trimmed);
+      setStatus(parsed.errors.join('\n') || `Layer CSV: ${parsed.totalTraits} traits in ${parsed.layers.length} layers.`);
+      $('#summary').textContent = parsed.errors.length ? parsed.errors.join('\n') : `${parsed.layers.length} layers.`;
+      $('#issues').innerHTML = '';
+      items = [];
+      return;
+    }
+    items = csvToItems(trimmed);
+    renderValidation(JSON.stringify(toMagicEden(items)), toMagicEden(items));
+    setStatus(`Loaded ${items.length} items from CSV.`);
+  } finally {
+    syncExports();
   }
-  const header = trimmed.split(/\r?\n/, 1)[0].toLowerCase();
-  if (header.includes('layer_name') && header.includes('trait_name')) {
-    const parsed = parseMetadataCSV(trimmed);
-    setStatus(parsed.errors.join('\n') || `Layer CSV: ${parsed.totalTraits} traits in ${parsed.layers.length} layers.`);
-    $('#summary').textContent = parsed.errors.length ? parsed.errors.join('\n') : `${parsed.layers.length} layers.`;
-    $('#issues').innerHTML = '';
-    items = [];
-    return;
-  }
-  items = csvToItems(trimmed);
-  renderValidation(JSON.stringify(toMagicEden(items)), toMagicEden(items));
-  setStatus(`Loaded ${items.length} items from CSV.`);
 }
 
 $('#file').addEventListener('change', async (ev) => {
@@ -138,6 +172,27 @@ $('#round').addEventListener('click', () => {
   const back = csvToItems(itemsToCsv(items));
   const ok = sameItems(items, back);
   $('#roundOut').textContent = ok ? 'JSON → CSV → JSON matched.' : 'Round trip changed an item.';
+});
+
+$('#toIds').addEventListener('click', () => {
+  const text = toIdList(items);
+  if (!text) return setStatus('These rows have no inscription id yet. id-based exports are disabled for those rows.');
+  download('ids.txt', text, 'text/plain');
+  const skipped = skippedIdRows();
+  if (skipped) setStatus(`${skipped} ${skipped === 1 ? 'row has' : 'rows have'} no inscription id yet. Those rows were left out of ids.txt.`);
+});
+
+$('#toInscriptions').addEventListener('click', () => {
+  const rows = toUnisatInscriptions(items);
+  if (!rows.length) return setStatus('These rows have no inscription id yet. id-based exports are disabled for those rows.');
+  download('inscriptions.json', JSON.stringify(rows), 'application/json');
+  const skipped = skippedIdRows();
+  if (skipped) setStatus(`${skipped} ${skipped === 1 ? 'row has' : 'rows have'} no inscription id yet. Those rows were left out of inscriptions.json.`);
+});
+
+$('#toMeta').addEventListener('click', () => {
+  if (!items.length) return setStatus('Load a collection first.');
+  download('meta.json', `${JSON.stringify(toUnisatMeta(), null, 2)}\n`, 'application/json');
 });
 
 document.querySelectorAll('th[data-k]').forEach((th) => {
