@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Check a collection file, turn it between JSON and CSV, preview ink rarity, and encode Tag 5 CBOR or a Tag 3 parent. Everything stays in this browser.">
+<link rel="canonical" href="https://ink.hiddenlotus.tech/kit/">
+<meta property="og:image" content="https://ink.hiddenlotus.tech/og.png">
+<meta property="og:title" content="INK Metadata Kit">
+<meta property="og:description" content="Check a collection file, turn it between JSON and CSV, preview ink rarity, and encode Tag 5 CBOR or a Tag 3 parent. Everything stays in this browser.">
+<meta property="og:url" content="https://ink.hiddenlotus.tech/kit/">
+<meta name="twitter:card" content="summary_large_image">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'">
 <title>INK Metadata Kit</title>
 <link rel="stylesheet" href="/assets/ink.css">
 <link rel="stylesheet" href="kit.css">
@@ -14,7 +22,7 @@
   <p class="lede">Check a collection file, turn it between JSON and CSV, preview ink rarity, and encode Tag 5 CBOR or a Tag 3 parent. Everything stays in this browser.</p>
 
   <h2>Collection</h2>
-  <label for="file">Drop or choose Magic Eden JSON, ink JSON, or a trait CSV</label>
+  <label for="file">Choose Magic Eden JSON, ink JSON, or a trait CSV</label>
   <input id="file" type="file" accept="application/json,text/csv,.json,.csv">
   <label for="raw">Or paste</label>
   <textarea id="raw" placeholder='[{"id":"...i0","meta":{"name":"1","attributes":[{"trait_type":"Hat","value":"cap"}]}}]'></textarea>
