@@ -1,0 +1,22 @@
+body{text-transform:none}
+.estimate h1{font:700 clamp(1.8rem,5vw,3rem)/1 var(--mono);margin:0 0 .4rem}
+.estimate h2{color:var(--fg);margin:1.6rem 0 .4rem}
+.estimate p,.estimate li,.estimate label,.estimate td,.estimate th,.estimate code{text-transform:none}
+.estimate label{display:block;margin:.7rem 0 .2rem;color:var(--mut);font-size:.85rem}
+.estimate input,.estimate textarea,.estimate button{width:100%;max-width:42rem;background:#111;color:var(--fg);border:1px solid var(--line);font:400 .9rem var(--mono);padding:.5rem .6rem}
+.estimate button{width:auto;background:none;color:var(--acc);border:1px solid var(--acc);font:700 .78rem var(--mono);letter-spacing:.05em;padding:.55rem .8rem;cursor:pointer}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}
+.estimate input,.estimate textarea{text-transform:none}
+.estimate textarea{min-height:7rem}
+.disclaimer{border:1px solid var(--acc);color:var(--fg);padding:.55rem .7rem;max-width:42rem}
+#status:empty{margin:0}
+#status.error,.estimate .error{color:#ffb4a8}
+.tablewrap{overflow:auto;max-width:42rem}
+.estimate table{width:100%;border-collapse:collapse;font-size:.9rem}
+.estimate th,.estimate td{border-bottom:1px solid var(--line);padding:.35rem .4rem;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+.estimate th,.estimate td:first-child{color:var(--mut);font-size:.78rem}
+.estimate code{color:var(--mut);font:400 .85rem var(--mono)}
+.estimate > .meta{margin-top:2rem}
+@media(max-width:480px){
+  .estimate input,.estimate textarea{max-width:none}
+}

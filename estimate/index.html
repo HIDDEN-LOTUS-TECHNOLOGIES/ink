@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Estimate the commit and reveal cost of an ordinal inscription from a file or some text. Nothing is signed or broadcast.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://mempool.space; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; base-uri 'self'; form-action 'self'">
+<title>INK inscription cost</title>
+<link rel="stylesheet" href="/assets/ink.css">
+<link rel="stylesheet" href="estimate.css">
+</head>
+<body>
+<main class="wrap estimate">
+  <p class="sys"><a href="/">INK</a> / Inscription cost</p>
+  <h1>Inscription cost</h1>
+  <p class="lede">Pick a file or type text. This page builds the ord envelope in the browser and estimates the mainnet commit and reveal. A chosen file is used instead of the text box. The limit is 390 KB, the same as the signet lab.</p>
+  <p class="disclaimer">Estimate only. Nothing is signed or broadcast.</p>
+
+  <label for="file">Any file, up to 390 KB</label>
+  <input id="file" type="file">
+  <p class="row"><button type="button" id="clear">Clear file</button></p>
+  <label for="text">Or type text</label>
+  <textarea id="text" spellcheck="false" placeholder="Hello from mainnet"></textarea>
+  <label for="postage">Postage, sats</label>
+  <input id="postage" type="number" min="0" max="100000000" step="1" value="546" inputmode="numeric">
+  <label for="rate">Custom fee rate, sat/vB</label>
+  <input id="rate" type="number" min="0.01" max="1000" step="0.1" inputmode="decimal" placeholder="Optional">
+  <p id="status" role="status"></p>
+  <div id="out"></div>
+
+  <h2>Formula</h2>
+  <p>The commit estimate is one P2TR key-path input and two P2TR outputs, the commit output and a change output.</p>
+  <p><code>commit vbytes = ceil(10.5 + 57.5 + 43 + 43) = 154</code></p>
+  <p>10.5 is the version, the locktime, the input and output counts, and the segwit marker and flag (2 witness bytes / 4). 57.5 is one P2TR key-path input: 41 non-witness bytes plus a 66-byte witness. 43 is one P2TR output, counted twice.</p>
+  <p>The reveal estimate is one P2TR script-path input and one P2TR output paying the postage. Postage defaults to 546 sats. Changing it changes the sats you lock in the inscription output. It does not change the virtual size.</p>
+  <p><code>witness bytes = 1 + 65 + compact_size(script) + script + 34</code></p>
+  <p><code>reveal weight = 378 + witness bytes</code></p>
+  <p><code>reveal vbytes = ceil(reveal weight / 4)</code></p>
+  <p>The witness is a 64-byte Schnorr signature, the envelope script, and a 33-byte control block (leaf version plus a 32-byte internal key, one leaf so there is no merkle path). 378 is the weight of the version, locktime, counts, the outpoint, the empty scriptSig, one P2TR output, and the segwit marker and flag.</p>
+  <p>The envelope script is the same shape the signet lab builds with micro-ordinals: a 32-byte x-only key, <code>OP_CHECKSIG</code>, then <code>OP_FALSE OP_IF "ord"</code>, tag 1, the content type, <code>OP_FALSE</code>, the body, and <code>OP_ENDIF</code>. The body is pushed in chunks of 520 bytes. The key bytes on this page are a placeholder. Their length is what matters, and no key is created.</p>
+  <p>Witness discount: bytes outside the witness count as 4 weight units each. Witness bytes count as 1. Virtual size is <code>ceil(weight / 4)</code>, so the inscription body, which lives in the witness, is charged at one quarter of a non-witness byte.</p>
+  <p><code>commit fee = ceil(commit vbytes × sat/vB)</code></p>
+  <p><code>reveal fee = ceil(reveal vbytes × sat/vB)</code></p>
+  <p><code>total sats = commit fee + reveal fee + postage</code></p>
+  <p>Recommended rates are the mainnet <code>fastestFee</code>, <code>halfHourFee</code>, <code>hourFee</code>, and <code>economyFee</code> from mempool.space. The optional USD line uses <code>/api/v1/prices</code> on the same host. Either request can fail and the size estimate still stands.</p>
+
+  <noscript><p>This estimate runs in the browser and needs JavaScript.</p></noscript>
+  <p class="meta">Reads <code>/api/v1/fees/recommended</code> and <code>/api/v1/prices</code> on mempool.space. No wallet, no keys, no signing, no broadcast.</p>
+</main>
+<script type="module" src="./estimate.js"></script>
+</body>
+</html>
