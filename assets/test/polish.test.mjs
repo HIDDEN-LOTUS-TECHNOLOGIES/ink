@@ -7,7 +7,8 @@ const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), '
 test('404 uses the site chrome and links home plus the four tools', () => {
   const html = read('404.html');
   assert.match(html, /class="mark" href="\/"/);
-  assert.match(html, /INK<\/b>/);
+  assert.match(html, /alt="INK by HLT"/);
+  assert.match(html, /lockup-header\.svg/);
   assert.match(html, /by HLT/);
   assert.match(html, /href="\/lookup\/"/);
   assert.match(html, /href="\/estimate\/"/);
@@ -39,9 +40,9 @@ test('homepage tile copy and shared cache buster', () => {
   assert.match(home, /Estimate one file or text\. Nothing is signed or broadcast\./);
   assert.match(home, /Estimate a batch of files\. Nothing is signed or broadcast\./);
   assert.match(home, /Check a collection file\. Preview ink rarity in the browser\./);
-  assert.match(home, /ink\.css\?v=polish1/);
+  assert.match(home, /ink\.css\?v=rebrand-d2-lotus/);
   assert.match(home, /ink\.js\?v=polish1/);
-  assert.match(collection, /ink\.css\?v=polish1/);
+  assert.match(collection, /ink\.css\?v=rebrand-d2-lotus/);
   assert.match(collection, /ink\.js\?v=polish1/);
   assert.doesNotMatch(home + collection, /\/lab\/signet\//);
 });
@@ -51,7 +52,7 @@ test('tool pages share the header and do not add a signet lab link', () => {
     const html = read(path);
     assert.match(html, /class="mark" href="\/"/, path);
     assert.match(html, /<footer class="wrap">/, path);
-    assert.match(html, /ink\.css\?v=polish1/, path);
+    assert.match(html, /ink\.css\?v=rebrand-d2-lotus/, path);
     assert.match(html, /class="page-title"/, path);
     assert.doesNotMatch(html, /href="\/lab\/signet\//, path);
     assert.match(html, /Content-Security-Policy/, path);
