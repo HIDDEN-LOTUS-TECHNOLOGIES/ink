@@ -16,12 +16,15 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://mempool.space; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; base-uri 'self'; form-action 'self'">
 <title>INK batch inscription cost</title>
-<link rel="stylesheet" href="/assets/ink.css?v=polish1">
+<link rel="preload" href="/assets/fonts/ubuntu-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/ubuntu-mono-bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/ink.css?v=polish2">
 <link rel="stylesheet" href="plan.css?v=polish1">
 </head>
 <body>
+<a class="skip" href="#content">Skip to content</a>
 <header class="wrap"><a class="mark" href="/"><img src="/assets/img/droplet-logo.svg" alt="" width="34" height="34"><span><b>INK</b> <em>by HLT</em></span></a><span class="sys">STATUS // ONLINE</span></header>
-<main class="wrap plan">
+<main id="content" class="wrap plan">
   <section class="hero">
     <p class="crumb"><a href="/">Home</a> / Batch cost</p>
     <h1 class="page-title">Batch inscription cost</h1>
@@ -37,8 +40,8 @@
   <label for="rate">Custom fee rate, sat/vB, for the whole batch</label>
   <input id="rate" type="number" min="0.01" max="1000" step="0.1" inputmode="decimal" placeholder="Optional">
   <p id="status" role="status"></p>
-  <div id="rejected" class="rejected"></div>
-  <div id="out"></div>
+  <div id="rejected" class="rejected" aria-live="polite"></div>
+  <div id="out" aria-live="polite"></div>
 
   <details class="formula">
   <summary>Formula</summary>

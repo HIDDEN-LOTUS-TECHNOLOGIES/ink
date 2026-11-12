@@ -1,0 +1,9 @@
+.preflight .check{display:flex;align-items:center;gap:.55rem;max-width:42rem;margin:.35rem 0;color:var(--txt);font-size:.95rem}
+.preflight .check input{width:1rem;height:1rem;accent-color:var(--acc);flex:none}
+#drop{max-width:42rem;margin:.7rem 0;padding:1rem;border:1px dashed var(--line);color:var(--mut)}
+#drop.hot{border-color:var(--acc);color:var(--txt)}
+.disclaimer{max-width:42rem;color:var(--txt)}
+#out{white-space:pre-wrap;overflow-wrap:anywhere;background:#111;border:1px solid var(--line);padding:.7rem;overflow:auto}
+#out:empty,#issues:empty{display:none}
+#issues .error{color:#ffb4a8}
+#issues .warn{color:#e7d38a}

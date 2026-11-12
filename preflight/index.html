@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
+<meta name="robots" content="noindex">
+<meta name="description" content="Estimate whether a collection can fit in an ord 0.29.1 gallery inscription. Tag 17 properties only. Nothing is signed, broadcast or submitted.">
+<link rel="canonical" href="https://ink.hiddenlotus.tech/preflight/">
+<meta property="og:image" content="https://ink.hiddenlotus.tech/og.png">
+<meta property="og:title" content="INK gallery preflight">
+<meta property="og:description" content="Estimate whether a collection can fit in an ord 0.29.1 gallery inscription. Nothing is signed, broadcast or submitted.">
+<meta property="og:url" content="https://ink.hiddenlotus.tech/preflight/">
+<meta name="twitter:card" content="summary_large_image">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'">
+<title>INK gallery preflight</title>
+<link rel="preload" href="/assets/fonts/ubuntu-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/ubuntu-mono-bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/ink.css?v=polish2">
+<link rel="stylesheet" href="/kit/kit.css?v=polish1">
+<link rel="stylesheet" href="preflight.css?v=polish2">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="wrap"><a class="mark" href="/"><img src="/assets/img/droplet-logo.svg" alt="" width="34" height="34"><span><b>INK</b> <em>by HLT</em></span></a><span class="sys">STATUS // ONLINE</span></header>
+<main id="content" class="wrap kit preflight">
+  <section class="hero">
+    <p class="crumb"><a href="/">Home</a> / Gallery preflight</p>
+    <h1 class="page-title">Gallery preflight</h1>
+    <p class="lede">Estimate whether a collection can go out as an ord gallery inscription. The figure is the Tag 17 properties: each item is an inscription id, plus an optional title and traits.</p>
+  </section>
+  <p class="disclaimer">Estimate only. Nothing is signed, broadcast or submitted.</p>
+  <p class="note">Estimate against ord 0.29.1. This page does not build a transaction, connect a wallet, or send the file anywhere.</p>
+
+  <h2>Collection</h2>
+  <label for="file">Choose Magic Eden JSON, ink JSON, Gamma on-chain JSON, or a trait CSV</label>
+  <input id="file" type="file" accept="application/json,text/csv,.json,.csv">
+  <label for="raw">Or paste</label>
+  <textarea id="raw" spellcheck="false" placeholder='[{"id":"...i0","meta":{"name":"1","attributes":[{"trait_type":"Hat","value":"cap"}]}}]'></textarea>
+  <div id="drop">Drop a collection file here. It stays in this browser.</div>
+  <p class="row"><button type="button" id="paste">Estimate paste</button></p>
+  <p class="note">Same files as the <a href="/kit/">Metadata Kit</a>. Title is the item name. Traits are the item's trait map. Ord traits are a bool, an integer, null, or text.</p>
+
+  <h2>Options</h2>
+  <label class="check" for="dropTitles"><input id="dropTitles" type="checkbox"> Drop titles</label>
+  <label class="check" for="dropTraits"><input id="dropTraits" type="checkbox"> Drop traits</label>
+
+  <h2>Estimate</h2>
+  <p id="status" role="status"></p>
+  <div id="out" aria-live="polite"></div>
+  <p class="row"><button type="button" id="download" disabled>Download properties.cbor</button></p>
+  <p class="note">The file is the uncompressed Tag 17 properties CBOR, the smaller of ord's inline and packed encodings. It is not a transaction.</p>
+
+  <h2>Id check</h2>
+  <ul id="issues" aria-live="polite"></ul>
+  <noscript><p>This estimate runs in the browser and needs JavaScript.</p></noscript>
+</main>
+<footer class="wrap"><span>INK BY <a href="https://hiddenlotus.tech">HIDDEN LOTUS TECHNOLOGIES</a> · <a href="https://x.com/hiddenl0tus">@hiddenl0tus</a></span><span>Art renders live from <a href="https://ordinals.com">ordinals.com</a>. Collections belong to their creators.</span></footer>
+<script type="module" src="./preflight.js"></script>
+</body>
+</html>

@@ -13,6 +13,8 @@ test('404 uses the site chrome and links home plus the four tools', () => {
   assert.match(html, /href="\/estimate\/"/);
   assert.match(html, /href="\/plan\/"/);
   assert.match(html, /href="\/kit\/"/);
+  assert.match(html, /class="skip" href="#content"/);
+  assert.match(html, /id="content"/);
   assert.match(html, /That page is not on INK/);
   assert.doesNotMatch(html, /GitHub Pages|Page not found · GitHub/);
   assert.doesNotMatch(html, /\/lab\/signet\//);
@@ -39,11 +41,14 @@ test('homepage tile copy and shared cache buster', () => {
   assert.match(home, /Estimate one file or text\. Nothing is signed or broadcast\./);
   assert.match(home, /Estimate a batch of files\. Nothing is signed or broadcast\./);
   assert.match(home, /Check a collection file\. Preview ink rarity in the browser\./);
-  assert.match(home, /ink\.css\?v=polish1/);
-  assert.match(home, /ink\.js\?v=polish1/);
-  assert.match(collection, /ink\.css\?v=polish1/);
-  assert.match(collection, /ink\.js\?v=polish1/);
+  assert.match(home, /ink\.css\?v=polish2/);
+  assert.match(home, /ink\.js\?v=polish2/);
+  assert.match(collection, /ink\.css\?v=polish2/);
+  assert.match(collection, /ink\.js\?v=polish2/);
   assert.doesNotMatch(home + collection, /\/lab\/signet\//);
+  assert.doesNotMatch(home + collection, /\/preflight\//);
+  assert.match(home, /class="skip" href="#content"/);
+  assert.match(collection, /id="content"/);
 });
 
 test('tool pages share the header and do not add a signet lab link', () => {
@@ -51,9 +56,12 @@ test('tool pages share the header and do not add a signet lab link', () => {
     const html = read(path);
     assert.match(html, /class="mark" href="\/"/, path);
     assert.match(html, /<footer class="wrap">/, path);
-    assert.match(html, /ink\.css\?v=polish1/, path);
+    assert.match(html, /ink\.css\?v=polish2/, path);
     assert.match(html, /class="page-title"/, path);
+    assert.match(html, /class="skip" href="#content"/, path);
+    assert.match(html, /id="content"/, path);
     assert.doesNotMatch(html, /href="\/lab\/signet\//, path);
+    assert.doesNotMatch(html, /\/preflight\//, path);
     assert.match(html, /Content-Security-Policy/, path);
   }
   assert.match(read('estimate/index.html'), /<details class="formula">/);

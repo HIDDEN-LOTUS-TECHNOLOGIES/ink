@@ -16,12 +16,15 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'">
 <title>INK Metadata Kit</title>
-<link rel="stylesheet" href="/assets/ink.css?v=polish1">
+<link rel="preload" href="/assets/fonts/ubuntu-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/ubuntu-mono-bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/ink.css?v=polish2">
 <link rel="stylesheet" href="kit.css?v=polish1">
 </head>
 <body>
+<a class="skip" href="#content">Skip to content</a>
 <header class="wrap"><a class="mark" href="/"><img src="/assets/img/droplet-logo.svg" alt="" width="34" height="34"><span><b>INK</b> <em>by HLT</em></span></a><span class="sys">STATUS // ONLINE</span></header>
-<main class="wrap kit">
+<main id="content" class="wrap kit">
   <section class="hero">
   <p class="crumb"><a href="/">Home</a> / Metadata Kit</p>
   <h1 class="page-title">Metadata Kit</h1>
@@ -44,11 +47,11 @@
     <button type="button" id="toMeta" disabled>UniSat meta.json</button>
   </p>
   <p class="note">Slug must match the folder name. Submission happens at unisat.io/submit. This page submits nothing.</p>
-  <p id="status"></p>
-  <p id="roundOut"></p>
+  <p id="status" role="status"></p>
+  <p id="roundOut" aria-live="polite"></p>
   <h2>Validation</h2>
-  <div id="summary">Nothing loaded yet.</div>
-  <ul id="issues"></ul>
+  <div id="summary" aria-live="polite">Nothing loaded yet.</div>
+  <ul id="issues" aria-live="polite"></ul>
 
   <h2>Rarity</h2>
   <div id="tiers"></div>
@@ -67,7 +70,7 @@
     <button type="button" id="cborShow">Show metadata hex</button>
     <button type="button" id="cborAll">Download id to hex</button>
   </p>
-  <div id="cborOut"></div>
+  <div id="cborOut" aria-live="polite"></div>
 
   <h2>Tag 3 parent</h2>
   <label for="parentId">Inscription id</label>
@@ -76,7 +79,7 @@
   <label for="parentHex">Tag 3 hex</label>
   <input id="parentHex" spellcheck="false" autocomplete="off">
   <p><button type="button" id="parentDecode">Decode</button></p>
-  <div id="parentOut"></div>
+  <div id="parentOut" aria-live="polite"></div>
 
   <p class="meta">Ported from HLT's packz-framework.</p>
 </main>
