@@ -5,11 +5,11 @@ const O='https://ordinals.com',PAGE=60,VER='kit1',PREVIEW_CAP=2;
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const j=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
-const img=id=>`<img loading="lazy" src="${O}/content/${esc(id)}" alt="" data-id="${esc(id)}">`;
+const img=id=>`<img loading="lazy" width="640" height="640" src="${O}/content/${esc(id)}" alt="" data-id="${esc(id)}">`;
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 // allow-same-origin needed so canvas ordies can run body onload / start()
 const SB='allow-scripts allow-same-origin';
-const mkFrame=id=>{const f=document.createElement('iframe');f.src=`${O}/preview/${id}`;f.loading='eager';f.sandbox=SB;f.title='';f.style.cssText='width:100%;height:100%;border:0;pointer-events:none';f.dataset.id=id;return f};
+const mkFrame=id=>{const f=document.createElement('iframe');f.src=`${O}/preview/${id}`;f.loading='eager';f.sandbox=SB;f.title='Inscription preview';f.width='640';f.height='640';f.style.cssText='width:100%;height:100%;border:0;pointer-events:none';f.dataset.id=id;return f};
 const livePv=pv=>pv.querySelector('iframe[src*="preview/"]');
 const stopPv=pv=>{pv.querySelectorAll('iframe').forEach(f=>{f.src='about:blank';f.remove()})};
 const replayPv=(pv,id)=>{
@@ -109,7 +109,7 @@ async function home(){
 
 async function col(){
  const slug=new URLSearchParams(location.search).get('c');const cols=await j(`data/collections.json?v=${VER}`);const c=cols.find(x=>x.slug===slug);
- const m=$('#col');if(!c){m.innerHTML='<p class="hero">Collection not found. <a href="./">Back</a></p>';return}
+ const m=$('#content');if(!c){m.innerHTML='<p class="hero">Collection not found. <a href="./">Back</a></p>';return}
  document.title=`${c.name} · INK by HLT`;
  const items=await j(`data/${slug}.json?v=${VER}`);
  standardScores(items);
@@ -124,7 +124,7 @@ async function col(){
  const orph=slug==='orphanz',ordie=slug==='ordies';
  const noTraits=catKeys.length?'':'<span class="meta">No trait metadata for this collection.</span>';
  m.innerHTML=`<section class="hero"><p class="crumb"><a href="./">Home</a> / ${esc(c.group==='HLT'?'Hidden Lotus Tech':'Featured')}</p><h1 class="page-title">${esc(c.name)}</h1>${c.full?`<p class="meta">${esc(c.full)}</p>`:''}<p class="lede">${esc(c.blurb)}</p><p class="meta">${c.supply} items · by ${byline(c)}${c.satflow?` · <a href="https://www.satflow.com/ordinals/${esc(c.satflow)}" target="_blank" rel="noopener">Satflow ↗</a>`:''}${c.arkaid?` · <a href="https://arkaid.io/collections/${esc(c.arkaid)}" target="_blank" rel="noopener">Arkaid ↗</a>`:''}</p></section>
- <div class="bar"><input id="q" type="search" placeholder="Search name or #" aria-label="Search"><select id="s" aria-label="Sort"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt"></span>${noTraits}${legend}${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">Hue <input class="hue" id="hue" type="range" min="0" max="360" value="0" aria-label="Tile hue"></label><label class="ctrl">Lit <input class="lit" id="lit" type="range" min="0" max="100" value="72" aria-label="Tile lightness"></label><button type="button" class="btn reset" id="bgreset">Reset</button>':''}</div>
+ <div class="bar"><label class="ctrl" for="q">Search</label><input id="q" type="search" placeholder="Search name or #"><label class="ctrl" for="s">Sort</label><select id="s"><option value="n">Sort: #</option>${items.some(i=>i.num!=null)?'<option value="num">Inscription number</option>':''}${items.some(i=>i.score!=null||i.rank!=null)?'<option value="rare">Rarity</option>':''}</select><span class="meta" id="cnt" aria-live="polite"></span>${noTraits}${legend}${orph?'<label class="ctrl"><input type="checkbox" id="glitch"> Glitch</label><label class="ctrl">Hue <input class="hue" id="hue" type="range" min="0" max="360" value="0" aria-label="Tile hue"></label><label class="ctrl">Lit <input class="lit" id="lit" type="range" min="0" max="100" value="72" aria-label="Tile lightness"></label><button type="button" class="btn reset" id="bgreset">Reset</button>':''}</div>
  ${rareNote}
  <div class="layout${catKeys.length?'':' solo'}">${catKeys.length?'<aside class="filters"></aside>':''}<div><div class="grid" id="g"></div><button class="btn more" id="more">Load more</button></div></div>`;
  const az=(a,b)=>String(a[0]).localeCompare(String(b[0]),undefined,{numeric:true,sensitivity:'base'});
@@ -180,7 +180,7 @@ async function col(){
   restoreParked();
   const rows=Object.entries(i.t||{}).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}${cats[k]&&catKeys.includes(k)?` <span class="meta">${(cats[k][v]/items.length*100).toFixed(1)}%</span>`:''}</td></tr>`).join('');
   const rk=rankOf.get(i.id);const tg=rk==null?null:tierTip(rk,i.score);
-  d.innerHTML=`<div class="dlg"><div class="art" id="artslot"></div><div class="info"><h3 style="margin:0">${esc(i.name)}</h3>${i.num!=null?`<p class="meta">Inscription #${i.num.toLocaleString()}</p>`:''}${tg?`<p class="chip" data-tier="${tg.id}" title="${esc(tg.tip)}">#${rk} / ${c.supply} · ${esc(tg.id)}</p>`:''}<table>${rows||'<tr><td>traits</td><td>—</td></tr>'}</table><a class="btn" href="${O}/inscription/${esc(i.id)}" target="_blank" rel="noopener">ordinals.com ↗</a>${c.satflow?`<a class="btn" href="https://www.satflow.com/ordinal/${esc(i.id)}" target="_blank" rel="noopener">Satflow ↗</a>`:''}<button class="btn" id="x">Close</button></div></div>`;
+  d.innerHTML=`<div class="dlg"><div class="art" id="artslot"></div><div class="info"><h2 style="margin:0">${esc(i.name)}</h2>${i.num!=null?`<p class="meta">Inscription #${i.num.toLocaleString()}</p>`:''}${tg?`<p class="chip" data-tier="${tg.id}" title="${esc(tg.tip)}">#${rk} / ${c.supply} · ${esc(tg.id)}</p>`:''}<table>${rows||'<tr><td>traits</td><td>—</td></tr>'}</table><a class="btn" href="${O}/inscription/${esc(i.id)}" target="_blank" rel="noopener">ordinals.com ↗</a>${c.satflow?`<a class="btn" href="https://www.satflow.com/ordinal/${esc(i.id)}" target="_blank" rel="noopener">Satflow ↗</a>`:''}<button class="btn" id="x">Close</button></div></div>`;
   const slot=$('#artslot',d);
   const loaded=!ordie&&takeLoadedArt(b,i.name);
   if(loaded)slot.append(loaded);
@@ -191,7 +191,7 @@ async function col(){
    slot.append(f);
   }else{
    const im=document.createElement('img');
-   im.src=`${O}/content/${i.id}`;im.alt=i.name;im.dataset.id=i.id;
+   im.src=`${O}/content/${i.id}`;im.alt=i.name;im.width=640;im.height=640;im.dataset.id=i.id;
    slot.classList.add('pv-wait');
    im.addEventListener('load',()=>{slot.classList.remove('pv-wait');slot.classList.add('pv-ready')});
    slot.append(im);

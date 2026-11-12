@@ -16,12 +16,15 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://ordinals.com https://mempool.space; img-src 'self' https://ordinals.com; media-src https://ordinals.com; frame-src https://ordinals.com; style-src 'self'; script-src 'self'; font-src 'self'; base-uri 'self'; form-action 'self'">
 <title>INK inscription lookup</title>
-<link rel="stylesheet" href="/assets/ink.css?v=polish1">
+<link rel="preload" href="/assets/fonts/ubuntu-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/ubuntu-mono-bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/ink.css?v=polish2">
 <link rel="stylesheet" href="lookup.css?v=polish1">
 </head>
 <body>
+<a class="skip" href="#content">Skip to content</a>
 <header class="wrap"><a class="mark" href="/"><img src="/assets/img/droplet-logo.svg" alt="" width="34" height="34"><span><b>INK</b> <em>by HLT</em></span></a><span class="sys">STATUS // ONLINE</span></header>
-<main class="wrap lookup">
+<main id="content" class="wrap lookup">
   <section class="hero">
     <p class="crumb"><a href="/">Home</a> / Inscription lookup</p>
     <h1 class="page-title">Inscription lookup</h1>
@@ -37,7 +40,7 @@
     </p>
   </form>
   <p id="status" role="status"></p>
-  <div id="out"></div>
+  <div id="out" aria-live="polite"></div>
   <noscript><p>This lookup runs in the browser and needs JavaScript.</p></noscript>
   <p class="help">Reads <code>/r/inscription</code>, <code>/r/metadata</code>, <code>/r/children</code>, <code>/r/parents</code>, and <code>/content</code> on ordinals.com. Metadata hex is CBOR, decoded here. mempool.space fees and the reveal transaction are skipped if that request fails.</p>
 </main>
