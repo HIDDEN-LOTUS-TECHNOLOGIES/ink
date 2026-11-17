@@ -41,12 +41,16 @@ test('homepage tile copy and shared cache buster', () => {
   assert.match(home, /Estimate one file or text\. Nothing is signed or broadcast\./);
   assert.match(home, /Estimate a batch of files\. Nothing is signed or broadcast\./);
   assert.match(home, /Check a collection file\. Preview ink rarity in the browser\./);
+  assert.match(home, /<span class="idx">05<\/span>/);
+  assert.match(home, /<span class="name">Preflight<\/span>/);
+  assert.match(home, /href="\/preflight\/"/);
+  assert.match(home, /Estimates Tag 17 properties size for a gallery before you inscribe\./);
   assert.match(home, /ink\.css\?v=polish2/);
   assert.match(home, /ink\.js\?v=polish2/);
   assert.match(collection, /ink\.css\?v=polish2/);
   assert.match(collection, /ink\.js\?v=polish2/);
   assert.doesNotMatch(home + collection, /\/lab\/signet\//);
-  assert.doesNotMatch(home + collection, /\/preflight\//);
+  assert.doesNotMatch(collection, /\/preflight\//);
   assert.match(home, /class="skip" href="#content"/);
   assert.match(collection, /id="content"/);
 });

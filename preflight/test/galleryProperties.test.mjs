@@ -142,7 +142,7 @@ test('a repeated title compresses and trips the 30:1 cap', () => {
   assert.equal(estimate.titlesDropped.compressError, null);
 });
 
-test('preflight page is unlinked, noindex, and does not fetch or loosen CSP', () => {
+test('preflight stays noindex and is linked from the homepage tools list', () => {
   const html = read('preflight/index.html');
   const script = read('preflight/preflight.js');
   const home = read('index.html');
@@ -156,7 +156,9 @@ test('preflight page is unlinked, noindex, and does not fetch or loosen CSP', ()
   assert.doesNotMatch(html, /https:\/\/(?!ink\.hiddenlotus\.tech|hiddenlotus\.tech|x\.com|ordinals\.com)/);
   assert.doesNotMatch(html, /\/lab\/signet\//);
   assert.doesNotMatch(script, /fetch\s*\(/);
-  assert.doesNotMatch(home, /\/preflight\//);
+  assert.match(home, /href="\/preflight\/"/);
+  assert.match(home, /Estimates Tag 17 properties size for a gallery before you inscribe\./);
+  assert.doesNotMatch(home, /\/lab\/signet\//);
   assert.doesNotMatch(missing, /\/preflight\//);
   assert.doesNotMatch(read('CNAME') + home, /open source/i);
 });
