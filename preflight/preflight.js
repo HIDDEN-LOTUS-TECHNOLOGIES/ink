@@ -1,12 +1,26 @@
 import { csvToItems, parseMetadataCSV } from '../kit/metadataCsv.js';
 import { isGammaOnChain, normalizeCollection, toMagicEden } from '../kit/convert.js';
-import { estimateGallery, ORD_VERSION, STANDARD_TX_BYTES } from './galleryProperties.js';
-import { BROTLI_ESTIMATE } from './brotli.js';
 
 const $ = (sel) => document.querySelector(sel);
 let data = null;
 let bytes = null;
 let generation = 0;
+let galleryModule = null;
+let galleryPromise = null;
+
+// encode.js is about 121 KB. Load it with the estimator, on the first estimate.
+function loadGallery() {
+  if (!galleryPromise) {
+    galleryPromise = import('./galleryProperties.js').then((mod) => {
+      galleryModule = mod;
+      return mod;
+    }).catch((err) => {
+      galleryPromise = null;
+      throw err;
+    });
+  }
+  return galleryPromise;
+}
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -16,10 +30,10 @@ function formatBytes(n) {
   return `${n.toLocaleString('en-US')} bytes`;
 }
 
-function fits(n) {
+function fits(n, ceiling) {
   if (n == null) return 'no compressed figure';
-  if (n <= STANDARD_TX_BYTES) return `fits in ${formatBytes(STANDARD_TX_BYTES)}`;
-  return `over by ${formatBytes(n - STANDARD_TX_BYTES)}`;
+  if (n <= ceiling) return `fits in ${formatBytes(ceiling)}`;
+  return `over by ${formatBytes(n - ceiling)}`;
 }
 
 function variantLine(label, size) {
@@ -45,8 +59,11 @@ function render(estimate) {
   }
   bytes = estimate.selected.bytes;
   $('#download').disabled = !bytes;
+  const ordVersion = estimate.ordVersion;
+  const brotli = estimate.brotli;
+  const ceiling = estimate.limit;
   const lines = [
-    `Estimate against ord ${ORD_VERSION}.`,
+    `Estimate against ord ${ordVersion}.`,
     'Estimate only. Nothing is signed, broadcast or submitted.',
     '',
     `${estimate.itemCount} ${estimate.itemCount === 1 ? 'item' : 'items'} encoded. ${estimate.leftOut} left out.`,
@@ -58,18 +75,19 @@ function render(estimate) {
     const size = estimate.selected;
     lines.push(`Raw CBOR properties: ${formatBytes(size.rawBytes)} (${size.encoding}).`);
     if (size.compressError === 'ratio') {
-      lines.push(`Brotli estimate is over ord's 30:1 cap (uncompressed divided by compressed, rounded down). ord ${ORD_VERSION} would reject --compress. The cap check uses this estimate, and ${BROTLI_ESTIMATE.library} ${BROTLI_ESTIMATE.version} is not byte-identical to ord's Rust encoder. The uncompressed size still stands.`);
+      lines.push(`Brotli estimate is over ord's 30:1 cap (uncompressed divided by compressed, rounded down). ord ${ordVersion} would reject --compress. The cap check uses this estimate, which can run about 10% high and is not byte-identical to ord's Rust encoder. The uncompressed size still stands.`);
     } else if (size.compressError === 'over-4mb') {
-      lines.push(`The raw properties are over ${MAX_SAFE(4000000)} bytes. ord ${ORD_VERSION} rejects --compress above 4,000,000 bytes.`);
+      lines.push(`The raw properties are over ${MAX_SAFE(4000000)} bytes. ord ${ordVersion} rejects --compress above 4,000,000 bytes.`);
     } else if (size.brotliLimited && size.compressedBytes == null) {
-      lines.push(`Brotli estimate: not smaller. This payload is under 64 bytes, and ${BROTLI_ESTIMATE.library} ${BROTLI_ESTIMATE.version} leaves that on an uncompressed frame. ord's Rust encoder might still shrink it. Showing the uncompressed size only.`);
+      lines.push(`Brotli estimate: not smaller. This payload is under 64 bytes, and ${brotli.library} ${brotli.version} leaves that on an uncompressed frame. The estimate can run about 10% high. ord's Rust encoder might still shrink it. Showing the uncompressed size only.`);
     } else if (size.compressedBytes == null) {
-      lines.push(`Brotli estimate: not smaller than the raw CBOR, so ord would keep the ${formatBytes(size.rawBytes)} uncompressed properties. Encoder: ${BROTLI_ESTIMATE.library} ${BROTLI_ESTIMATE.version}, quality ${BROTLI_ESTIMATE.quality}, ${BROTLI_ESTIMATE.lgwin}-bit window. Not byte-identical to ord's Rust encoder.`);
+      lines.push(`Brotli estimate: not smaller than the raw CBOR, so ord would keep the ${formatBytes(size.rawBytes)} uncompressed properties. Encoder: ${brotli.library} ${brotli.version}, quality ${brotli.quality}, ${brotli.lgwin}-bit window. This estimate can run about 10% high, so ord's Rust encoder might still shrink it.`);
     } else {
-      lines.push(`Brotli estimate: ${formatBytes(size.compressedBytes)}. ${BROTLI_ESTIMATE.library} ${BROTLI_ESTIMATE.version}, quality ${BROTLI_ESTIMATE.quality}, ${BROTLI_ESTIMATE.lgwin}-bit window, generic mode. Not byte-identical to the Rust brotli crate ord ${ORD_VERSION} uses.`);
+      lines.push(`Brotli estimate: ${formatBytes(size.compressedBytes)}. ${brotli.library} ${brotli.version}, quality ${brotli.quality}, ${brotli.lgwin}-bit window, generic mode.`);
+      lines.push(`Conservative estimate. It can run about 10% high versus the Rust brotli 9.0.0 encoder ord ${ordVersion} uses (quality 11, lgwin 24, lgblock 24, generic mode, not text). On the 777-item OPIUM sample this encoder read 39,618 bytes against ord's 35,258, and 37,037 against 33,309 with titles dropped.`);
     }
-    lines.push(`400 KB standard tx limit used here: ${formatBytes(STANDARD_TX_BYTES)}. Raw ${fits(size.rawBytes)}. ${size.compressedBytes == null ? 'No smaller brotli figure.' : `Brotli estimate ${fits(size.compressedBytes)}.`}`);
-    lines.push('These are the Tag 17 bytes only. A reveal transaction also carries an input, an output, and the ord envelope. ord refuses a reveal over Bitcoin Core\'s 400,000 weight-unit standardness cap.');
+    lines.push(`Payload ceiling used here: ${formatBytes(ceiling)}. Raw ${fits(size.rawBytes, ceiling)}. ${size.compressedBytes == null ? 'No smaller brotli figure.' : `Brotli estimate ${fits(size.compressedBytes, ceiling)}.`}`);
+    lines.push('These are the Tag 17 bytes only. A reveal transaction also carries an input, an output, and the ord envelope. Bitcoin Core\'s standardness cap is 400,000 weight units, and ord refuses an oversized reveal unless --no-limit is used.');
     lines.push(variantLine('Titles dropped', estimate.titlesDropped));
     lines.push(variantLine('Traits dropped', estimate.traitsDropped));
   }
@@ -89,17 +107,30 @@ function MAX_SAFE(n) {
   return n.toLocaleString('en-US');
 }
 
-function showEstimate() {
+async function showEstimate() {
   if (!data) return;
   const token = ++generation;
-  $('#out').textContent = 'Estimating…';
   const options = {
     dropTitles: $('#dropTitles').checked,
     dropTraits: $('#dropTraits').checked,
   };
+  if (!galleryModule) $('#out').textContent = 'Loading estimator…';
+  let gallery;
+  try {
+    gallery = await loadGallery();
+  } catch (err) {
+    if (token !== generation) return;
+    bytes = null;
+    $('#download').disabled = true;
+    $('#out').textContent = '';
+    $('#status').textContent = err instanceof Error ? err.message : 'Could not load the estimator.';
+    return;
+  }
+  if (token !== generation) return;
+  $('#out').textContent = 'Estimating…';
   setTimeout(() => {
     if (token !== generation) return;
-    render(estimateGallery(data, options));
+    render(gallery.estimateGallery(data, options));
   }, 0);
 }
 

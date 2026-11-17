@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { choosePropertiesBytes, encodeProperties, estimateGallery, ORD_VERSION, STANDARD_TX_BYTES } from '../galleryProperties.js';
+import { MAX_BODY } from '../../estimate/content.js';
+import { choosePropertiesBytes, encodeProperties, estimateGallery, ORD_VERSION, PAYLOAD_CEILING } from '../galleryProperties.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -120,7 +121,7 @@ test('titles and traits change the size, and bad or duplicate ids are reported',
   ];
   const estimate = estimateGallery(data, { compress: null });
   assert.equal(estimate.ordVersion, ORD_VERSION);
-  assert.equal(estimate.limit, STANDARD_TX_BYTES);
+  assert.equal(estimate.limit, PAYLOAD_CEILING);
   assert.equal(estimate.itemCount, 3);
   assert.equal(estimate.leftOut, 1);
   assert.ok(estimate.idIssues.some((row) => /duplicate/i.test(row.message)));
@@ -129,7 +130,51 @@ test('titles and traits change the size, and bad or duplicate ids are reported',
   assert.equal(estimate.traitNotes[0].name, 'Weird');
   assert.ok(estimate.titlesDropped.rawBytes < estimate.selected.rawBytes);
   assert.ok(estimate.traitsDropped.rawBytes < estimate.selected.rawBytes);
-  assert.ok(estimate.selected.rawBytes < STANDARD_TX_BYTES);
+  assert.ok(estimate.selected.rawBytes < PAYLOAD_CEILING);
+});
+
+test('payload ceiling is the shared 399,360 byte cap', () => {
+  assert.equal(MAX_BODY, 399_360);
+  assert.equal(PAYLOAD_CEILING, MAX_BODY);
+  assert.equal(PAYLOAD_CEILING, 390 * 1024);
+  const id = `${'ab'.repeat(32)}i0`;
+  const estimate = estimateGallery([{ id, name: 'a', t: {} }], { compress: null });
+  assert.equal(estimate.limit, 399_360);
+  const sources = read('preflight/galleryProperties.js') + read('preflight/preflight.js');
+  assert.match(sources, /Payload ceiling/);
+  assert.match(read('preflight/preflight.js'), /--no-limit/);
+  assert.match(read('preflight/preflight.js'), /400,000 weight units/);
+  assert.doesNotMatch(sources, /409,?600/);
+  assert.doesNotMatch(sources, /400 KB standard tx limit/);
+  assert.doesNotMatch(sources, /STANDARD_TX_BYTES/);
+});
+
+test('OPIUM brotli figure stays the labeled conservative sample', () => {
+  const data = JSON.parse(read('data/opium.json'));
+  const estimate = estimateGallery(data);
+  assert.equal(estimate.itemCount, 777);
+  assert.equal(estimate.selected.compressedBytes, 39_618);
+  assert.equal(estimate.titlesDropped.compressedBytes, 37_037);
+  const script = read('preflight/preflight.js');
+  assert.match(script, /about 10% high/);
+  assert.match(script, /39,618 bytes against ord's 35,258/);
+  assert.match(script, /37,037 against 33,309 with titles dropped/);
+});
+
+test('brotli encode.js loads on the first estimate', () => {
+  const script = read('preflight/preflight.js');
+  const html = read('preflight/index.html');
+  const staticImports = [...script.matchAll(/^\s*import\s+[^;]*from\s+['"]([^'"]+)['"]/gm)].map((match) => match[1]);
+  assert.deepEqual(staticImports.filter((spec) => /brotli|galleryProperties|encode\.js/.test(spec)), []);
+  assert.match(script, /function loadGallery\(\)/);
+  const loadGallery = script.slice(script.indexOf('function loadGallery'));
+  assert.match(loadGallery, /import\(\s*['"]\.\/galleryProperties\.js['"]\s*\)/);
+  assert.doesNotMatch(script.slice(0, script.indexOf('function loadGallery')), /import\(/);
+  assert.match(script, /Loading estimator/);
+  assert.match(html, /script type="module" src="\.\/preflight\.js"/);
+  assert.doesNotMatch(html, /brotli-lib\/encode\.js/);
+  assert.match(read('preflight/galleryProperties.js'), /from '\.\/brotli\.js'/);
+  assert.match(read('preflight/brotli.js'), /from '\.\/vendor\/brotli-lib\/encode\.js'/);
 });
 
 test('a repeated title compresses and trips the 30:1 cap', () => {
