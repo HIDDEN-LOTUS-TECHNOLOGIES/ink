@@ -8,7 +8,7 @@
 // lgblock 24. The port does not take an lgblock option. It is not byte-identical
 // to the Rust crate and runs high: the 777-item OPIUM sample is 39,618 bytes
 // here against ord's 35,258, and 37,037 against 33,309 with titles dropped.
-// Callers label that as a conservative estimate that can run about 10% high.
+// Callers label that as a conservative estimate that can run up to ~15% high (about 12% on the OPIUM sample).
 // Inputs under 64 bytes take the port's uncompressed-frame path; callers keep
 // the raw bytes when the frame is not smaller, which is also what ord does
 // when compression does not shrink.

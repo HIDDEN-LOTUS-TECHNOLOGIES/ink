@@ -75,16 +75,16 @@ function render(estimate) {
     const size = estimate.selected;
     lines.push(`Raw CBOR properties: ${formatBytes(size.rawBytes)} (${size.encoding}).`);
     if (size.compressError === 'ratio') {
-      lines.push(`Brotli estimate is over ord's 30:1 cap (uncompressed divided by compressed, rounded down). ord ${ordVersion} would reject --compress. The cap check uses this estimate, which can run about 10% high and is not byte-identical to ord's Rust encoder. The uncompressed size still stands.`);
+      lines.push(`Brotli estimate is over ord's 30:1 cap (uncompressed divided by compressed, rounded down). ord ${ordVersion} would reject --compress. The cap check uses this estimate, which can run up to ~15% high (about 12% on the OPIUM sample) and is not byte-identical to ord's Rust encoder. The uncompressed size still stands.`);
     } else if (size.compressError === 'over-4mb') {
       lines.push(`The raw properties are over ${MAX_SAFE(4000000)} bytes. ord ${ordVersion} rejects --compress above 4,000,000 bytes.`);
     } else if (size.brotliLimited && size.compressedBytes == null) {
-      lines.push(`Brotli estimate: not smaller. This payload is under 64 bytes, and ${brotli.library} ${brotli.version} leaves that on an uncompressed frame. The estimate can run about 10% high. ord's Rust encoder might still shrink it. Showing the uncompressed size only.`);
+      lines.push(`Brotli estimate: not smaller. This payload is under 64 bytes, and ${brotli.library} ${brotli.version} leaves that on an uncompressed frame. The estimate can run up to ~15% high (about 12% on the OPIUM sample). ord's Rust encoder might still shrink it. Showing the uncompressed size only.`);
     } else if (size.compressedBytes == null) {
-      lines.push(`Brotli estimate: not smaller than the raw CBOR, so ord would keep the ${formatBytes(size.rawBytes)} uncompressed properties. Encoder: ${brotli.library} ${brotli.version}, quality ${brotli.quality}, ${brotli.lgwin}-bit window. This estimate can run about 10% high, so ord's Rust encoder might still shrink it.`);
+      lines.push(`Brotli estimate: not smaller than the raw CBOR, so ord would keep the ${formatBytes(size.rawBytes)} uncompressed properties. Encoder: ${brotli.library} ${brotli.version}, quality ${brotli.quality}, ${brotli.lgwin}-bit window. This estimate can run up to ~15% high (about 12% on the OPIUM sample), so ord's Rust encoder might still shrink it.`);
     } else {
       lines.push(`Brotli estimate: ${formatBytes(size.compressedBytes)}. ${brotli.library} ${brotli.version}, quality ${brotli.quality}, ${brotli.lgwin}-bit window, generic mode.`);
-      lines.push(`Conservative estimate. It can run about 10% high versus the Rust brotli 9.0.0 encoder ord ${ordVersion} uses (quality 11, lgwin 24, lgblock 24, generic mode, not text). On the 777-item OPIUM sample this encoder read 39,618 bytes against ord's 35,258, and 37,037 against 33,309 with titles dropped.`);
+      lines.push(`Conservative estimate. It can run up to ~15% high (about 12% on the OPIUM sample) versus the Rust brotli 9.0.0 encoder ord ${ordVersion} uses (quality 11, lgwin 24, lgblock 24, generic mode, not text). On the 777-item OPIUM sample this encoder read 39,618 bytes against ord's 35,258, and 37,037 against 33,309 with titles dropped.`);
     }
     lines.push(`Payload ceiling used here: ${formatBytes(ceiling)}. Raw ${fits(size.rawBytes, ceiling)}. ${size.compressedBytes == null ? 'No smaller brotli figure.' : `Brotli estimate ${fits(size.compressedBytes, ceiling)}.`}`);
     lines.push('These are the Tag 17 bytes only. A reveal transaction also carries an input, an output, and the ord envelope. Bitcoin Core\'s standardness cap is 400,000 weight units, and ord refuses an oversized reveal unless --no-limit is used.');

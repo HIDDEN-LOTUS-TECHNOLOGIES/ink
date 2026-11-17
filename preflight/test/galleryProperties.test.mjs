@@ -156,7 +156,10 @@ test('OPIUM brotli figure stays the labeled conservative sample', () => {
   assert.equal(estimate.selected.compressedBytes, 39_618);
   assert.equal(estimate.titlesDropped.compressedBytes, 37_037);
   const script = read('preflight/preflight.js');
-  assert.match(script, /about 10% high/);
+  const bias = 'can run up to ~15% high (about 12% on the OPIUM sample)';
+  assert.equal(script.split(bias).length - 1, 4);
+  assert.equal(read('preflight/brotli.js').includes(bias), true);
+  assert.doesNotMatch(script + read('preflight/brotli.js'), /about 10% high/);
   assert.match(script, /39,618 bytes against ord's 35,258/);
   assert.match(script, /37,037 against 33,309 with titles dropped/);
 });
