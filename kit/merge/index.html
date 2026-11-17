@@ -21,7 +21,7 @@
 <link rel="preload" href="/assets/fonts/ubuntu-mono-bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/ink.css?v=polish2">
 <link rel="stylesheet" href="/kit/kit.css?v=polish1">
-<link rel="stylesheet" href="merge.css?v=1">
+<link rel="stylesheet" href="merge.css?v=2">
 </head>
 <body>
 <a class="skip" href="#content">Skip to content</a>
@@ -37,7 +37,7 @@
   <h2>Ids</h2>
   <label for="ids-file">Ids file</label>
   <input id="ids-file" type="file" accept=".txt,.json,text/plain,application/json">
-  <p class="note">One inscription id per line, a JSON array of ids, or a JSON array of objects with an id.</p>
+  <p class="note">One inscription id per line, a JSON array of ids, or a JSON array of objects with an id. A first line that says id is a header and is skipped. Blank lines are skipped. Each remaining row keeps its place.</p>
   <label for="ids-raw">Or paste ids</label>
   <textarea id="ids-raw" spellcheck="false" autocomplete="off" placeholder="One inscription id per line"></textarea>
 
@@ -59,10 +59,10 @@
   <ul id="issues" aria-live="polite"></ul>
 
   <h2>Download</h2>
-  <p class="note">inscriptions.json is the UniSat gallery file. Magic Eden JSON uses the same id and meta fields. ids.txt lists the merged inscription ids. meta.json is an empty stub. The slug has to match the folder name. This page submits nothing.</p>
+  <p class="note">inscriptions.json is the UniSat gallery file. Download Magic Eden JSON is the marketplace file, with id and meta fields, not the ink JSON from the kit. ids.txt lists the paired inscription ids. meta.json is an empty stub. The slug has to match the folder name. This page submits nothing.</p>
   <p class="row">
     <button type="button" id="toInscriptions" disabled>UniSat inscriptions.json</button>
-    <button type="button" id="toJson" disabled>Magic Eden JSON</button>
+    <button type="button" id="toJson" disabled>Download Magic Eden JSON</button>
     <button type="button" id="toIds" disabled>Download ids.txt</button>
     <button type="button" id="toMeta" disabled>UniSat meta.json</button>
   </p>

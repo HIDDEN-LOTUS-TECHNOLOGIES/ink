@@ -1,4 +1,4 @@
-import { formatReport, mergeIdsAndTraits } from '../mergeIds.js';
+import { NAME_FALLBACK_NOTE, displaySummary, mergeIdsAndTraits, reviewNote } from '../mergeIds.js';
 
 const $ = (sel) => document.querySelector(sel);
 const downloadButtons = ['#toInscriptions', '#toJson', '#toIds', '#toMeta'];
@@ -42,18 +42,22 @@ function listBlock(title, rows) {
   return `<p class="meta">${esc(title)}</p><ul>${shown.map((row) => `<li>${esc(row)}</li>`).join('')}${more}</ul>`;
 }
 
-function renderValidation(validation) {
+function renderValidation(validation, report) {
+  const summary = $('#summary');
   if (!validation) {
-    $('#summary').textContent = '';
+    summary.textContent = '';
+    summary.classList.remove('warn');
     $('#issues').innerHTML = '';
     return;
   }
+  const headline = displaySummary(report, validation);
+  summary.classList.toggle('warn', Boolean(report?.needsReview));
   const stats = validation.stats;
-  const lines = [validation.summary];
+  const lines = [headline];
   if (stats) {
     lines.push(`${stats.totalItems} items, ${stats.traitCategories} trait keys, ${stats.missingIds} missing ids, ${stats.duplicateIds} duplicate ids, ${stats.badIds} bad inscription ids.`);
   }
-  $('#summary').textContent = lines.join('\n');
+  summary.textContent = lines.join('\n');
   const notes = validation.warnings.filter((row) => row.severity === 'info');
   const warns = validation.warnings.filter((row) => row.severity !== 'info');
   const rows = [...notes, ...warns, ...validation.errors].slice(0, 80);
@@ -70,22 +74,36 @@ function render(result) {
   if (!result.ok) {
     $('#status').textContent = result.error;
     $('#report').textContent = 'Nothing merged yet.';
-    renderValidation(null);
+    renderValidation(null, null);
     return;
   }
   const report = result.report;
-  const counts = formatReport(report).split('\n').filter((line) => !line.startsWith('Warning:')).join('\n');
-  const warning = report.warning ? `<p class="warn">Warning: ${esc(report.warning)}</p>` : '';
+  const counts = [
+    `Matched: ${report.matched}.`,
+    `Ids with no traits: ${report.idsWithNoTraits.length}.`,
+    `Traits with no id: ${report.traitsWithNoId.length}.`,
+    `Duplicate ids: ${report.duplicateIds.length}.`,
+    `Malformed inscription ids: ${report.malformedIds.length}.`,
+  ].join('\n');
+  const warnLines = [];
+  if (report.warning) warnLines.push(`Warning: ${report.warning}`);
+  for (const row of report.unpaired) warnLines.push(row.message);
+  if (report.namesFromNumber.length) warnLines.push(NAME_FALLBACK_NOTE);
+  if (report.needsReview) warnLines.push(reviewNote(report));
+  const warning = warnLines.length
+    ? `<div class="warn">${warnLines.map((line) => `<p>${esc(line)}</p>`).join('')}</div>`
+    : '';
   const lists = [
     listBlock('Ids with no traits', report.idsWithNoTraits),
     listBlock('Traits with no id', report.traitsWithNoId.map(gapLabel)),
+    listBlock('Unpaired', report.unpaired.map((row) => row.message)),
     listBlock('Duplicate ids', report.duplicateIds.map((row) => `${row.id} (${row.source} file, ${row.count})`)),
     listBlock('Malformed inscription ids', report.malformedIds.map((row) => `${row.source} file, row ${row.index}: ${row.value || '(empty)'}`)),
   ].join('');
   $('#report').innerHTML = `${warning}<p class="counts">${esc(counts)}</p>${lists}`;
-  renderValidation(result.validation);
+  renderValidation(result.validation, report);
   const noun = result.items.length === 1 ? 'item' : 'items';
-  $('#status').textContent = `Merged ${result.items.length} ${noun}.`;
+  $('#status').textContent = `Merged ${result.items.length} paired ${noun}.`;
 }
 
 $('#merge').addEventListener('click', async () => {

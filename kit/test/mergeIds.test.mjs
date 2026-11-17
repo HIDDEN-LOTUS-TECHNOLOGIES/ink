@@ -5,12 +5,16 @@ import { toIdList, toMagicEden, toUnisatInscriptions, toUnisatMeta } from '../co
 import { itemsToCsv } from '../metadataCsv.js';
 import { MetadataValidator } from '../metadataValidator.js';
 import {
+  HEADERLESS_WARNING,
   INDEX_WARNING,
   INSCRIPTION_ID_RE,
+  NAME_FALLBACK_NOTE,
   NUMBER_WARNING,
   ORDER_WARNING,
+  displaySummary,
   formatReport,
   mergeIdsAndTraits,
+  parseCsvRecords,
   parseIdsFile,
 } from '../mergeIds.js';
 
@@ -46,6 +50,13 @@ test('ids file accepts lines, a JSON array of ids, and objects with an id', () =
   assert.equal(parseIdsFile('[]').error, 'Ids file is empty.');
   assert.equal(parseIdsFile('{').error, 'Ids file is not valid JSON.');
   assert.equal(parseIdsFile('{}').error, 'Ids JSON must be an array of inscription ids or objects with an id.');
+  const headed = parseIdsFile(`ID\n\n${A}\nid\n${B}\n`);
+  assert.deepEqual(headed.ids, [A, B]);
+  assert.deepEqual(headed.malformed.map((row) => row.value), ['id']);
+  assert.equal(headed.malformed[0].index, 2);
+  assert.equal(headed.slots[0].index, 1);
+  assert.equal(headed.slots[1].value, 'id');
+  assert.equal(headed.slots[2].index, 3);
 });
 
 test('joins a traits CSV on inscription id and keeps ids-file order', () => {
@@ -54,14 +65,17 @@ test('joins a traits CSV on inscription id and keeps ids-file order', () => {
   assert.equal(result.report.warning, null);
   assert.equal(result.report.matched, 2);
   assert.deepEqual(result.report.idsWithNoTraits, [B]);
-  assert.deepEqual(result.items.map((item) => item.id), [A, B, C]);
+  assert.deepEqual(result.items.map((item) => item.id), [A, C]);
   assert.equal(result.items[0].name, 'One');
   assert.equal(result.items[0].t.Hat, 'cap');
-  assert.equal(result.items[1].name, '2');
-  assert.deepEqual(result.items[1].t, {});
-  assert.equal(result.items[2].name, 'Three');
-  assert.equal(result.items[2].n, 3);
-  assert.match(formatReport(result.report), /^Matched: 2\.\nIds with no traits: 1\.\nTraits with no id: 0\.\nDuplicate ids: 0\.\nMalformed inscription ids: 0\.$/);
+  assert.equal(result.items[0].n, 1);
+  assert.equal(result.items[1].name, 'Three');
+  assert.equal(result.items[1].n, 3);
+  assert.equal(result.report.needsReview, true);
+  assert.match(formatReport(result.report), /Matched: 2\./);
+  assert.match(formatReport(result.report), /Ids with no traits: 1\./);
+  assert.match(displaySummary(result.report, result.validation), /Downloads include only the 2 paired items/);
+  assert.doesNotMatch(displaySummary(result.report, result.validation), /All validation checks passed/);
 });
 
 test('a trait id that is not in the ids file is a trait with no id', () => {
@@ -110,18 +124,59 @@ test('a traits file with no ids joins by row order and warns', () => {
   assert.equal(result.items[0].t.Hat, 'cap');
   assert.equal(result.items[0].t.Background, 'blue, deep');
   assert.equal(result.items[0].name, '1');
+  assert.deepEqual(result.items.map((item) => item.id), [A, B]);
+  assert.deepEqual(result.report.namesFromNumber, [1, 2]);
+  assert.match(formatReport(result.report), new RegExp(escapeRegExp(NAME_FALLBACK_NOTE)));
   assert.deepEqual(result.report.traitsWithNoId, []);
 });
 
-test('a bad id line does not consume a trait row when joining by order', () => {
-  const result = merged(`${A}\nnot-an-id\n${B}\n`, 'Hat\ncap\nbrim\n');
+test('a malformed id keeps its row so later traits do not shift', () => {
+  const result = merged(`${A}\nnot-an-id\n${B}\n`, 'name,Hat\nOne,cap\nTwo,brim\nThree,ribbon\n');
   assert.equal(result.report.mode, 'order');
-  assert.equal(result.items[0].t.Hat, 'cap');
-  assert.equal(result.items[1].id, B);
-  assert.equal(result.items[1].t.Hat, 'brim');
+  assert.deepEqual(result.items.map((item) => [item.id, item.name, item.t.Hat]), [
+    [A, 'One', 'cap'],
+    [B, 'Three', 'ribbon'],
+  ]);
   assert.equal(result.report.matched, 2);
-  assert.deepEqual(result.report.idsWithNoTraits, []);
-  assert.equal(result.report.malformedIds.length, 1);
+  assert.deepEqual(result.report.unpaired.map((row) => row.message), [
+    'ids row 2 not-an-id: trait row 2 Two left unpaired',
+  ]);
+  assert.equal(result.report.needsReview, true);
+  assert.doesNotMatch(displaySummary(result.report, result.validation), /All validation checks passed/);
+  assert.match(displaySummary(result.report, result.validation), /Downloads include only the 2 paired items; review the report first/);
+});
+
+test('a duplicate id keeps its row so later traits do not shift', () => {
+  const result = merged(`${A}\n${A}\n${B}\n`, 'name,Hat\nOne,cap\nTwo,brim\nThree,ribbon\n');
+  assert.equal(result.report.mode, 'order');
+  assert.deepEqual(result.items.map((item) => [item.id, item.name, item.t.Hat]), [
+    [A, 'One', 'cap'],
+    [B, 'Three', 'ribbon'],
+  ]);
+  assert.equal(result.outputs.idsTxt, `${A}\n${B}\n`);
+  assert.deepEqual(result.report.unpaired.map((row) => row.message), [
+    `ids row 2 ${A}: trait row 2 Two left unpaired`,
+  ]);
+  assert.deepEqual(result.report.duplicateIds, [{ id: A, count: 2, source: 'ids' }]);
+});
+
+test('number mode maps onto the original id row, including a bad slot', () => {
+  const malformed = merged(`${A}\nnot-an-id\n${B}\n`, 'n,name,Hat\n1,One,cap\n2,Two,brim\n3,Three,ribbon\n');
+  assert.equal(malformed.report.mode, 'number');
+  assert.deepEqual(malformed.items.map((item) => [item.id, item.name, item.t.Hat]), [
+    [A, 'One', 'cap'],
+    [B, 'Three', 'ribbon'],
+  ]);
+  assert.deepEqual(malformed.report.unpaired.map((row) => row.message), [
+    'ids row 2 not-an-id: trait row 2 Two left unpaired',
+  ]);
+
+  const duplicate = merged(`${A}\n${A}\n${B}\n`, 'number,name,Hat\n1,One,cap\n2,Two,brim\n3,Three,ribbon\n');
+  assert.deepEqual(duplicate.items.map((item) => [item.id, item.name]), [
+    [A, 'One'],
+    [B, 'Three'],
+  ]);
+  assert.equal(duplicate.report.unpaired[0].message, `ids row 2 ${A}: trait row 2 Two left unpaired`);
 });
 
 test('extra trait rows in order mode are traits with no id', () => {
@@ -142,7 +197,7 @@ test('a number column joins by number and a zero index joins from the start', ()
   assert.deepEqual(numbered.report.idsWithNoTraits, [B]);
   assert.equal(numbered.items[0].t.Hat, 'cap');
   assert.equal(numbered.items[0].name, 'One');
-  assert.equal(numbered.items[2].name, 'Three');
+  assert.equal(numbered.items[1].name, 'Three');
   assert.equal(numbered.report.traitsWithNoId.some((row) => row.name === 'Four'), true);
 
   const indexed = merged(`${A}\n${B}\n`, 'index,Hat\n0,cap\n1,none\n');
@@ -258,18 +313,45 @@ test('outputs reuse the kit converters and a clean merge passes the validator', 
   assert.equal(result.validation.valid, again.valid);
   assert.equal(result.validation.summary, again.summary);
   assert.match(result.validation.summary, /All validation checks passed/);
+  assert.equal(result.report.needsReview, false);
   assert.equal(result.report.idsWithNoTraits.length, 0);
   assert.equal(result.report.matched, 2);
+  assert.match(displaySummary(result.report, result.validation), /All validation checks passed/);
 });
 
-test('an ids file with no matching traits still exports those ids', () => {
-  const result = merged(`${A}\n${B}\n`, 'Hat\n');
-  assert.equal(result.report.warning, ORDER_WARNING);
-  assert.equal(result.report.matched, 0);
-  assert.deepEqual(result.report.idsWithNoTraits, [A, B]);
-  assert.equal(result.outputs.idsTxt, `${A}\n${B}\n`);
-  assert.deepEqual(result.outputs.inscriptions.map((row) => row.meta.attributes), [[], []]);
-  assert.equal(result.validation.stats.totalItems, 2);
+test('a header-only traits file is an error and a headerless CSV warns', () => {
+  const headerOnly = mergeIdsAndTraits(`${A}\n${B}\n`, 'id,name,Hat\n');
+  assert.equal(headerOnly.ok, false);
+  assert.equal(headerOnly.error, 'Traits CSV has a header and no data rows.');
+  const bare = mergeIdsAndTraits(`${A}\n${B}\n`, 'Hat\n');
+  assert.equal(bare.ok, false);
+  assert.match(bare.error, /no data rows/);
+
+  const headerless = merged(`${A}\n${B}\n`, `${A},One,cap\n${B},Two,none\n`);
+  assert.match(headerless.report.warning, new RegExp(escapeRegExp(HEADERLESS_WARNING)));
+  assert.equal(headerless.report.needsReview, true);
+});
+
+test('a traits CSV keeps newlines and quotes inside a cell', () => {
+  const csv = 'name,Note\r\nOne,"say ""hi""\r\nthere"\r\nTwo,plain\r\n';
+  const records = parseCsvRecords(csv);
+  assert.equal(records[1][1], 'say "hi"\nthere');
+  const result = merged(`${A}\n${B}\n`, csv);
+  assert.equal(result.items[0].name, 'One');
+  assert.equal(result.items[0].t.Note, 'say "hi"\nthere');
+  assert.equal(result.items[1].name, 'Two');
+  assert.equal(result.items[1].t.Note, 'plain');
+});
+
+test('ids with no trait row are reported and left out of the download', () => {
+  const result = merged(`${A}\n${B}\n`, 'name,Hat\nOne,cap\n');
+  assert.equal(result.report.matched, 1);
+  assert.deepEqual(result.report.idsWithNoTraits, [B]);
+  assert.deepEqual(result.items.map((item) => item.id), [A]);
+  assert.equal(result.outputs.idsTxt, `${A}\n`);
+  assert.equal(result.report.needsReview, true);
+  assert.match(displaySummary(result.report, result.validation), /Downloads include only the 1 paired item/);
+  assert.doesNotMatch(displaySummary(result.report, result.validation), /All validation checks passed/);
 });
 
 test('unreadable files return an error and no outputs', () => {
@@ -319,6 +401,9 @@ test('merge page is noindex, self-only, and does not fetch or sign', () => {
   assert.match(script, /mergeIdsAndTraits/);
   assert.match(script, /inscriptions\.json/);
   assert.match(script, /meta\.json/);
+  assert.match(html, /Download Magic Eden JSON/);
+  assert.match(script, /displaySummary/);
+  assert.doesNotMatch(html, />Download JSON</);
   assert.match(kit, /href="\/kit\/merge\/"/);
   assert.match(kit, /Merge IDs \+ traits/);
   assert.doesNotMatch(home, /\/kit\/merge\//);

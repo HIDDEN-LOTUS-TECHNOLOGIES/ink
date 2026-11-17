@@ -5,13 +5,14 @@
 // An inscription id matches /^[0-9a-f]{64}i[0-9]+$/. Uppercase hex is malformed.
 
 import { toIdList, toMagicEden, toUnisatInscriptions, toUnisatMeta } from './convert.js';
-import { parseCSVLine } from './metadataCsv.js';
 import { MetadataValidator } from './metadataValidator.js';
 
 export const INSCRIPTION_ID_RE = /^[0-9a-f]{64}i[0-9]+$/;
-export const ORDER_WARNING = 'Traits file has no inscription ids. Joined by row order: the first trait row pairs with the first id.';
-export const NUMBER_WARNING = 'Traits file has no inscription ids. Joined by number: number 1 pairs with the first id.';
-export const INDEX_WARNING = 'Traits file has no inscription ids. Joined by index: index 0 pairs with the first id.';
+export const ORDER_WARNING = 'Traits file has no inscription ids. Joined by row order: trait row 1 pairs with ids row 1. A malformed or duplicate id keeps that row and leaves its trait unpaired.';
+export const NUMBER_WARNING = 'Traits file has no inscription ids. Joined by number: number 1 pairs with ids row 1. A malformed or duplicate id keeps that row and leaves its trait unpaired.';
+export const INDEX_WARNING = 'Traits file has no inscription ids. Joined by index: index 0 pairs with ids row 1. A malformed or duplicate id keeps that row and leaves its trait unpaired.';
+export const HEADERLESS_WARNING = 'This CSV looks headerless. The first row looks like data and was still read as the header.';
+export const NAME_FALLBACK_NOTE = 'Rows with no name use their number as the name.';
 
 const THUMB_KEYS = ['high_res_img_url', 'collection_page_img_url'];
 const RESERVED = new Set([
@@ -129,27 +130,34 @@ function scoreOf(obj) {
 }
 
 function emptyIds(error) {
-  return { ok: false, error, ids: [], malformed: [], duplicates: [] };
+  return { ok: false, error, ids: [], slots: [], malformed: [], duplicates: [] };
 }
 
-function classifyIds(entries, source) {
-  const ids = [];
+// Every data row keeps a slot. Malformed and duplicate rows stay in place so a
+// later trait row cannot slide onto the wrong id.
+function classifyIds(entries) {
+  const slots = [];
   const malformed = [];
-  const counts = new Map();
+  const seen = new Map();
   for (const entry of entries) {
     const value = String(entry.value ?? '').trim();
+    const index = entry.index;
     if (!INSCRIPTION_ID_RE.test(value)) {
-      malformed.push({ value, index: entry.index, source });
+      malformed.push({ value, index, source: 'ids' });
+      slots.push({ index, value, id: '', valid: false, duplicate: false });
       continue;
     }
-    counts.set(value, (counts.get(value) || 0) + 1);
-    if (counts.get(value) === 1) ids.push(value);
+    const count = (seen.get(value) || 0) + 1;
+    seen.set(value, count);
+    const duplicate = count > 1;
+    slots.push({ index, value, id: duplicate ? '' : value, valid: !duplicate, duplicate });
   }
+  const ids = slots.filter((slot) => slot.valid).map((slot) => slot.id);
   const duplicates = [];
-  for (const [id, count] of counts) {
-    if (count > 1) duplicates.push({ id, count, source });
+  for (const [id, count] of seen) {
+    if (count > 1) duplicates.push({ id, count, source: 'ids' });
   }
-  return { ok: true, error: null, ids, malformed, duplicates };
+  return { ok: true, error: null, ids, slots, malformed, duplicates };
 }
 
 export function parseIdsFile(text) {
@@ -169,15 +177,24 @@ export function parseIdsFile(text) {
       }
       return { value: item == null ? '' : String(item), index: index + 1 };
     });
-    return classifyIds(entries, 'ids');
+    return classifyIds(entries);
   }
   const entries = [];
-  linesOf(text).forEach((line, index) => {
-    if (!line.trim()) return;
-    entries.push({ value: line, index: index + 1 });
-  });
+  let dataRow = 0;
+  let sawContent = false;
+  for (const line of linesOf(text)) {
+    if (!line.trim()) continue;
+    const value = line.trim();
+    if (!sawContent && /^id$/i.test(value)) {
+      sawContent = true;
+      continue;
+    }
+    sawContent = true;
+    dataRow += 1;
+    entries.push({ value, index: dataRow });
+  }
   if (!entries.length) return emptyIds('Ids file is empty.');
-  return classifyIds(entries, 'ids');
+  return classifyIds(entries);
 }
 
 function rowFromObject(obj, index, idValue, nValue) {
@@ -234,14 +251,76 @@ function emptyTraits(error) {
   return { ok: false, error, mode: null, warning: null, rows: [], malformed: [], duplicates: [] };
 }
 
+const RECOGNIZED_COLUMNS = new Set([
+  'id', 'inscription_id', 'inscription', 'name', 'n', 'number', 'index', 'score', ...THUMB_KEYS,
+]);
+
+/** RFC 4180 records. Quoted cells may contain commas, quotes, and newlines. */
+export function parseCsvRecords(text) {
+  const src = stripBom(text);
+  const records = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < src.length; i += 1) {
+    const char = src[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (src[i + 1] === '"') {
+          field += '"';
+          i += 1;
+          continue;
+        }
+        inQuotes = false;
+        continue;
+      }
+      if (char === '\r') {
+        field += '\n';
+        if (src[i + 1] === '\n') i += 1;
+        continue;
+      }
+      field += char;
+      continue;
+    }
+    if (char === '"') {
+      inQuotes = true;
+      continue;
+    }
+    if (char === ',') {
+      row.push(field);
+      field = '';
+      continue;
+    }
+    if (char === '\n' || char === '\r') {
+      if (char === '\r' && src[i + 1] === '\n') i += 1;
+      row.push(field);
+      records.push(row);
+      row = [];
+      field = '';
+      continue;
+    }
+    field += char;
+  }
+  if (field.length || row.length) {
+    row.push(field);
+    records.push(row);
+  }
+  return records.filter((record) => record.some((cell) => cell.trim() !== ''));
+}
+
+function firstRowLooksLikeData(cells) {
+  const trimmed = cells.map((cell) => cell.trim());
+  if (trimmed.some((cell) => INSCRIPTION_ID_RE.test(cell))) return true;
+  if (trimmed.some((cell) => RECOGNIZED_COLUMNS.has(cell.toLowerCase()))) return false;
+  return trimmed.some((cell) => /^[0-9]+$/.test(cell));
+}
+
 function parseTraitsCsv(text) {
-  const physical = [];
-  linesOf(text).forEach((line, index) => {
-    if (!line.trim()) return;
-    physical.push({ line, index: index + 1 });
-  });
-  if (!physical.length) return emptyTraits('Traits file is empty.');
-  const header = parseCSVLine(physical[0].line).map((cell) => cell.trim());
+  const records = parseCsvRecords(text);
+  if (!records.length) return emptyTraits('Traits file is empty.');
+  const header = records[0].map((cell) => cell.trim());
+  const data = records.slice(1);
+  if (!data.length) return emptyTraits('Traits CSV has a header and no data rows.');
   const cols = header.map((name, i) => ({ name, key: name.toLowerCase(), i }));
   const findCol = (names) => cols.find((col) => names.includes(col.key));
   const idCol = findCol(['id', 'inscription_id', 'inscription']);
@@ -249,14 +328,11 @@ function parseTraitsCsv(text) {
   const nCol = findCol(['n', 'number', 'index']);
   const scoreCol = findCol(['score']);
   const thumbCols = cols.filter((col) => THUMB_KEYS.includes(col.key));
-  const reservedKeys = new Set([
-    'id', 'inscription_id', 'inscription', 'name', 'n', 'number', 'index', 'score', ...THUMB_KEYS,
-  ]);
-  const traitCols = cols.filter((col) => col.name && !reservedKeys.has(col.key));
+  const traitCols = cols.filter((col) => col.name && !RECOGNIZED_COLUMNS.has(col.key));
   const rows = [];
   const malformed = [];
-  for (const { line, index } of physical.slice(1)) {
-    const cells = parseCSVLine(line);
+  data.forEach((cells, dataIndex) => {
+    const index = dataIndex + 1;
     const id = idCol ? String(cells[idCol.i] ?? '').trim() : '';
     if (id && !INSCRIPTION_ID_RE.test(id)) malformed.push({ value: id, index, source: 'traits' });
     const traits = {};
@@ -283,8 +359,12 @@ function parseTraitsCsv(text) {
       thumbs,
       score,
     });
+  });
+  const finished = finishTraits(rows, malformed);
+  if (firstRowLooksLikeData(header)) {
+    finished.warning = finished.warning ? `${finished.warning} ${HEADERLESS_WARNING}` : HEADERLESS_WARNING;
   }
-  return finishTraits(rows, malformed);
+  return finished;
 }
 
 function parseTraitsJson(data) {
@@ -362,12 +442,50 @@ function traitGap(row, reason) {
   };
 }
 
+function rowLabel(row) {
+  if (row.name && String(row.name).trim()) return String(row.name).trim();
+  const values = Object.values(row.traits || {});
+  if (values.length) return String(values[0]);
+  return '(no name)';
+}
+
+function unpairedRow(slot, row) {
+  const label = rowLabel(row);
+  return {
+    idsIndex: slot.index,
+    idsValue: slot.value,
+    traitIndex: row.index,
+    traitName: label,
+    message: `ids row ${slot.index} ${slot.value}: trait row ${row.index} ${label} left unpaired`,
+  };
+}
+
 function join(idsParsed, traitsParsed) {
   const items = [];
   const idsWithNoTraits = [];
   const traitsWithNoId = [];
+  const unpaired = [];
+  const namesFromNumber = [];
   let matched = 0;
   let warning = traitsParsed.warning;
+  const slotById = new Map();
+  for (const slot of idsParsed.slots) {
+    if (slot.valid && !slotById.has(slot.id)) slotById.set(slot.id, slot);
+  }
+
+  function emit(slot, row) {
+    const n = row.n ?? slot.index;
+    if (!(row.name && String(row.name).trim())) namesFromNumber.push(n);
+    matched += 1;
+    items.push(makeItem({
+      id: slot.id,
+      n,
+      name: row.name,
+      traits: row.traits,
+      thumbs: row.thumbs,
+      score: row.score,
+    }));
+  }
 
   if (traitsParsed.mode === 'id') {
     const firstById = new Map();
@@ -376,24 +494,15 @@ function join(idsParsed, traitsParsed) {
       firstById.set(row.id, row);
     }
     const used = new Set();
-    idsParsed.ids.forEach((id, i) => {
+    for (const id of idsParsed.ids) {
       const row = firstById.get(id);
       if (!row) {
         idsWithNoTraits.push(id);
-        items.push(makeItem({ id, n: i + 1, name: '', traits: {} }));
-        return;
+        continue;
       }
       used.add(row);
-      matched += 1;
-      items.push(makeItem({
-        id,
-        n: row.n ?? i + 1,
-        name: row.name,
-        traits: row.traits,
-        thumbs: row.thumbs,
-        score: row.score,
-      }));
-    });
+      emit(slotById.get(id), row);
+    }
     for (const row of traitsParsed.rows) {
       if (!row.id) {
         traitsWithNoId.push(traitGap(row, 'missing'));
@@ -404,81 +513,72 @@ function join(idsParsed, traitsParsed) {
     }
   } else if (traitsParsed.mode === 'number') {
     const zeroBased = traitsParsed.rows.some((row) => row.n === 0);
-    const firstByN = new Map();
     const seenN = new Map();
-    for (const row of traitsParsed.rows) {
-      if (row.n == null) continue;
-      seenN.set(row.n, (seenN.get(row.n) || 0) + 1);
-      if (!firstByN.has(row.n)) firstByN.set(row.n, row);
-    }
-    const repeated = [...seenN.entries()].filter(([, count]) => count > 1).map(([n]) => n).sort((a, b) => a - b);
-    if (repeated.length) {
-      warning = `${warning} Repeated numbers were kept once: ${repeated.join(', ')}.`;
-    }
-    const used = new Set();
-    idsParsed.ids.forEach((id, i) => {
-      const n = zeroBased ? i : i + 1;
-      const row = firstByN.get(n);
-      if (!row) {
-        idsWithNoTraits.push(id);
-        items.push(makeItem({ id, n, name: '', traits: {} }));
-        return;
-      }
-      used.add(row);
-      matched += 1;
-      items.push(makeItem({
-        id,
-        n: row.n,
-        name: row.name,
-        traits: row.traits,
-        thumbs: row.thumbs,
-        score: row.score,
-      }));
-    });
+    const usedSlots = new Set();
     for (const row of traitsParsed.rows) {
       if (row.n == null) {
         traitsWithNoId.push(traitGap(row, 'missing'));
         continue;
       }
-      if (used.has(row) || row !== firstByN.get(row.n)) continue;
-      traitsWithNoId.push(traitGap(row, 'unmatched'));
+      seenN.set(row.n, (seenN.get(row.n) || 0) + 1);
+      if (seenN.get(row.n) > 1) continue;
+      const pos = zeroBased ? row.n : row.n - 1;
+      const slot = idsParsed.slots[pos];
+      if (!slot) {
+        traitsWithNoId.push(traitGap(row, 'unmatched'));
+        continue;
+      }
+      usedSlots.add(slot);
+      if (!slot.valid) {
+        unpaired.push(unpairedRow(slot, row));
+        continue;
+      }
+      emit(slot, row);
+    }
+    const repeated = [...seenN.entries()].filter(([, count]) => count > 1).map(([n]) => n).sort((a, b) => a - b);
+    if (repeated.length) {
+      warning = `${warning} Repeated numbers were kept once: ${repeated.join(', ')}.`;
+    }
+    for (const slot of idsParsed.slots) {
+      if (slot.valid && !usedSlots.has(slot)) idsWithNoTraits.push(slot.id);
     }
   } else {
-    idsParsed.ids.forEach((id, i) => {
+    idsParsed.slots.forEach((slot, i) => {
       const row = traitsParsed.rows[i];
-      const n = i + 1;
       if (!row) {
-        idsWithNoTraits.push(id);
-        items.push(makeItem({ id, n, name: '', traits: {} }));
+        if (slot.valid) idsWithNoTraits.push(slot.id);
         return;
       }
-      matched += 1;
-      items.push(makeItem({
-        id,
-        n: row.n ?? n,
-        name: row.name,
-        traits: row.traits,
-        thumbs: row.thumbs,
-        score: row.score,
-      }));
+      if (!slot.valid) {
+        unpaired.push(unpairedRow(slot, row));
+        return;
+      }
+      emit(slot, row);
     });
-    for (const row of traitsParsed.rows.slice(idsParsed.ids.length)) {
+    for (const row of traitsParsed.rows.slice(idsParsed.slots.length)) {
       traitsWithNoId.push(traitGap(row, 'missing'));
     }
   }
 
-  return {
-    items,
-    report: {
-      matched,
-      idsWithNoTraits,
-      traitsWithNoId,
-      duplicateIds: [...idsParsed.duplicates, ...traitsParsed.duplicates],
-      malformedIds: [...idsParsed.malformed, ...traitsParsed.malformed],
-      warning,
-      mode: traitsParsed.mode,
-    },
+  const report = {
+    matched,
+    idsWithNoTraits,
+    traitsWithNoId,
+    unpaired,
+    duplicateIds: [...idsParsed.duplicates, ...traitsParsed.duplicates],
+    malformedIds: [...idsParsed.malformed, ...traitsParsed.malformed],
+    namesFromNumber,
+    warning,
+    mode: traitsParsed.mode,
   };
+  report.needsReview = Boolean(
+    report.idsWithNoTraits.length ||
+    report.traitsWithNoId.length ||
+    report.unpaired.length ||
+    report.duplicateIds.length ||
+    report.malformedIds.length
+  );
+  return { items, report };
 }
 
 export function collectionOutputs(items) {
@@ -490,14 +590,31 @@ export function collectionOutputs(items) {
   };
 }
 
+export function reviewNote(report) {
+  const n = report.matched;
+  const noun = n === 1 ? 'item' : 'items';
+  return `Downloads include only the ${n} paired ${noun}; review the report first.`;
+}
+
+export function displaySummary(report, validation) {
+  if (!report || !validation) return '';
+  const success = String(validation.summary || '').includes('All validation checks passed');
+  if (report.needsReview && success) return `Warning: ${reviewNote(report)}`;
+  if (report.needsReview) return `${validation.summary}\nWarning: ${reviewNote(report)}`;
+  return validation.summary;
+}
+
 export function formatReport(report) {
   const lines = [];
   if (report.warning) lines.push(`Warning: ${report.warning}`);
+  for (const row of report.unpaired || []) lines.push(row.message);
   lines.push(`Matched: ${report.matched}.`);
   lines.push(`Ids with no traits: ${report.idsWithNoTraits.length}.`);
   lines.push(`Traits with no id: ${report.traitsWithNoId.length}.`);
   lines.push(`Duplicate ids: ${report.duplicateIds.length}.`);
   lines.push(`Malformed inscription ids: ${report.malformedIds.length}.`);
+  if (report.namesFromNumber?.length) lines.push(NAME_FALLBACK_NOTE);
+  if (report.needsReview) lines.push(reviewNote(report));
   return lines.join('\n');
 }
 
