@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
+<meta name="robots" content="noindex">
+<meta name="description" content="Pair an ids file with a traits file and download the collection. Everything stays in this browser. Nothing is signed or submitted.">
+<link rel="canonical" href="https://ink.hiddenlotus.tech/kit/merge/">
+<meta property="og:image" content="https://ink.hiddenlotus.tech/og.png">
+<meta property="og:title" content="INK merge IDs and traits">
+<meta property="og:description" content="Pair an ids file with a traits file and download the collection. Nothing is signed or submitted.">
+<meta property="og:url" content="https://ink.hiddenlotus.tech/kit/merge/">
+<meta name="twitter:card" content="summary_large_image">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'">
+<title>Merge IDs + traits · INK</title>
+<link rel="preload" href="/assets/fonts/ubuntu-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/ubuntu-mono-bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/ink.css?v=polish2">
+<link rel="stylesheet" href="/kit/kit.css?v=polish1">
+<link rel="stylesheet" href="merge.css?v=1">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="wrap"><a class="mark" href="/"><img src="/assets/img/droplet-logo.svg" alt="" width="34" height="34"><span><b>INK</b> <em>by HLT</em></span></a><span class="sys">STATUS // ONLINE</span></header>
+<main id="content" class="wrap kit merge">
+  <section class="hero">
+    <p class="crumb"><a href="/">Home</a> / <a href="/kit/">Metadata Kit</a> / Merge</p>
+    <h1 class="page-title">Merge IDs + traits</h1>
+    <p class="lede">Pair an ids file with a traits file and download the collection. Everything stays in this browser. Nothing is signed or submitted.</p>
+  </section>
+  <p class="note">Same files as the <a href="/kit/">Metadata Kit</a>. A chosen file is used instead of the paste box. When a row has no name, the item number is the name.</p>
+
+  <h2>Ids</h2>
+  <label for="ids-file">Ids file</label>
+  <input id="ids-file" type="file" accept=".txt,.json,text/plain,application/json">
+  <p class="note">One inscription id per line, a JSON array of ids, or a JSON array of objects with an id.</p>
+  <label for="ids-raw">Or paste ids</label>
+  <textarea id="ids-raw" spellcheck="false" autocomplete="off" placeholder="One inscription id per line"></textarea>
+
+  <h2>Traits</h2>
+  <label for="traits-file">Traits file</label>
+  <input id="traits-file" type="file" accept=".csv,.json,.txt,text/csv,text/plain,application/json">
+  <p class="note">A CSV with a header, a JSON array, or a JSON object keyed by inscription id or by number. Rows with inscription ids join on that id. Otherwise rows join by number, or by order, and the report says which.</p>
+  <label for="traits-raw">Or paste traits</label>
+  <textarea id="traits-raw" spellcheck="false" autocomplete="off" placeholder="id,name,Hat"></textarea>
+
+  <p class="row"><button type="button" id="merge">Merge</button></p>
+  <p id="status" role="status"></p>
+
+  <h2>Report</h2>
+  <div id="report" aria-live="polite">Nothing merged yet.</div>
+
+  <h2>Validation</h2>
+  <div id="summary" aria-live="polite"></div>
+  <ul id="issues" aria-live="polite"></ul>
+
+  <h2>Download</h2>
+  <p class="note">inscriptions.json is the UniSat gallery file. Magic Eden JSON uses the same id and meta fields. ids.txt lists the merged inscription ids. meta.json is an empty stub. The slug has to match the folder name. This page submits nothing.</p>
+  <p class="row">
+    <button type="button" id="toInscriptions" disabled>UniSat inscriptions.json</button>
+    <button type="button" id="toJson" disabled>Magic Eden JSON</button>
+    <button type="button" id="toIds" disabled>Download ids.txt</button>
+    <button type="button" id="toMeta" disabled>UniSat meta.json</button>
+  </p>
+  <noscript><p>This merge runs in the browser and needs JavaScript.</p></noscript>
+</main>
+<footer class="wrap"><span>INK BY <a href="https://hiddenlotus.tech">HIDDEN LOTUS TECHNOLOGIES</a> · <a href="https://x.com/hiddenl0tus">@hiddenl0tus</a></span><span>Art renders live from <a href="https://ordinals.com">ordinals.com</a>. Collections belong to their creators.</span></footer>
+<script type="module" src="./merge.js"></script>
+</body>
+</html>
