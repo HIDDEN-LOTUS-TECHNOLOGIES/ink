@@ -8,18 +8,12 @@
 // Inscription id bytes match InscriptionId::value, which is the same layout as
 // kit/parentInscription.js encodeParentTag3 (reversed txid, minimal little-endian index).
 
-import { MAX_BODY } from '../estimate/content.js';
 import { normalizeCollection } from '../kit/convert.js';
 import { MetadataValidator } from '../kit/metadataValidator.js';
 import { encodeParentTag3, isValidInscriptionId, parseInscriptionId } from '../kit/parentInscription.js';
 import { BROTLI_ESTIMATE, estimateBrotliSize } from './brotli.js';
 
 export const ORD_VERSION = '0.29.1';
-// Same payload ceiling as /estimate/ and /plan/ (MAX_BODY). 390 KiB is 399,360 bytes.
-// This is not Bitcoin Core's 400_000 weight-unit standardness cap, and it does
-// not include the reveal transaction around the bytes. ord refuses an oversized
-// reveal unless --no-limit is used.
-export const PAYLOAD_CEILING = MAX_BODY;
 export const MAX_DECOMPRESSED_PROPERTIES = 4_000_000;
 export const MAX_COMPRESSION_RATIO = 30;
 const MAX_U32 = 0xffffffff;
@@ -269,7 +263,6 @@ export function estimateGallery(data, options = {}) {
   return {
     ordVersion: ORD_VERSION,
     brotli: BROTLI_ESTIMATE,
-    limit: PAYLOAD_CEILING,
     ok: !normalizeError && Array.isArray(data),
     normalizeError,
     itemCount: selectedItems.length,

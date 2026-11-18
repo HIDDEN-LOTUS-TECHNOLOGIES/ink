@@ -69,7 +69,8 @@ function record(extra = {}) {
 }
 
 test('builds only official ordinals.com /r and content urls', () => {
-  assert.equal(inscriptionUrl(id.toUpperCase()), `https://ordinals.com/r/inscription/${id}`);
+  assert.equal(inscriptionUrl(id), `https://ordinals.com/r/inscription/${id}`);
+  assert.throws(() => inscriptionUrl(id.toUpperCase()), /inscription id/);
   assert.equal(metadataUrl(id), `https://ordinals.com/r/metadata/${id}`);
   assert.equal(contentUrl(`https://ordinals.com/content/${id}`), `https://ordinals.com/content/${id}`);
   assert.equal(childrenUrl(id, 0), `https://ordinals.com/r/children/${id}`);
@@ -92,7 +93,10 @@ test('parses an inscription record and chooses a content preview', () => {
 
   assert.equal(previewPlan(parseInscription(record({ content_type: 'image/png', content_length: 80 }))).kind, 'image');
   assert.equal(previewPlan(parseInscription(record({ content_type: 'image/svg+xml', content_length: 80 }))).kind, 'image');
-  assert.equal(previewPlan(parseInscription(record({ content_type: 'text/html', content_length: 80 }))).kind, 'html');
+  const htmlPreview = previewPlan(parseInscription(record({ content_type: 'text/html', content_length: 80 })));
+  assert.equal(htmlPreview.kind, 'html');
+  assert.equal(htmlPreview.frame, `https://ordinals.com/preview/${id}`);
+  assert.equal(htmlPreview.url, `https://ordinals.com/content/${id}`);
   assert.equal(previewPlan(parseInscription(record({ content_type: 'text/html', content_length: 2_000_001 }))).kind, 'link');
   assert.equal(previewPlan(parseInscription(record({ content_type: 'audio/mpeg', content_length: 80 }))).kind, 'audio');
   assert.equal(previewPlan(parseInscription(record({ content_type: 'model/gltf-binary', content_length: 3726620 }))).kind, 'link');
@@ -103,7 +107,7 @@ test('parses an inscription record and chooses a content preview', () => {
 });
 
 test('parses child pages and parent pages', () => {
-  assert.deepEqual(parseIdPage({ ids: [child.toUpperCase()], more: true, page: 0 }), {
+  assert.deepEqual(parseIdPage({ ids: [child], more: true, page: 0 }), {
     ids: [child],
     more: true,
     page: 0,
@@ -129,7 +133,7 @@ test('looks up number, traits, and children without calling content or mempool',
     [parentsUrl(id, 1)]: jsonResponse({ ids: [id], more: false, page_index: 1 }),
   };
   const { fetchImpl, calls } = mockFetch(routes);
-  const result = await lookupInscription(`  ${id.toUpperCase()}  `, { fetch: fetchImpl, childPage: '2', parentPage: 1 });
+  const result = await lookupInscription(`  ${id}  `, { fetch: fetchImpl, childPage: '2', parentPage: 1 });
   assert.equal(result.record.number, 42);
   assert.equal(result.record.contentType, 'image/png');
   assert.equal(result.metadata.name, 'Puppet');

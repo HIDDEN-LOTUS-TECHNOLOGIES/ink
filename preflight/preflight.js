@@ -1,5 +1,6 @@
 import { csvToItems, parseMetadataCSV } from '../kit/metadataCsv.js';
 import { isGammaOnChain, normalizeCollection, toMagicEden } from '../kit/convert.js';
+import { MAX_STANDARD_TX_WEIGHT, propertiesReveal, SAFE_TX_WEIGHT } from '../estimate/size.js';
 
 const $ = (sel) => document.querySelector(sel);
 let data = null;
@@ -30,10 +31,15 @@ function formatBytes(n) {
   return `${n.toLocaleString('en-US')} bytes`;
 }
 
-function fits(n, ceiling) {
-  if (n == null) return 'no compressed figure';
-  if (n <= ceiling) return `fits in ${formatBytes(ceiling)}`;
-  return `over by ${formatBytes(n - ceiling)}`;
+function weightLine(label, byteLength) {
+  if (byteLength == null) return `${label}: no figure.`;
+  const reveal = propertiesReveal(byteLength);
+  const mark = reveal.weightClass === 'over'
+    ? `over Bitcoin Core's ${MAX_STANDARD_TX_WEIGHT.toLocaleString('en-US')} weight-unit standardness cap`
+    : reveal.weightClass === 'warn'
+      ? `over the ${SAFE_TX_WEIGHT.toLocaleString('en-US')} weight-unit line that should be safe`
+      : `within the ${SAFE_TX_WEIGHT.toLocaleString('en-US')} weight-unit line that should be safe`;
+  return `${label}: reveal weight ${reveal.revealWeight.toLocaleString('en-US')} (${reveal.revealVbytes.toLocaleString('en-US')} vbytes), ${mark}.`;
 }
 
 function variantLine(label, size) {
@@ -61,7 +67,6 @@ function render(estimate) {
   $('#download').disabled = !bytes;
   const ordVersion = estimate.ordVersion;
   const brotli = estimate.brotli;
-  const ceiling = estimate.limit;
   const lines = [
     `Estimate against ord ${ordVersion}.`,
     'Estimate only. Nothing is signed, broadcast or submitted.',
@@ -86,8 +91,9 @@ function render(estimate) {
       lines.push(`Brotli estimate: ${formatBytes(size.compressedBytes)}. ${brotli.library} ${brotli.version}, quality ${brotli.quality}, ${brotli.lgwin}-bit window, generic mode.`);
       lines.push(`Conservative estimate. It can run up to ~15% high (about 12% on the OPIUM sample) versus the Rust brotli 9.0.0 encoder ord ${ordVersion} uses (quality 11, lgwin 24, lgblock 24, generic mode, not text). On the 777-item OPIUM sample this encoder read 39,618 bytes against ord's 35,258, and 37,037 against 33,309 with titles dropped.`);
     }
-    lines.push(`Payload ceiling used here: ${formatBytes(ceiling)}. Raw ${fits(size.rawBytes, ceiling)}. ${size.compressedBytes == null ? 'No smaller brotli figure.' : `Brotli estimate ${fits(size.compressedBytes, ceiling)}.`}`);
-    lines.push('These are the Tag 17 bytes only. A reveal transaction also carries an input, an output, and the ord envelope. Bitcoin Core\'s standardness cap is 400,000 weight units, and ord refuses an oversized reveal unless --no-limit is used.');
+    lines.push(weightLine('Raw properties', size.rawBytes));
+    lines.push('Tag 17 is pushed in 520-byte chunks. Each chunk costs a 2-byte tag push and a 3-byte push header when the chunk is 520 bytes. The weight above is a reveal with those properties and no content body.');
+    lines.push('Bitcoin Core\'s standardness cap is 400,000 weight units, and ord refuses an oversized reveal unless --no-limit is used. 390,000 weight units should be safe.');
     lines.push(variantLine('Titles dropped', estimate.titlesDropped));
     lines.push(variantLine('Traits dropped', estimate.traitsDropped));
   }

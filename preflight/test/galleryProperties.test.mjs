@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { MAX_BODY } from '../../estimate/content.js';
-import { choosePropertiesBytes, encodeProperties, estimateGallery, ORD_VERSION, PAYLOAD_CEILING } from '../galleryProperties.js';
+import { propertiesReveal, SAFE_TX_WEIGHT } from '../../estimate/size.js';
+import { choosePropertiesBytes, encodeProperties, estimateGallery, ORD_VERSION } from '../galleryProperties.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -121,7 +121,6 @@ test('titles and traits change the size, and bad or duplicate ids are reported',
   ];
   const estimate = estimateGallery(data, { compress: null });
   assert.equal(estimate.ordVersion, ORD_VERSION);
-  assert.equal(estimate.limit, PAYLOAD_CEILING);
   assert.equal(estimate.itemCount, 3);
   assert.equal(estimate.leftOut, 1);
   assert.ok(estimate.idIssues.some((row) => /duplicate/i.test(row.message)));
@@ -130,23 +129,23 @@ test('titles and traits change the size, and bad or duplicate ids are reported',
   assert.equal(estimate.traitNotes[0].name, 'Weird');
   assert.ok(estimate.titlesDropped.rawBytes < estimate.selected.rawBytes);
   assert.ok(estimate.traitsDropped.rawBytes < estimate.selected.rawBytes);
-  assert.ok(estimate.selected.rawBytes < PAYLOAD_CEILING);
+  const reveal = propertiesReveal(estimate.selected.rawBytes);
+  assert.equal(reveal.weightClass, 'ok');
+  assert.ok(reveal.revealWeight <= SAFE_TX_WEIGHT);
 });
 
-test('payload ceiling is the shared 399,360 byte cap', () => {
-  assert.equal(MAX_BODY, 399_360);
-  assert.equal(PAYLOAD_CEILING, MAX_BODY);
-  assert.equal(PAYLOAD_CEILING, 390 * 1024);
+test('properties weight uses a 2-byte tag push and a 3-byte header per 520-byte chunk', () => {
   const id = `${'ab'.repeat(32)}i0`;
   const estimate = estimateGallery([{ id, name: 'a', t: {} }], { compress: null });
-  assert.equal(estimate.limit, 399_360);
-  const sources = read('preflight/galleryProperties.js') + read('preflight/preflight.js');
-  assert.match(sources, /Payload ceiling/);
-  assert.match(read('preflight/preflight.js'), /--no-limit/);
-  assert.match(read('preflight/preflight.js'), /400,000 weight units/);
-  assert.doesNotMatch(sources, /409,?600/);
-  assert.doesNotMatch(sources, /400 KB standard tx limit/);
-  assert.doesNotMatch(sources, /STANDARD_TX_BYTES/);
+  const reveal = propertiesReveal(estimate.selected.rawBytes);
+  assert.equal(reveal.revealVbytes, Math.ceil(reveal.revealWeight / 4));
+  const script = read('preflight/preflight.js');
+  assert.match(script, /2-byte tag push/);
+  assert.match(script, /3-byte push header/);
+  assert.match(script, /--no-limit/);
+  assert.match(script, /400,000 weight units/);
+  assert.match(script, /390,000 weight units should be safe/);
+  assert.doesNotMatch(script + read('preflight/galleryProperties.js'), /409,?600|399,?360|400 KB standard tx limit|STANDARD_TX_BYTES|PAYLOAD_CEILING/);
 });
 
 test('OPIUM brotli figure stays the labeled conservative sample', () => {

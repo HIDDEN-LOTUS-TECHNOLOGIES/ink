@@ -35,6 +35,8 @@ test('header and footer padding beat .wrap, and Load more honors hidden', () => 
 test('homepage tile copy and shared cache buster', () => {
   const home = read('index.html');
   const collection = read('c.html');
+  assert.match(home, /Traits and rarity come from curated files on this site/);
+  assert.doesNotMatch(home, /read straight from Bitcoin/);
   assert.match(home, /class="page-title"/);
   assert.doesNotMatch(home, /font-size:clamp/);
   assert.match(home, /Look up an inscription by id\. Nothing is written to Bitcoin\./);

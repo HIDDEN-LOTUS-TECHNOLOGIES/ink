@@ -1,15 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { MAX_BODY } from '../../estimate/content.js';
-import { estimateInscription, feeFor, totalCost } from '../../estimate/size.js';
+import { estimateInscription, feeFor, MAX_STANDARD_TX_WEIGHT, totalCost } from '../../estimate/size.js';
 import { batchCost, planBatch } from '../batch.js';
 
-// Hand-checked cases from estimate/test/estimate.test.mjs.
-// "hi" as text/plain;charset=utf-8: script 72, witness 173, reveal 138, commit 154, total 292.
-// At 1.1 sat/vB the file costs 868 sats, postage included.
-// 102400 image/png bytes: script 103045, witness 103150, reveal 25882, commit 154, total 26036.
-// At 2 sat/vB that file costs 52618 sats, postage included.
+// "hi" as text/plain;charset=utf-8 and a 100 KB image/png share one commit and one reveal.
+// Combined reveal script is the tapscript prefix once plus both envelopes.
+// At 1.1 sat/vB that batch is one commit fee, one reveal fee, and 20,000 sats of postage.
 
 function hiFile() {
   return {
@@ -27,109 +24,108 @@ function pngFile() {
   };
 }
 
-test('batch totals equal the sum of the hand-checked per-file estimates', () => {
+test('one commit and one reveal carry both files', () => {
   const planned = planBatch([hiFile(), pngFile()]);
   assert.equal(planned.rejected.length, 0);
   assert.equal(planned.accepted.length, 2);
+  assert.equal(planned.batches.length, 1);
 
   const hi = planned.accepted[0];
   assert.equal(hi.filename, 'note.txt');
   assert.equal(hi.contentType, 'text/plain;charset=utf-8');
   assert.equal(hi.bodyBytes, 2);
   assert.equal(hi.scriptBytes, 72);
-  assert.equal(hi.witnessBytes, 173);
-  assert.equal(hi.commitVbytes, 154);
-  assert.equal(hi.revealVbytes, 138);
-  assert.equal(hi.totalVbytes, 292);
-  assert.equal(hi.postage, 546);
+  assert.equal(hi.postage, 10_000);
 
   const png = planned.accepted[1];
   assert.equal(png.filename, 'pixel.png');
   assert.equal(png.contentType, 'image/png');
   assert.equal(png.bodyBytes, 102400);
   assert.equal(png.scriptBytes, 103045);
-  assert.equal(png.witnessBytes, 103150);
-  assert.equal(png.commitVbytes, 154);
-  assert.equal(png.revealVbytes, 25882);
-  assert.equal(png.totalVbytes, 26036);
-  assert.equal(png.postage, 546);
 
-  assert.equal(planned.totals.count, 2);
-  assert.equal(planned.totals.bodyBytes, 102402);
-  assert.equal(planned.totals.totalVbytes, 26328);
-  assert.equal(planned.totals.postage, 1092);
+  const batch = planned.batches[0];
+  assert.equal(batch.count, 2);
+  assert.equal(batch.commitVbytes, 154);
+  assert.equal(batch.scriptBytes, 34 + hi.envelopeBytes + png.envelopeBytes);
+  assert.equal(batch.revealWeight, 103_738);
+  assert.equal(batch.revealVbytes, 25_935);
+  assert.equal(batch.postage, 20_000);
+  assert.equal(planned.combined.revealWeight, batch.revealWeight);
+  assert.equal(planned.totals.commitVbytes, 154);
+  assert.equal(planned.totals.revealVbytes, 25_935);
+  assert.equal(planned.totals.totalVbytes, 26_089);
+  assert.equal(planned.totals.postage, 20_000);
 
   const hiAlone = estimateInscription({ body: hiFile().bytes, contentType: 'text/plain;charset=utf-8' });
   const pngAlone = estimateInscription({ body: pngFile().bytes, contentType: 'image/png' });
-  assert.equal(planned.totals.bodyBytes, hiAlone.bodyBytes + pngAlone.bodyBytes);
-  assert.equal(planned.totals.scriptBytes, hiAlone.scriptBytes + pngAlone.scriptBytes);
-  assert.equal(planned.totals.witnessBytes, hiAlone.witnessBytes + pngAlone.witnessBytes);
-  assert.equal(planned.totals.commitVbytes, hiAlone.commitVbytes + pngAlone.commitVbytes);
-  assert.equal(planned.totals.revealVbytes, hiAlone.revealVbytes + pngAlone.revealVbytes);
-  assert.equal(planned.totals.totalVbytes, hiAlone.totalVbytes + pngAlone.totalVbytes);
-
-  assert.equal(totalCost(hiAlone, 1.1).total, 868);
-  assert.equal(totalCost(pngAlone, 2).total, 52618);
-  assert.equal(batchCost(planned.accepted, 1.1).total, totalCost(hiAlone, 1.1).total + totalCost(pngAlone, 1.1).total);
-  assert.equal(batchCost(planned.accepted, 2).total, totalCost(hiAlone, 2).total + totalCost(pngAlone, 2).total);
-  assert.equal(batchCost(planned.accepted, 2).postage, hiAlone.postage + pngAlone.postage);
+  assert.equal(batchCost(planned.batches, 1.1).commitFee, feeFor(154, 1.1));
+  assert.notEqual(
+    batchCost(planned.batches, 1.1).total,
+    totalCost(hiAlone, 1.1).total + totalCost(pngAlone, 1.1).total,
+  );
+  assert.equal(batchCost(planned.batches, 1.1).total, 48_699);
 });
 
-test('a file over MAX_BODY is rejected and siblings still estimate', () => {
+test('a file over 400,000 bytes is rejected and siblings still share one reveal', () => {
   const clean = planBatch([hiFile(), pngFile()]);
+  const tooBig = MAX_STANDARD_TX_WEIGHT + 1;
   const mixed = planBatch([
     hiFile(),
-    { name: 'big.bin', type: '', size: MAX_BODY + 1, bytes: new Uint8Array(1) },
+    { name: 'big.bin', type: '', size: tooBig, bytes: new Uint8Array(1) },
     { name: 'empty.txt', type: 'text/plain', bytes: new Uint8Array(0), size: 0 },
     pngFile(),
   ]);
   assert.equal(mixed.rejected.length, 2);
   assert.equal(mixed.rejected[0].filename, 'big.bin');
-  assert.equal(mixed.rejected[0].bytes, MAX_BODY + 1);
-  assert.equal(mixed.rejected[0].message, `File is ${MAX_BODY + 1} bytes. The limit is ${MAX_BODY} bytes.`);
+  assert.equal(mixed.rejected[0].bytes, tooBig);
+  assert.match(mixed.rejected[0].message, /400,000/);
+  assert.match(mixed.rejected[0].message, /--no-limit/);
   assert.equal(mixed.rejected[1].filename, 'empty.txt');
   assert.match(mixed.rejected[1].message, /empty/);
-  assert.deepEqual(mixed.accepted, clean.accepted);
-  assert.equal(mixed.totals.count, 2);
-  assert.equal(mixed.totals.bodyBytes, clean.totals.bodyBytes);
-  assert.equal(mixed.totals.totalVbytes, clean.totals.totalVbytes);
-  assert.equal(batchCost(mixed.accepted, 2).total, batchCost(clean.accepted, 2).total);
+  assert.equal(mixed.accepted.length, 2);
+  assert.equal(mixed.batches.length, 1);
+  assert.equal(mixed.totals.revealWeight, clean.totals.revealWeight);
+  assert.equal(batchCost(mixed.batches, 2).total, batchCost(clean.batches, 2).total);
 });
 
-test('fee math uses the same per-file ceil as estimate/size.js', () => {
-  const planned = planBatch([hiFile(), pngFile()], { postage: 1000 });
+test('a batch over 400,000 weight units is split, and the fee is one ceil per reveal', () => {
+  const heavy = {
+    name: 'heavy.bin',
+    type: 'application/octet-stream',
+    bytes: new Uint8Array(300_000),
+  };
+  const planned = planBatch([heavy, { ...heavy, name: 'heavy-2.bin' }], { postage: 1000 });
+  assert.equal(planned.rejected.length, 0);
+  assert.equal(planned.combined.weightClass, 'over');
+  assert.equal(planned.batches.length, 2);
+  assert.equal(planned.batches[0].files[0].filename, 'heavy.bin');
+  assert.equal(planned.batches[1].files[0].filename, 'heavy-2.bin');
+  assert.ok(planned.batches.every((batch) => batch.revealWeight <= MAX_STANDARD_TX_WEIGHT));
   assert.equal(planned.totals.postage, 2000);
-  assert.equal(planned.totals.totalVbytes, 26328);
+  assert.equal(planned.totals.commitVbytes, 154 * 2);
 
   for (const rate of [1, 1.1, 2, 3.5]) {
     let commitFee = 0;
     let revealFee = 0;
     let total = 0;
-    for (const row of planned.accepted) {
-      const cost = totalCost(row, rate);
-      assert.equal(cost.commitFee, feeFor(row.commitVbytes, rate));
-      assert.equal(cost.revealFee, feeFor(row.revealVbytes, rate));
-      assert.equal(cost.total, feeFor(row.commitVbytes, rate) + feeFor(row.revealVbytes, rate) + row.postage);
+    for (const batch of planned.batches) {
+      const cost = totalCost(batch, rate);
+      assert.equal(cost.commitFee, feeFor(batch.commitVbytes, rate));
+      assert.equal(cost.revealFee, feeFor(batch.revealVbytes, rate));
       commitFee += cost.commitFee;
       revealFee += cost.revealFee;
       total += cost.total;
     }
-    const summed = batchCost(planned.accepted, rate);
+    const summed = batchCost(planned.batches, rate);
     assert.equal(summed.commitFee, commitFee);
     assert.equal(summed.revealFee, revealFee);
     assert.equal(summed.total, total);
   }
 
-  // 154 vbytes at 1.1 sat/vB is ceil(169.4) = 170 per commit.
-  // ceil((154 + 154) × 1.1) is 339, one sat less than the two per-file fees.
-  const commitVbytes = planned.accepted.reduce((sum, row) => sum + row.commitVbytes, 0);
-  assert.equal(batchCost(planned.accepted, 1.1).commitFee, 340);
-  assert.equal(feeFor(commitVbytes, 1.1), 339);
-  assert.notEqual(batchCost(planned.accepted, 1.1).commitFee, feeFor(commitVbytes, 1.1));
-
   const low = planBatch([hiFile(), pngFile()], { postage: 546 });
-  assert.equal(batchCost(planned.accepted, 3).total - batchCost(low.accepted, 3).total, 454 * 2);
-  assert.equal(low.totals.totalVbytes, planned.totals.totalVbytes);
+  const high = planBatch([hiFile(), pngFile()], { postage: 1000 });
+  assert.equal(batchCost(high.batches, 3).total - batchCost(low.batches, 3).total, 454 * 2);
+  assert.equal(low.totals.revealVbytes, high.totals.revealVbytes);
 });
 
 test('the page is indexable, talks only to mempool.space, and reuses the estimate modules', () => {
@@ -153,7 +149,6 @@ test('the page is indexable, talks only to mempool.space, and reuses the estimat
   assert.doesNotMatch(html, /noindex/i);
   assert.doesNotMatch(html, /innerHTML/);
   assert.match(js, /from '\.\/batch\.js'/);
-  assert.match(js, /from '\.\.\/estimate\/content\.js'/);
   assert.match(js, /from '\.\.\/estimate\/rates\.js'/);
   assert.match(js, /from '\.\.\/estimate\/size\.js'/);
   assert.match(batch, /from '\.\.\/estimate\/content\.js'/);

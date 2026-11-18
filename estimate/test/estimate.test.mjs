@@ -7,8 +7,11 @@ import { feesUrl, loadMarket, mempoolUrl, parseRecommendedFees, parseUsdPrice, p
 import {
   buildEnvelopeScript,
   COMMIT_VBYTES,
+  DUST_FLOOR,
   estimateInscription,
+  MAX_STANDARD_TX_WEIGHT,
   POSTAGE_DEFAULT,
+  propertiesFieldBytes,
   totalCost,
 } from '../size.js';
 
@@ -56,7 +59,8 @@ test('small text inscription vbytes, hand-checked', () => {
   assert.equal(measured.commitVbytes, 154);
   assert.equal(COMMIT_VBYTES, 154);
   assert.equal(measured.totalVbytes, 292);
-  assert.equal(measured.postage, 546);
+  assert.equal(measured.postage, 10_000);
+  assert.equal(measured.weightClass, 'ok');
   assert.equal(measured.revealVbytes, revealVsize(body, contentType));
   sameEnvelopeTail(body, contentType);
   assert.deepEqual(body, textBody('hi'));
@@ -65,7 +69,7 @@ test('small text inscription vbytes, hand-checked', () => {
   assert.equal(cost.commitFee, 170);
   assert.equal(cost.revealFee, 152);
   assert.equal(cost.fee, 322);
-  assert.equal(cost.total, 868);
+  assert.equal(cost.total, 10_322);
 });
 
 test('100 KB image-sized body vbytes, hand-checked', () => {
@@ -92,14 +96,15 @@ test('100 KB image-sized body vbytes, hand-checked', () => {
   assert.equal(cost.commitFee, 308);
   assert.equal(cost.revealFee, 51764);
   assert.equal(cost.fee, 52072);
-  assert.equal(cost.total, 52618);
+  assert.equal(cost.total, 62_072);
 });
 
 test('postage changes sats and not virtual size', () => {
   const body = new TextEncoder().encode('hi');
   const low = estimateInscription({ body, contentType: 'text/plain;charset=utf-8', postage: 546 });
   const high = estimateInscription({ body, contentType: 'text/plain;charset=utf-8', postage: 1000 });
-  assert.equal(POSTAGE_DEFAULT, 546);
+  assert.equal(POSTAGE_DEFAULT, 10_000);
+  assert.equal(DUST_FLOOR, 546);
   assert.equal(low.revealVbytes, high.revealVbytes);
   assert.equal(low.totalVbytes, high.totalVbytes);
   assert.equal(totalCost(low, 3).total + 454, totalCost(high, 3).total);
@@ -152,14 +157,17 @@ test('content type push headers match the builder', () => {
   sameEnvelopeTail(new TextEncoder().encode('héllo'), 'text/plain;charset=utf-8');
 });
 
-test('refuses an empty body, a body past 390 KB, and a long content type', () => {
+test('a plain image/png tops out at 397,171 bytes under 400,000 weight units', () => {
   assert.throws(() => contentFromText(''), /Choose a file or type some text/);
   assert.throws(() => estimateInscription({ body: new Uint8Array(0), contentType: 'text/plain' }), /empty/);
-  const tooBig = 390 * 1024 + 1;
-  assert.throws(
-    () => contentFromFile({ name: 'a.bin', type: '', bytes: new Uint8Array(tooBig), size: tooBig }),
-    { message: `File is ${tooBig} bytes. The limit is ${tooBig - 1} bytes.` },
-  );
+  const fit = estimateInscription({ body: new Uint8Array(397_171), contentType: 'image/png' });
+  assert.equal(fit.revealWeight, MAX_STANDARD_TX_WEIGHT);
+  assert.equal(fit.weightClass, 'warn');
+  const over = estimateInscription({ body: new Uint8Array(397_172), contentType: 'image/png' });
+  assert.equal(over.revealWeight, MAX_STANDARD_TX_WEIGHT + 1);
+  assert.equal(over.weightClass, 'over');
+  assert.equal(propertiesFieldBytes(520), 2 + 3 + 520);
+  assert.equal(propertiesFieldBytes(521), 2 + 3 + 520 + 2 + 1 + 1);
   assert.throws(() => estimateInscription({ body: new Uint8Array([1]), contentType: 'a'.repeat(129) }), /too long/);
 });
 

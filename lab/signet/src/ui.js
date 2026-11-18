@@ -1,6 +1,6 @@
 import { hex } from '@scure/base';
 import {
-  MAX_BODY, NETWORK_NAME,
+  MAX_STANDARD_TX_WEIGHT, NETWORK_NAME,
   assertFeeRate, assertSignetAddress, buildCommit, buildCommitPsbt, buildReveal, contentTypeForFile, createKey,
   finalizeCommitPsbt, keyFromHex, planFromRecovery, preparePlan, recoveryFile, signetUrl, textBody,
   utxoCreatedByInscription,
@@ -53,7 +53,7 @@ function showFunding() {
 function contentFromForm() {
   const file = $('#file').files && $('#file').files[0];
   if (file) {
-    if (file.size > MAX_BODY) throw new Error(`File is ${file.size} bytes. The limit is ${MAX_BODY} bytes.`);
+    if (file.size > MAX_STANDARD_TX_WEIGHT) throw new Error(`File is ${file.size} bytes. A reveal carrying that body is over Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.`);
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error('Could not read the file.'));

@@ -1,15 +1,15 @@
-// Inscription ids are the reveal txid, a literal "i", and the inscription index.
-// Same form as kit/parentInscription.js. This parser stays quiet and also accepts
-// an ordinals.com URL, because that is what people paste from the address bar.
+// Inscription ids follow kit/inscriptionId.js. This parser stays quiet and also
+// accepts an ordinals.com URL, because that is what people paste from the address bar.
+// The id inside the URL still has to be the canonical lowercase form.
 
-const ID_RE = /([a-fA-F0-9]{64})i(\d+)/;
-const MAX_INDEX = 0xffffffff;
+import { isValidInscriptionId, parseCanonicalInscriptionId } from '../kit/inscriptionId.js';
+
+export { isValidInscriptionId };
+
+const ID_RE = /([0-9a-f]{64})i(?:0|[1-9][0-9]*)/;
 
 function fromMatch(match) {
-  const index = Number(match[2]);
-  if (!Number.isSafeInteger(index) || index < 0 || index > MAX_INDEX) return null;
-  const txid = match[1].toLowerCase();
-  return { txid, index, id: `${txid}i${index}` };
+  return parseCanonicalInscriptionId(match[0]);
 }
 
 function fromUrl(text) {
@@ -22,7 +22,7 @@ function fromUrl(text) {
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
   const host = url.hostname.toLowerCase().replace(/\.$/, '');
   if (host !== 'ordinals.com' && host !== 'www.ordinals.com') return null;
-  const matches = [...url.pathname.matchAll(new RegExp(ID_RE.source, 'gi'))];
+  const matches = [...url.pathname.matchAll(new RegExp(ID_RE.source, 'g'))];
   if (!matches.length) return null;
   return fromMatch(matches[matches.length - 1]);
 }
@@ -33,12 +33,9 @@ export function parseInscriptionId(input) {
     text = text.slice(1, -1).trim();
   }
   if (!text) return null;
-  const direct = text.match(new RegExp(`^${ID_RE.source}$`, 'i'));
+  const direct = text.match(new RegExp(`^${ID_RE.source}$`));
   if (direct) return fromMatch(direct);
   if (/^ordinals\.com\//i.test(text)) return fromUrl(`https://${text}`);
   return fromUrl(text);
 }
 
-export function isValidInscriptionId(input) {
-  return parseInscriptionId(input) != null;
-}

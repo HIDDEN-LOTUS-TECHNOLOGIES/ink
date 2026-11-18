@@ -12997,8 +12997,8 @@ function p2tr_ord_reveal(pubkey, inscriptions) {
 var NETWORK_NAME = "signet";
 var NET = TEST_NETWORK;
 var SIGNET_API_ORIGIN = "https://mempool.space";
-var POSTAGE = 546n;
-var MAX_BODY = 390 * 1024;
+var POSTAGE = 10000n;
+var MAX_STANDARD_TX_WEIGHT = 400000;
 var MAINNET_ADDR = /^(bc1|[13])/i;
 var SIGNET_ADDR = /^(tb1|[mn2])/i;
 function assertSignetAddress(address) {
@@ -13084,7 +13084,6 @@ function contentTypeForFile(filename, browserType) {
 function assertBody(body) {
   if (!(body instanceof Uint8Array)) throw new Error("Content must be bytes.");
   if (!body.length) throw new Error("Content is empty.");
-  if (body.length > MAX_BODY) throw new Error(`Content is ${body.length} bytes. The limit is ${MAX_BODY} bytes.`);
   return body;
 }
 function assertFeeRate(rate) {
@@ -13135,6 +13134,9 @@ function preparePlan({ body, contentType, revealPriv, dest, feeRate }) {
     dest: destination,
     postage: POSTAGE
   });
+  if (probe.weight > MAX_STANDARD_TX_WEIGHT) {
+    throw new Error(`Reveal weight is ${probe.weight}. That is over Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.`);
+  }
   const revealFee = feeFor(probe.vsize, rate);
   const commitValue = POSTAGE + revealFee;
   return {
@@ -13219,7 +13221,7 @@ function finishCommit(tx, plan2, inputSum, change) {
   };
 }
 function buildReveal({ plan: plan2, commitTxid, commitVout = 0, commitValue }) {
-  if (commitValue <= plan2.postage) throw new Error("Commit output cannot cover the 546 sat postage.");
+  if (commitValue <= plan2.postage) throw new Error(`Commit output cannot cover the ${plan2.postage} sat postage.`);
   const tx = buildRevealTx({
     payment: plan2.payment,
     revealPriv: plan2.revealPriv,
@@ -21335,7 +21337,7 @@ function showFunding() {
 function contentFromForm() {
   const file = $("#file").files && $("#file").files[0];
   if (file) {
-    if (file.size > MAX_BODY) throw new Error(`File is ${file.size} bytes. The limit is ${MAX_BODY} bytes.`);
+    if (file.size > MAX_STANDARD_TX_WEIGHT) throw new Error(`File is ${file.size} bytes. A reveal carrying that body is over Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.`);
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error("Could not read the file."));

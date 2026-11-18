@@ -135,9 +135,9 @@ function previewNode(result) {
   else if (kind === 'video') box.append(h('video', { controls: 'controls', src: url }));
   else if (kind === 'html') {
     box.append(h('iframe', {
-      sandbox: 'allow-scripts allow-same-origin',
+      sandbox: 'allow-scripts',
       title: 'Inscription content',
-      src: url,
+      src: result.preview.frame || url,
     }));
   } else if (kind === 'text') box.append(h('pre', { id: 'previewText' }, 'Loading content…'));
   else if (kind === 'empty') box.append(h('p', null, 'No content body.'));
