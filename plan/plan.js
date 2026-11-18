@@ -1,7 +1,6 @@
 import { batchCost, planBatch } from './batch.js';
-import { MAX_BODY } from '../estimate/content.js';
 import { loadMarket, RATE_ROWS } from '../estimate/rates.js';
-import { parseFeeRate, parsePostage, POSTAGE_DEFAULT, satsToUsd, totalCost } from '../estimate/size.js';
+import { MAX_STANDARD_TX_WEIGHT, parseFeeRate, parsePostage, POSTAGE_DEFAULT, SAFE_TX_WEIGHT, satsToUsd } from '../estimate/size.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -60,10 +59,6 @@ function rateColumns(fees, custom) {
   return columns;
 }
 
-function fileCountLabel(count) {
-  return count === 1 ? '1 file' : `${formatNum(count)} files`;
-}
-
 function syncClear() {
   $('#clear').disabled = !($('#files').files && $('#files').files.length);
 }
@@ -120,16 +115,15 @@ function render() {
   if (!estimated) return;
 
   const columns = rateColumns(market.fees, custom);
-  const columnCosts = columns.map((column) => batchCost(planned.accepted, column.rate));
+  const columnCosts = columns.map((column) => batchCost(planned.batches, column.rate));
+  const combined = planned.combined;
 
   out.append(h('h2', null, 'Batch'));
   const table = h('table');
   const head = h('thead');
   const headRow = h('tr');
-  const labels = ['File', 'Content type', 'Body bytes', 'Envelope bytes', 'Witness bytes', 'Commit vbytes', 'Reveal vbytes', 'Total vbytes'];
-  for (const label of labels) headRow.append(h('th', { scope: 'col' }, label));
-  for (const column of columns) {
-    headRow.append(h('th', { class: 'num', scope: 'col' }, `${column.label} (${formatRate(column.rate)} sat/vB)`));
+  for (const label of ['File', 'Content type', 'Body bytes', 'Envelope bytes']) {
+    headRow.append(h('th', { scope: 'col' }, label));
   }
   head.append(headRow);
 
@@ -140,40 +134,31 @@ function render() {
       h('td', null, row.filename),
       h('td', null, row.contentType),
       h('td', { class: 'num' }, formatNum(row.bodyBytes)),
-      h('td', { class: 'num' }, formatNum(row.scriptBytes)),
-      h('td', { class: 'num' }, formatNum(row.witnessBytes)),
-      h('td', { class: 'num' }, formatNum(row.commitVbytes)),
-      h('td', { class: 'num' }, formatNum(row.revealVbytes)),
-      h('td', { class: 'num' }, formatNum(row.totalVbytes)),
+      h('td', { class: 'num' }, formatNum(row.envelopeBytes)),
     );
-    for (const column of columns) {
-      tr.append(h('td', { class: 'num' }, `${formatNum(totalCost(row, column.rate).total)} sats`));
-    }
     body.append(tr);
   }
-
-  const foot = h('tfoot');
-  const totalRow = h('tr');
-  totalRow.append(
-    h('th', { scope: 'row' }, fileCountLabel(planned.totals.count)),
-    h('td', null, '—'),
-    h('td', { class: 'num' }, formatNum(planned.totals.bodyBytes)),
-    h('td', { class: 'num' }, formatNum(planned.totals.scriptBytes)),
-    h('td', { class: 'num' }, formatNum(planned.totals.witnessBytes)),
-    h('td', { class: 'num' }, formatNum(planned.totals.commitVbytes)),
-    h('td', { class: 'num' }, formatNum(planned.totals.revealVbytes)),
-    h('td', { class: 'num' }, formatNum(planned.totals.totalVbytes)),
-  );
-  for (const cost of columnCosts) {
-    totalRow.append(h('td', { class: 'num' }, `${formatNum(cost.total)} sats`));
-  }
-  foot.append(totalRow);
-  table.append(head, body, foot);
+  table.append(head, body);
 
   const wrap = h('div', { class: 'tablewrap' });
   wrap.append(table);
   out.append(wrap);
-  out.append(h('p', null, `Each file total is ceil(commit vbytes × sat/vB) + ceil(reveal vbytes × sat/vB) + ${formatNum(postage)} postage. The totals row adds those file totals. Postage in the batch is ${formatNum(planned.totals.postage)} sats.`));
+  const revealLine = `One commit of ${formatNum(combined.commitVbytes)} vbytes and one reveal of ${formatNum(combined.revealWeight)} weight units (${formatNum(combined.revealVbytes)} vbytes), ${formatNum(combined.count)} postage outputs.`;
+  out.append(h('p', null, revealLine));
+  if (planned.batches.length > 1) {
+    const parts = planned.batches.map((batch, index) => {
+      const names = batch.files.map((file) => file.filename).join(', ');
+      return `Batch ${index + 1}: ${names}, reveal weight ${formatNum(batch.revealWeight)}.`;
+    });
+    out.append(h('p', null, `That reveal is over 400,000 weight units. Split it into ${formatNum(planned.batches.length)} batches. ${parts.join(' ')} The cost below is those batches added, one commit and one reveal each.`));
+  } else if (combined.weightClass === 'warn') {
+    out.append(h('p', null, `Reveal weight is ${formatNum(combined.revealWeight)}. ${formatNum(SAFE_TX_WEIGHT)} weight units should be safe.`));
+  }
+  out.append(h('p', null, `Batch cost is ceil(commit vbytes × sat/vB) + ceil(reveal vbytes × sat/vB) + postage, summed across the batches above. Postage is ${formatNum(postage)} sats on each output, ${formatNum(planned.totals.postage)} sats in total.`));
+  if (columns.length) {
+    const bits = columns.map((column, index) => `${column.label} (${formatRate(column.rate)} sat/vB) ${formatNum(columnCosts[index].total)} sats`);
+    out.append(h('p', null, bits.join('. ') + '.'));
+  }
   if (!columns.length) {
     out.append(h('p', null, 'Recommended rates did not load. Enter a custom sat/vB to see a cost.'));
   }
@@ -199,8 +184,8 @@ async function onFiles() {
   const next = [];
   for (const file of list) {
     if (gen !== generation) return;
-    if (file.size > MAX_BODY) {
-      next.push({ name: file.name, type: file.type, size: file.size });
+    if (file.size > MAX_STANDARD_TX_WEIGHT) {
+      next.push({ name: file.name, type: file.type, size: file.size, bytes: new Uint8Array(0), error: `File is ${file.size} bytes. A reveal carrying that body is over Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.` });
       continue;
     }
     try {

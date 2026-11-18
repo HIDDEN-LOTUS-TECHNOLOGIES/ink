@@ -14,9 +14,6 @@ import { encodeParentTag3, isValidInscriptionId, parseInscriptionId } from '../k
 import { BROTLI_ESTIMATE, estimateBrotliSize } from './brotli.js';
 
 export const ORD_VERSION = '0.29.1';
-// 400 KB properties payload. This is not Bitcoin Core's 400_000 weight-unit
-// standardness cap, and it does not include the reveal transaction around the bytes.
-export const STANDARD_TX_BYTES = 400 * 1024;
 export const MAX_DECOMPRESSED_PROPERTIES = 4_000_000;
 export const MAX_COMPRESSION_RATIO = 30;
 const MAX_U32 = 0xffffffff;
@@ -266,7 +263,6 @@ export function estimateGallery(data, options = {}) {
   return {
     ordVersion: ORD_VERSION,
     brotli: BROTLI_ESTIMATE,
-    limit: STANDARD_TX_BYTES,
     ok: !normalizeError && Array.isArray(data),
     normalizeError,
     itemCount: selectedItems.length,

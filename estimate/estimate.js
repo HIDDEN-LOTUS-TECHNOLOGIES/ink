@@ -1,6 +1,6 @@
-import { contentFromFile, contentFromText, MAX_BODY } from './content.js';
+import { contentFromFile, contentFromText } from './content.js';
 import { loadMarket, RATE_ROWS } from './rates.js';
-import { estimateInscription, parseFeeRate, parsePostage, POSTAGE_DEFAULT, satsToUsd, totalCost } from './size.js';
+import { estimateInscription, MAX_STANDARD_TX_WEIGHT, parseFeeRate, parsePostage, POSTAGE_DEFAULT, SAFE_TX_WEIGHT, satsToUsd, totalCost } from './size.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -130,7 +130,12 @@ function render() {
     postage,
   });
   const source = fileChoice ? `Using ${content.label}.` : 'Using typed text.';
-  setStatus([source, marketNote].filter(Boolean).join(' '), false);
+  const weightNote = measured.weightClass === 'over'
+    ? `Reveal weight is ${formatNum(measured.revealWeight)}. That is over Bitcoin Core's ${formatNum(MAX_STANDARD_TX_WEIGHT)} weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.`
+    : measured.weightClass === 'warn'
+      ? `Reveal weight is ${formatNum(measured.revealWeight)}. ${formatNum(SAFE_TX_WEIGHT)} weight units should be safe.`
+      : '';
+  setStatus([source, weightNote, marketNote].filter(Boolean).join(' '), measured.weightClass === 'over');
 
   addSection(out, 'Size');
   out.append(scrollTable(factTable([
@@ -138,6 +143,7 @@ function render() {
     ['Body', `${formatNum(measured.bodyBytes)} bytes`],
     ['Envelope script', `${formatNum(measured.scriptBytes)} bytes`],
     ['Witness', `${formatNum(measured.witnessBytes)} bytes`],
+    ['Reveal weight', `${formatNum(measured.revealWeight)} weight units`],
     ['Commit transaction', `${formatNum(measured.commitVbytes)} vbytes`],
     ['Reveal transaction', `${formatNum(measured.revealVbytes)} vbytes`],
     ['Total', `${formatNum(measured.totalVbytes)} vbytes`],
@@ -190,11 +196,11 @@ async function onFile() {
     render();
     return;
   }
-  if (file.size > MAX_BODY) {
+  if (file.size > MAX_STANDARD_TX_WEIGHT) {
     clearOut();
     $('#file').value = '';
     syncClear();
-    setStatus(`File is ${file.size} bytes. The limit is ${MAX_BODY} bytes.`, true);
+    setStatus(`File is ${file.size} bytes. A reveal carrying that body is over Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.`, true);
     return;
   }
   try {

@@ -35,6 +35,8 @@ test('header and footer padding beat .wrap, and Load more honors hidden', () => 
 test('homepage tile copy and shared cache buster', () => {
   const home = read('index.html');
   const collection = read('c.html');
+  assert.match(home, /Traits and rarity come from curated files on this site/);
+  assert.doesNotMatch(home, /read straight from Bitcoin/);
   assert.match(home, /class="page-title"/);
   assert.doesNotMatch(home, /font-size:clamp/);
   assert.match(home, /Look up an inscription by id\. Nothing is written to Bitcoin\./);
@@ -49,6 +51,10 @@ test('homepage tile copy and shared cache buster', () => {
   assert.doesNotMatch(home + collection, /\/preflight\//);
   assert.match(home, /class="skip" href="#content"/);
   assert.match(collection, /id="content"/);
+  assert.match(home, /name="description" content="Browse traits and metadata for O\.P\.I\.U\.M\., FUN! and Hidden Lotus Tech ordinals collections\."/);
+  assert.match(home, /property="og:url" content="https:\/\/ink\.hiddenlotus\.tech\/"/);
+  assert.match(collection, /name="description" content="Browse traits, rarity, and metadata for one ordinals collection\."/);
+  assert.match(collection, /property="og:url" content="https:\/\/ink\.hiddenlotus\.tech\/c\.html"/);
 });
 
 test('tool pages share the header and do not add a signet lab link', () => {

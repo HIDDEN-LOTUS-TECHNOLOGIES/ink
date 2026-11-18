@@ -4,7 +4,7 @@ This page builds and broadcasts a Bitcoin inscription without an ord node. It is
 
 The page is not linked from the INK home page.
 
-The file picker accepts text, HTML, CSS, SVG, PNG, JPEG, GIF, WebP, JSON, PDF, audio (MP3, WAV, OGG), and video (MP4, WebM). Bodies are limited to 390 KB, the usual room in one Bitcoin transaction. Typed text is inscribed as `text/plain;charset=utf-8`. When a browser leaves the file type empty, the extension is used; an unknown extension becomes `application/octet-stream`.
+The file picker accepts text, HTML, CSS, SVG, PNG, JPEG, GIF, WebP, JSON, PDF, audio (MP3, WAV, OGG), and video (MP4, WebM). Bodies have to fit in a reveal under Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses a heavier reveal unless --no-limit is used. Typed text is inscribed as `text/plain;charset=utf-8`. When a browser leaves the file type empty, the extension is used; an unknown extension becomes `application/octet-stream`.
 
 ## What runs where
 
@@ -24,7 +24,7 @@ No ord node is contacted. There is no Bitcoin Core and no electrum server.
 | Broadcast | `POST https://mempool.space/signet/api/tx` with the raw hex |
 | Confirmation | `GET https://mempool.space/signet/api/tx/<txid>/status` |
 
-The commit transaction pays the taproot commit address. With a throwaway key, the page signs that commit itself. With a wallet, the page builds an unsigned PSBT from the payment address, skips outputs whose creating transaction reveals an inscription on vout 0, asks the wallet to sign without broadcasting, then finalizes and checks the amount, script, and fee. The reveal transaction spends that output on the script path and sends 546 sats to the destination. For a connected wallet the destination defaults to the ordinals address. The inscription id is `<reveal txid>i0`.
+The commit transaction pays the taproot commit address. With a throwaway key, the page signs that commit itself. With a wallet, the page builds an unsigned PSBT from the payment address, skips outputs whose creating transaction reveals an inscription on vout 0, asks the wallet to sign without broadcasting, then finalizes and checks the amount, script, and fee. The reveal transaction spends that output on the script path and sends 10,000 sats to the destination, ord's default postage. 546 sats is the dust floor for change. For a connected wallet the destination defaults to the ordinals address. The inscription id is `<reveal txid>i0`.
 
 Download the recovery JSON before the commit is signed. It contains the reveal key (WIF and hex), the reveal script, the commit address, and `network: "signet"`. The throwaway path also stores that funding key. The wallet path does not. Recover stuck reveal loads that file, reads the commit address UTXO from mempool.space, and rebuilds or rebroadcasts only the reveal.
 

@@ -5,10 +5,15 @@ import { decodeParentTag3, decodeParentTag3Hex, encodeParentTag3, isValidInscrip
 const id = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1fi0';
 
 test('parses and validates inscription ids', () => {
-  assert.deepEqual(parseInscriptionId(id), { txid: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f', index: 0 });
+  assert.deepEqual(parseInscriptionId(id), { txid: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f', index: 0, id });
   assert.equal(parseInscriptionId('nope'), null);
   assert.equal(isValidInscriptionId(id), true);
   assert.equal(isValidInscriptionId('abc'), false);
+  assert.equal(isValidInscriptionId(id.toUpperCase()), false);
+  assert.equal(isValidInscriptionId(`${id.slice(0, -1)}00`), false);
+  assert.equal(isValidInscriptionId(`${id.slice(0, -1)}4294967295`), true);
+  assert.equal(isValidInscriptionId(`${id.slice(0, -1)}4294967296`), false);
+  assert.throws(() => encodeParentTag3(`${id.slice(0, -1)}4294967296`), /Invalid parent inscription ID/);
 });
 
 test('encodes Tag 3 and decodes it back', () => {

@@ -3,6 +3,7 @@
 // Collection item CSV (id, name, traits) is the Kit's JSON <-> CSV path.
 
 import { THUMB_KEYS } from './convert.js';
+import { isValidInscriptionId } from './inscriptionId.js';
 
 export function parseCSVLine(line) {
   const result = [];
@@ -20,10 +21,6 @@ export function parseCSVLine(line) {
   }
   result.push(current.trim());
   return result;
-}
-
-function isValidInscriptionId(id) {
-  return /^[a-fA-F0-9]{64}i\d+$/.test(id);
 }
 
 function detectColumns(headerLine) {

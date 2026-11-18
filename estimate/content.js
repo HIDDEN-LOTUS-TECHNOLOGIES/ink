@@ -1,8 +1,8 @@
 // What the signet lab would inscribe. Typed text follows lab/signet/src/ui.js.
 
-import { assertBody, contentTypeForFile, MAX_BODY } from '../lab/signet/src/contentType.js';
+import { assertBody, contentTypeForFile } from '../lab/signet/src/contentType.js';
 
-export { MAX_BODY, contentTypeForFile };
+export { contentTypeForFile };
 
 const textEncoder = new TextEncoder();
 
@@ -16,9 +16,7 @@ export function contentFromText(text) {
   return { body, contentType: 'text/plain;charset=utf-8', label: 'typed text' };
 }
 
-export function contentFromFile({ name, type, bytes, size }) {
-  const length = size ?? bytes?.length ?? 0;
-  if (length > MAX_BODY) throw new Error(`File is ${length} bytes. The limit is ${MAX_BODY} bytes.`);
+export function contentFromFile({ name, type, bytes }) {
   const body = assertBody(bytes);
   return {
     body,
