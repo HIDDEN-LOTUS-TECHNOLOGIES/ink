@@ -6,9 +6,14 @@
 
 import { assertBody } from '../lab/signet/src/contentType.js';
 
-// ord 0.29.1 src/lib.rs TARGET_POSTAGE. 546 is the dust floor, not the postage.
+// ord 0.29.1 src/lib.rs TARGET_POSTAGE. Dust is not one number.
+// Bitcoin Core src/policy/policy.cpp GetDustThreshold, default dust relay fee 3 sat/vB:
+// a P2PKH output is 182 bytes at that rate (546 sats), a P2WPKH output is 98 bytes (294),
+// and a P2TR output is 43 + 67 = 110 bytes (330). Inscriptions live on taproot outputs.
 export const POSTAGE_DEFAULT = 10_000;
-export const DUST_FLOOR = 546;
+export const TAPROOT_DUST = 330;
+export const P2WPKH_DUST = 294;
+export const P2PKH_DUST = 546;
 export const CHUNK = 520;
 export const SIG_BYTES = 64;
 export const CONTROL_BYTES = 33;

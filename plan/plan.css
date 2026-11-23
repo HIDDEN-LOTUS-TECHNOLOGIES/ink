@@ -2,7 +2,7 @@ body{text-transform:none}
 .plan h2{margin:1.6rem 0 .4rem}
 .plan p,.plan li,.plan label,.plan td,.plan th,.plan code{text-transform:none}
 .plan label{display:block;margin:.7rem 0 .2rem;color:var(--mut);font-size:.85rem}
-.plan input,.plan button{width:100%;max-width:42rem;background:#111;color:var(--fg);border:1px solid var(--line);font:400 .9rem var(--mono);padding:.5rem .6rem}
+.plan input,.plan button{width:100%;max-width:min(42rem,100%);min-width:0;background:#111;color:var(--fg);border:1px solid var(--line);font:400 .9rem var(--mono);padding:.5rem .6rem}
 .plan button{width:auto;background:none;color:var(--acc);border:1px solid var(--acc);font:700 .78rem var(--mono);letter-spacing:.05em;padding:.55rem .8rem;cursor:pointer}
 .plan button:hover:not(:disabled){background:var(--acc);color:#000}
 .row{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}
@@ -14,7 +14,11 @@ body{text-transform:none}
 .plan .rejected{max-width:42rem}
 .plan .rejected h2,.plan .rejected li{color:#ffb4a8}
 .plan .rejected li{margin:.25rem 0;overflow-wrap:anywhere}
-.tablewrap{overflow:auto;max-width:100%}
+main.plan{width:100%;max-width:var(--max);min-width:0}
+.plan p,.plan .lede,.plan code,.plan label{overflow-wrap:anywhere}
+#out{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;max-width:100%}
+.plan input[type=file]{display:block;width:100%;max-width:100%;min-width:0}
+.tablewrap{display:block;width:100%;max-width:100%;min-width:0;overflow-x:auto}
 .plan table{width:max-content;min-width:100%;border-collapse:collapse;font-size:.85rem}
 .plan th,.plan td{border-bottom:1px solid var(--line);padding:.35rem .45rem;text-align:left;vertical-align:top;overflow-wrap:anywhere}
 .plan th{color:var(--mut);font-size:.78rem}

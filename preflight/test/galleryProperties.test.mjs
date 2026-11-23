@@ -145,6 +145,11 @@ test('properties weight uses a 2-byte tag push and a 3-byte header per 520-byte 
   assert.match(script, /--no-limit/);
   assert.match(script, /400,000 weight units/);
   assert.match(script, /390,000 weight units should be safe/);
+  assert.match(script, /weightLine\('Brotli estimate'/);
+  assert.match(script, /weightLine\('Titles dropped'/);
+  assert.match(script, /weightLine\('Titles dropped brotli estimate'/);
+  assert.match(script, /weightLine\('Traits dropped'/);
+  assert.match(script, /weightLine\('Traits dropped brotli estimate'/);
   assert.doesNotMatch(script + read('preflight/galleryProperties.js'), /409,?600|399,?360|400 KB standard tx limit|STANDARD_TX_BYTES|PAYLOAD_CEILING/);
 });
 

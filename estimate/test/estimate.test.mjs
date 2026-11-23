@@ -7,7 +7,9 @@ import { feesUrl, loadMarket, mempoolUrl, parseRecommendedFees, parseUsdPrice, p
 import {
   buildEnvelopeScript,
   COMMIT_VBYTES,
-  DUST_FLOOR,
+  P2PKH_DUST,
+  P2WPKH_DUST,
+  TAPROOT_DUST,
   estimateInscription,
   MAX_STANDARD_TX_WEIGHT,
   POSTAGE_DEFAULT,
@@ -104,7 +106,9 @@ test('postage changes sats and not virtual size', () => {
   const low = estimateInscription({ body, contentType: 'text/plain;charset=utf-8', postage: 546 });
   const high = estimateInscription({ body, contentType: 'text/plain;charset=utf-8', postage: 1000 });
   assert.equal(POSTAGE_DEFAULT, 10_000);
-  assert.equal(DUST_FLOOR, 546);
+  assert.equal(TAPROOT_DUST, 330);
+  assert.equal(P2WPKH_DUST, 294);
+  assert.equal(P2PKH_DUST, 546);
   assert.equal(low.revealVbytes, high.revealVbytes);
   assert.equal(low.totalVbytes, high.totalVbytes);
   assert.equal(totalCost(low, 3).total + 454, totalCost(high, 3).total);
@@ -169,6 +173,31 @@ test('a plain image/png tops out at 397,171 bytes under 400,000 weight units', (
   assert.equal(propertiesFieldBytes(520), 2 + 3 + 520);
   assert.equal(propertiesFieldBytes(521), 2 + 3 + 520 + 2 + 1 + 1);
   assert.throws(() => estimateInscription({ body: new Uint8Array([1]), contentType: 'a'.repeat(129) }), /too long/);
+});
+
+test('warn and fail copy follows the 390,000 and 400,000 weight lines', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../estimate.js', import.meta.url), 'utf8');
+  const page = readFileSync(new URL('../../plan/index.html', import.meta.url), 'utf8');
+  const plan = readFileSync(new URL('../../plan/plan.js', import.meta.url), 'utf8');
+  assert.match(html, /value="10000"/);
+  assert.match(html, /Bitcoin Core's dust minimum for a taproot output is 330 sats/);
+  assert.match(html, /P2WPKH change is 294 sats/);
+  assert.match(js, /weight units should be safe/);
+  assert.match(js, /ord refuses that reveal unless --no-limit is used/);
+  assert.match(page, /INK suggests splitting it into batches you run separately/);
+  assert.match(page, /330 sats/);
+  assert.match(plan, /postageOutputLabel/);
+  assert.match(readFileSync(new URL('../../plan/batch.js', import.meta.url), 'utf8'), /postage output/);
+  assert.match(plan, /INK suggests splitting it into/);
+  assert.match(plan, /you run separately/);
+  assert.match(plan, /postageOutputLabel/);
+  const warn = estimateInscription({ body: new Uint8Array(390_000), contentType: 'image/png' });
+  const over = estimateInscription({ body: new Uint8Array(397_172), contentType: 'image/png' });
+  assert.equal(warn.weightClass, 'warn');
+  assert.ok(warn.revealWeight > 390_000);
+  assert.ok(warn.revealWeight <= 400_000);
+  assert.equal(over.weightClass, 'over');
 });
 
 test('market reads stay on the two mempool.space GET paths', () => {

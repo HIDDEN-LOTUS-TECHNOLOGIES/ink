@@ -139,4 +139,8 @@ export function batchCost(batches, rate) {
   return sum;
 }
 
+export function postageOutputLabel(count) {
+  return count === 1 ? 'postage output' : 'postage outputs';
+}
+
 export { COMMIT_VBYTES };

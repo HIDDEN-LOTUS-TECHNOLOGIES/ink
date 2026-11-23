@@ -1,4 +1,4 @@
-import { batchCost, planBatch } from './batch.js';
+import { batchCost, planBatch, postageOutputLabel } from './batch.js';
 import { loadMarket, RATE_ROWS } from '../estimate/rates.js';
 import { MAX_STANDARD_TX_WEIGHT, parseFeeRate, parsePostage, POSTAGE_DEFAULT, SAFE_TX_WEIGHT, satsToUsd } from '../estimate/size.js';
 
@@ -143,15 +143,16 @@ function render() {
   const wrap = h('div', { class: 'tablewrap' });
   wrap.append(table);
   out.append(wrap);
-  const revealLine = `One commit of ${formatNum(combined.commitVbytes)} vbytes and one reveal of ${formatNum(combined.revealWeight)} weight units (${formatNum(combined.revealVbytes)} vbytes), ${formatNum(combined.count)} postage outputs.`;
-  out.append(h('p', null, revealLine));
   if (planned.batches.length > 1) {
     const parts = planned.batches.map((batch, index) => {
       const names = batch.files.map((file) => file.filename).join(', ');
-      return `Batch ${index + 1}: ${names}, reveal weight ${formatNum(batch.revealWeight)}.`;
+      return `Batch ${index + 1} is one commit of ${formatNum(batch.commitVbytes)} vbytes and one reveal of ${formatNum(batch.revealWeight)} weight units (${formatNum(batch.revealVbytes)} vbytes), ${formatNum(batch.count)} ${postageOutputLabel(batch.count)}: ${names}.`;
     });
-    out.append(h('p', null, `That reveal is over 400,000 weight units. Split it into ${formatNum(planned.batches.length)} batches. ${parts.join(' ')} The cost below is those batches added, one commit and one reveal each.`));
-  } else if (combined.weightClass === 'warn') {
+    out.append(h('p', null, `ord would refuse one reveal for every file, because that reveal is ${formatNum(combined.revealWeight)} weight units. INK suggests splitting it into ${formatNum(planned.batches.length)} batches you run separately. ${parts.join(' ')} The cost below adds those batches.`));
+  } else {
+    out.append(h('p', null, `One commit of ${formatNum(combined.commitVbytes)} vbytes and one reveal of ${formatNum(combined.revealWeight)} weight units (${formatNum(combined.revealVbytes)} vbytes), ${formatNum(combined.count)} ${postageOutputLabel(combined.count)}.`));
+  }
+  if (planned.batches.length === 1 && combined.weightClass === 'warn') {
     out.append(h('p', null, `Reveal weight is ${formatNum(combined.revealWeight)}. ${formatNum(SAFE_TX_WEIGHT)} weight units should be safe.`));
   }
   out.append(h('p', null, `Batch cost is ceil(commit vbytes × sat/vB) + ceil(reveal vbytes × sat/vB) + postage, summed across the batches above. Postage is ${formatNum(postage)} sats on each output, ${formatNum(planned.totals.postage)} sats in total.`));

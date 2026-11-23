@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { estimateInscription, feeFor, MAX_STANDARD_TX_WEIGHT, totalCost } from '../../estimate/size.js';
-import { batchCost, planBatch } from '../batch.js';
+import { estimateInscription, feeFor, MAX_STANDARD_TX_WEIGHT, measureBatch, revealBaseWeight, totalCost } from '../../estimate/size.js';
+import { batchCost, planBatch, postageOutputLabel } from '../batch.js';
 
 // "hi" as text/plain;charset=utf-8 and a 100 KB image/png share one commit and one reveal.
 // Combined reveal script is the tapscript prefix once plus both envelopes.
@@ -126,6 +126,19 @@ test('a batch over 400,000 weight units is split, and the fee is one ceil per re
   const high = planBatch([hiFile(), pngFile()], { postage: 1000 });
   assert.equal(batchCost(high.batches, 3).total - batchCost(low.batches, 3).total, 454 * 2);
   assert.equal(low.totals.revealVbytes, high.totals.revealVbytes);
+});
+
+test('postage outputs are pluralized and a multi-file reveal adds an output', () => {
+  assert.equal(postageOutputLabel(1), 'postage output');
+  assert.equal(postageOutputLabel(2), 'postage outputs');
+  assert.equal(revealBaseWeight(2) - revealBaseWeight(1), 172);
+  const hi = estimateInscription({ body: hiFile().bytes, contentType: 'text/plain;charset=utf-8' });
+  const png = estimateInscription({ body: pngFile().bytes, contentType: 'image/png' });
+  const one = measureBatch([hi]);
+  const two = measureBatch([hi, png]);
+  assert.equal(one.revealWeight, hi.revealWeight);
+  assert.equal(two.revealWeight, 103_738);
+  assert.ok(two.revealWeight > one.revealWeight + 172);
 });
 
 test('the page is indexable, talks only to mempool.space, and reuses the estimate modules', () => {

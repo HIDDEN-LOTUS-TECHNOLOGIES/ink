@@ -1,15 +1,15 @@
 // Inscription ids follow kit/inscriptionId.js. This parser stays quiet and also
 // accepts an ordinals.com URL, because that is what people paste from the address bar.
-// The id inside the URL still has to be the canonical lowercase form.
+// Hex and the "i" separator are case-insensitive. The index still cannot have a leading zero.
 
 import { isValidInscriptionId, parseCanonicalInscriptionId } from '../kit/inscriptionId.js';
 
 export { isValidInscriptionId };
 
-const ID_RE = /([0-9a-f]{64})i(?:0|[1-9][0-9]*)/;
+const ID_RE = /([0-9a-fA-F]{64})[iI](0|[1-9][0-9]*)/;
 
 function fromMatch(match) {
-  return parseCanonicalInscriptionId(match[0]);
+  return parseCanonicalInscriptionId(`${match[1]}i${match[2]}`);
 }
 
 function fromUrl(text) {
@@ -33,8 +33,8 @@ export function parseInscriptionId(input) {
     text = text.slice(1, -1).trim();
   }
   if (!text) return null;
-  const direct = text.match(new RegExp(`^${ID_RE.source}$`));
-  if (direct) return fromMatch(direct);
+  const direct = parseCanonicalInscriptionId(text);
+  if (direct) return direct;
   if (/^ordinals\.com\//i.test(text)) return fromUrl(`https://${text}`);
   return fromUrl(text);
 }

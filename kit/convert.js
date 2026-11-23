@@ -4,7 +4,7 @@
 // off-chain image URLs, not traits.
 // The attribute walk follows scripts/generate-hlt-traits.cjs.
 
-import { isValidInscriptionId } from './parentInscription.js';
+import { inscriptionIdProblem, parseCanonicalInscriptionId } from './inscriptionId.js';
 
 export const THUMB_KEYS = ['high_res_img_url', 'collection_page_img_url'];
 
@@ -122,12 +122,27 @@ export function toUnisatMeta() {
   };
 }
 
+export function partitionByInscriptionId(items) {
+  const kept = [];
+  const dropped = [];
+  items.forEach((item, index) => {
+    const reason = inscriptionIdProblem(item?.id);
+    if (reason) {
+      dropped.push({ index, id: item?.id == null ? '' : String(item.id), reason });
+      return;
+    }
+    const parsed = parseCanonicalInscriptionId(item.id);
+    kept.push({ ...item, id: parsed.id });
+  });
+  return { kept, dropped };
+}
+
 export function toUnisatInscriptions(items) {
-  return toMagicEden(items.filter((item) => isValidInscriptionId(item?.id)));
+  return toMagicEden(partitionByInscriptionId(items).kept);
 }
 
 export function toIdList(items) {
-  const ids = items.map((item) => item?.id).filter((id) => isValidInscriptionId(id));
+  const ids = partitionByInscriptionId(items).kept.map((item) => item.id);
   return ids.length ? `${ids.join('\n')}\n` : '';
 }
 

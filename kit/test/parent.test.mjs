@@ -9,7 +9,8 @@ test('parses and validates inscription ids', () => {
   assert.equal(parseInscriptionId('nope'), null);
   assert.equal(isValidInscriptionId(id), true);
   assert.equal(isValidInscriptionId('abc'), false);
-  assert.equal(isValidInscriptionId(id.toUpperCase()), false);
+  assert.equal(isValidInscriptionId(id.toUpperCase()), true);
+  assert.equal(parentTag3Hex(id.toUpperCase()), parentTag3Hex(id));
   assert.equal(isValidInscriptionId(`${id.slice(0, -1)}00`), false);
   assert.equal(isValidInscriptionId(`${id.slice(0, -1)}4294967295`), true);
   assert.equal(isValidInscriptionId(`${id.slice(0, -1)}4294967296`), false);

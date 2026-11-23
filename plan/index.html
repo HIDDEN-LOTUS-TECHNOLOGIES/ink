@@ -19,7 +19,7 @@
 <link rel="preload" href="/assets/fonts/ubuntu-mono.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/ubuntu-mono-bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/ink.css?v=polish2">
-<link rel="stylesheet" href="plan.css?v=polish1">
+<link rel="stylesheet" href="plan.css?v=polish2">
 </head>
 <body>
 <a class="skip" href="#content">Skip to content</a>
@@ -28,7 +28,7 @@
   <section class="hero">
     <p class="crumb"><a href="/">Home</a> / Batch cost</p>
     <h1 class="page-title">Batch inscription cost</h1>
-    <p class="lede">Pick one or more files. This page builds one ord wallet batch: one commit and one reveal carrying every file. The 400,000 weight-unit cap applies to that reveal. A file that cannot fit alone is named and left out. A batch that is over the cap is split.</p>
+    <p class="lede">Pick one or more files. This page builds one ord wallet batch: one commit and one reveal carrying every file. The 400,000 weight-unit cap applies to that reveal. A file that cannot fit alone is named and left out. If one reveal would be over the cap, ord would refuse it. INK suggests splitting it into batches you run separately.</p>
   </section>
   <p class="disclaimer">Estimate only. Nothing is signed or broadcast.</p>
 
@@ -49,9 +49,9 @@
   <p><code>witness bytes = 1 + 65 + compact size of the script + script + 34</code></p>
   <p><code>reveal weight = non-witness weight of one input and one output per file + witness bytes</code></p>
   <p><code>reveal vbytes = ceil(reveal weight / 4)</code></p>
-  <p>Witness bytes count once toward weight. Bytes outside the witness count four times. Virtual size is <code>ceil(weight / 4)</code>. Bitcoin Core will not relay a transaction over 400,000 weight units, and ord refuses that reveal unless <code>--no-limit</code> is used. 390,000 weight units should be safe. A batch over 400,000 weight units is split into more than one commit and reveal.</p>
-  <p><code>batch sats = ceil(commit vbytes × sat/vB) + ceil(reveal vbytes × sat/vB) + postage outputs</code></p>
-  <p>Postage defaults to 10,000 sats per output, ord's <code>TARGET_POSTAGE</code>. 546 sats is the dust floor. Changing postage changes the sats locked in each reveal output. It does not change the virtual size. A fractional sat/vB is rounded up once on the commit and once on the reveal of each batch, then the batches are added. Recommended rates are the mainnet <code>fastestFee</code>, <code>halfHourFee</code>, <code>hourFee</code>, and <code>economyFee</code> from mempool.space. The custom sat/vB applies to every batch. The optional USD line uses <code>/api/v1/prices</code> on the same host. Either request can fail and the size estimate still stands.</p>
+  <p>Witness bytes count once toward weight. Bytes outside the witness count four times. Virtual size is <code>ceil(weight / 4)</code>. Bitcoin Core will not relay a transaction over 400,000 weight units, and ord refuses that reveal unless <code>--no-limit</code> is used. 390,000 weight units should be safe. If one reveal would be over 400,000 weight units, ord would refuse the batch. INK suggests splitting it into batches you run separately.</p>
+  <p><code>batch sats = ceil(commit vbytes × sat/vB) + ceil(reveal vbytes × sat/vB) + postage</code></p>
+  <p>Postage defaults to 10,000 sats per output, ord's <code>TARGET_POSTAGE</code>. Bitcoin Core's dust minimum for a taproot output is 330 sats. P2WPKH change is 294 sats. Changing postage changes the sats locked in each reveal output. It does not change the virtual size. A fractional sat/vB is rounded up once on the commit and once on the reveal of each batch, then the batches are added. Recommended rates are the mainnet <code>fastestFee</code>, <code>halfHourFee</code>, <code>hourFee</code>, and <code>economyFee</code> from mempool.space. The custom sat/vB applies to every batch. The optional USD line uses <code>/api/v1/prices</code> on the same host. Either request can fail and the size estimate still stands.</p>
   </details>
 
   <noscript><p>This estimate runs in the browser and needs JavaScript.</p></noscript>

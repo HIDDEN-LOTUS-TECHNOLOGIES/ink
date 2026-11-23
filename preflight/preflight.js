@@ -92,10 +92,15 @@ function render(estimate) {
       lines.push(`Conservative estimate. It can run up to ~15% high (about 12% on the OPIUM sample) versus the Rust brotli 9.0.0 encoder ord ${ordVersion} uses (quality 11, lgwin 24, lgblock 24, generic mode, not text). On the 777-item OPIUM sample this encoder read 39,618 bytes against ord's 35,258, and 37,037 against 33,309 with titles dropped.`);
     }
     lines.push(weightLine('Raw properties', size.rawBytes));
-    lines.push('Tag 17 is pushed in 520-byte chunks. Each chunk costs a 2-byte tag push and a 3-byte push header when the chunk is 520 bytes. The weight above is a reveal with those properties and no content body.');
+    if (size.compressedBytes != null) lines.push(weightLine('Brotli estimate', size.compressedBytes));
+    lines.push('Tag 17 is pushed in 520-byte chunks. Each chunk costs a 2-byte tag push and a 3-byte push header when the chunk is 520 bytes. Each weight above is a reveal with those properties and no content body.');
     lines.push('Bitcoin Core\'s standardness cap is 400,000 weight units, and ord refuses an oversized reveal unless --no-limit is used. 390,000 weight units should be safe.');
     lines.push(variantLine('Titles dropped', estimate.titlesDropped));
+    lines.push(weightLine('Titles dropped', estimate.titlesDropped.rawBytes));
+    if (estimate.titlesDropped.compressedBytes != null) lines.push(weightLine('Titles dropped brotli estimate', estimate.titlesDropped.compressedBytes));
     lines.push(variantLine('Traits dropped', estimate.traitsDropped));
+    lines.push(weightLine('Traits dropped', estimate.traitsDropped.rawBytes));
+    if (estimate.traitsDropped.compressedBytes != null) lines.push(weightLine('Traits dropped brotli estimate', estimate.traitsDropped.compressedBytes));
   }
   $('#out').textContent = lines.join('\n');
   const rows = [];

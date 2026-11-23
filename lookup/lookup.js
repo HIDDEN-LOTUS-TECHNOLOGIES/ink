@@ -285,7 +285,7 @@ async function loadFromQuery() {
   $('#inscriptionId').value = parsed ? parsed.id : raw;
   if (!parsed) {
     $('#out').replaceChildren();
-    setStatus('That is not an inscription id. Use 64 hex characters, i, and the index.', true);
+    setStatus('That is not an inscription id. Use 64 hex characters, i, and an index with no leading zeros. Hex is case-insensitive.', true);
     document.title = 'INK inscription lookup';
     return;
   }
@@ -326,7 +326,7 @@ $('#form').addEventListener('submit', (ev) => {
   ev.preventDefault();
   const parsed = parseInscriptionId($('#inscriptionId').value);
   if (!parsed) {
-    setStatus('That is not an inscription id. Use 64 hex characters, i, and the index.', true);
+    setStatus('That is not an inscription id. Use 64 hex characters, i, and an index with no leading zeros. Hex is case-insensitive.', true);
     return;
   }
   visit(parsed.id, 0, 0);

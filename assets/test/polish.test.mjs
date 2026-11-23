@@ -78,3 +78,14 @@ test('tool pages share the header and do not add a signet lab link', () => {
   assert.match(read('kit/kit.css'), /#roundOut:empty/);
   assert.match(read('kit/kit.css'), /text-transform:none/);
 });
+
+test('previews use allow-scripts only and the kit states the parent-spend rule', () => {
+  const home = read('assets/ink.js');
+  const lookup = read('lookup/lookup.js');
+  const kit = read('kit/index.html');
+  assert.match(home, /const SB='allow-scripts'/);
+  assert.match(lookup, /sandbox: 'allow-scripts'/);
+  assert.doesNotMatch(home + lookup, /allow-same-origin/);
+  assert.match(kit, /The parent must be spent as an input of the reveal/);
+  assert.match(kit, /A gallery does not imply provenance/);
+});
