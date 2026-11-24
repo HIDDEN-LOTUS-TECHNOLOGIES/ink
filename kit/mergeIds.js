@@ -15,8 +15,24 @@ export const HEADERLESS_WARNING = 'This CSV looks headerless. The first row look
 export const NAME_FALLBACK_NOTE = 'Rows with no name use their number as the name.';
 
 const THUMB_KEYS = ['high_res_img_url', 'collection_page_img_url'];
+export const ID_COLUMN_NAMES = ['id', 'inscription_id', 'inscription', 'inscription id'];
+
+export function headerKey(value) {
+  return String(value ?? '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+}
+
+export function isIdColumnName(value) {
+  const key = headerKey(value);
+  return ID_COLUMN_NAMES.some((name) => headerKey(name) === key);
+}
+
+const RECOGNIZED_COLUMNS = new Set([
+  ...ID_COLUMN_NAMES.map((name) => headerKey(name)),
+  'name', 'n', 'number', 'index', 'score',
+  ...THUMB_KEYS.map((name) => headerKey(name)),
+]);
 const RESERVED = new Set([
-  'id', 'inscription_id', 'inscription', 'name', 'n', 'number', 'index', 'score',
+  'id', 'inscription_id', 'inscription', 'inscription id', 'name', 'n', 'number', 'index', 'score',
   'file', 'meta', 'attributes', 'traits', 't', ...THUMB_KEYS,
 ]);
 
@@ -66,6 +82,17 @@ function field(obj, names) {
   for (const name of names) {
     const key = keys.find((item) => item.toLowerCase() === name);
     if (key == null) continue;
+    const value = obj[key];
+    if (value == null || value === '') continue;
+    return value;
+  }
+  return undefined;
+}
+
+function idField(obj) {
+  if (!isPlainObject(obj)) return undefined;
+  for (const key of Object.keys(obj)) {
+    if (!isIdColumnName(key)) continue;
     const value = obj[key];
     if (value == null || value === '') continue;
     return value;
@@ -172,7 +199,7 @@ export function parseIdsFile(text) {
     const entries = data.map((item, index) => {
       if (typeof item === 'string') return { value: item, index: index + 1 };
       if (isPlainObject(item)) {
-        const id = field(item, ['id', 'inscription_id', 'inscription']);
+        const id = idField(item);
         return { value: id == null ? '' : String(id), index: index + 1 };
       }
       return { value: item == null ? '' : String(item), index: index + 1 };
@@ -185,7 +212,7 @@ export function parseIdsFile(text) {
   for (const line of linesOf(text)) {
     if (!line.trim()) continue;
     const value = line.trim();
-    if (!sawContent && /^id$/i.test(value)) {
+    if (!sawContent && isIdsHeaderLine(value)) {
       sawContent = true;
       continue;
     }
@@ -251,12 +278,8 @@ function emptyTraits(error) {
   return { ok: false, error, mode: null, warning: null, rows: [], malformed: [], duplicates: [] };
 }
 
-const RECOGNIZED_COLUMNS = new Set([
-  'id', 'inscription_id', 'inscription', 'name', 'n', 'number', 'index', 'score', ...THUMB_KEYS,
-]);
-
 /** RFC 4180 records. Quoted cells may contain commas, quotes, and newlines. */
-export function parseCsvRecords(text) {
+export function parseCsvRecords(text, delimiter = ',') {
   const src = stripBom(text);
   const records = [];
   let row = [];
@@ -286,7 +309,7 @@ export function parseCsvRecords(text) {
       inQuotes = true;
       continue;
     }
-    if (char === ',') {
+    if (char === delimiter) {
       row.push(field);
       field = '';
       continue;
@@ -308,26 +331,67 @@ export function parseCsvRecords(text) {
   return records.filter((record) => record.some((cell) => cell.trim() !== ''));
 }
 
+function detectDelimiter(text) {
+  const src = stripBom(text);
+  let commas = 0;
+  let semis = 0;
+  let inQuotes = false;
+  for (let i = 0; i < src.length; i += 1) {
+    const char = src[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (src[i + 1] === '"') { i += 1; continue; }
+        inQuotes = false;
+      }
+      continue;
+    }
+    if (char === '"') { inQuotes = true; continue; }
+    if (char === '\n' || char === '\r') break;
+    if (char === ',') commas += 1;
+    else if (char === ';') semis += 1;
+  }
+  return semis > commas ? ';' : ',';
+}
+
+function isIdsHeaderLine(line) {
+  const records = parseCsvRecords(`${String(line).trim()}\n`);
+  if (records.length !== 1) return false;
+  const nonempty = records[0].map((cell) => cell.trim()).filter((cell) => cell !== '');
+  return nonempty.length === 1 && isIdColumnName(nonempty[0]);
+}
+
+function looksLikeColumnTitle(cell) {
+  const raw = String(cell ?? '').trim();
+  if (!raw) return false;
+  if (RECOGNIZED_COLUMNS.has(headerKey(raw))) return true;
+  if (/[A-Z]/.test(raw)) return true;
+  if (/[_-]/.test(raw)) return true;
+  return false;
+}
+
 function firstRowLooksLikeData(cells) {
-  const trimmed = cells.map((cell) => cell.trim());
+  const trimmed = cells.map((cell) => cell.trim()).filter((cell) => cell !== '');
+  if (!trimmed.length) return false;
   if (trimmed.some((cell) => INSCRIPTION_ID_RE.test(cell))) return true;
-  if (trimmed.some((cell) => RECOGNIZED_COLUMNS.has(cell.toLowerCase()))) return false;
-  return trimmed.some((cell) => /^[0-9]+$/.test(cell));
+  if (trimmed.some((cell) => RECOGNIZED_COLUMNS.has(headerKey(cell)))) return false;
+  if (trimmed.some((cell) => /^[0-9]+$/.test(cell))) return true;
+  return trimmed.every((cell) => !looksLikeColumnTitle(cell));
 }
 
 function parseTraitsCsv(text) {
-  const records = parseCsvRecords(text);
+  const delimiter = detectDelimiter(text);
+  const records = parseCsvRecords(text, delimiter);
   if (!records.length) return emptyTraits('Traits file is empty.');
   const header = records[0].map((cell) => cell.trim());
   const data = records.slice(1);
   if (!data.length) return emptyTraits('Traits CSV has a header and no data rows.');
-  const cols = header.map((name, i) => ({ name, key: name.toLowerCase(), i }));
-  const findCol = (names) => cols.find((col) => names.includes(col.key));
-  const idCol = findCol(['id', 'inscription_id', 'inscription']);
+  const cols = header.map((name, i) => ({ name, key: headerKey(name), i }));
+  const findCol = (names) => cols.find((col) => names.some((name) => headerKey(name) === col.key));
+  const idCol = findCol(ID_COLUMN_NAMES);
   const nameCol = findCol(['name']);
   const nCol = findCol(['n', 'number', 'index']);
   const scoreCol = findCol(['score']);
-  const thumbCols = cols.filter((col) => THUMB_KEYS.includes(col.key));
+  const thumbCols = cols.filter((col) => THUMB_KEYS.some((key) => headerKey(key) === col.key));
   const traitCols = cols.filter((col) => col.name && !RECOGNIZED_COLUMNS.has(col.key));
   const rows = [];
   const malformed = [];
@@ -343,7 +407,8 @@ function parseTraitsCsv(text) {
     const thumbs = {};
     for (const col of thumbCols) {
       const value = String(cells[col.i] ?? '').trim();
-      if (value) thumbs[col.key] = value;
+      const thumbName = THUMB_KEYS.find((key) => headerKey(key) === col.key);
+      if (value && thumbName) thumbs[thumbName] = value;
     }
     let score;
     if (scoreCol) {
@@ -372,7 +437,7 @@ function parseTraitsJson(data) {
     if (data.length === 0) return emptyTraits('Traits file is empty.');
     if (!data.every(isPlainObject)) return emptyTraits('Traits JSON array must be objects.');
     const rows = data.map((obj, index) => {
-      const id = field(obj, ['id', 'inscription_id', 'inscription']);
+      const id = idField(obj);
       return rowFromObject(obj, index + 1, id == null ? '' : String(id), null);
     });
     const malformed = [];
@@ -395,7 +460,7 @@ function parseTraitsJson(data) {
   }
   const malformed = other.map((key) => ({ value: key, index: keys.indexOf(key) + 1, source: 'traits' }));
   const rows = keys.map((key, index) => {
-    const inner = field(data[key], ['id', 'inscription_id', 'inscription']);
+    const inner = idField(data[key]);
     const innerId = inner == null ? '' : String(inner);
     if (INSCRIPTION_ID_RE.test(key)) return rowFromObject(data[key], index + 1, key, null);
     if (/^[0-9]+$/.test(key)) return rowFromObject(data[key], index + 1, innerId, Number(key));
@@ -460,7 +525,8 @@ function unpairedRow(slot, row) {
   };
 }
 
-function join(idsParsed, traitsParsed) {
+function join(idsParsed, traitsParsed, options = {}) {
+  const includeIdsWithoutTraits = Boolean(options.includeIdsWithoutTraits);
   const items = [];
   const idsWithNoTraits = [];
   const traitsWithNoId = [];
@@ -487,6 +553,13 @@ function join(idsParsed, traitsParsed) {
     }));
   }
 
+  function noteMissing(slot) {
+    idsWithNoTraits.push(slot.id);
+    if (!includeIdsWithoutTraits) return;
+    namesFromNumber.push(slot.index);
+    items.push(makeItem({ id: slot.id, n: slot.index, name: '', traits: {} }));
+  }
+
   if (traitsParsed.mode === 'id') {
     const firstById = new Map();
     for (const row of traitsParsed.rows) {
@@ -497,7 +570,7 @@ function join(idsParsed, traitsParsed) {
     for (const id of idsParsed.ids) {
       const row = firstById.get(id);
       if (!row) {
-        idsWithNoTraits.push(id);
+        noteMissing(slotById.get(id));
         continue;
       }
       used.add(row);
@@ -540,13 +613,13 @@ function join(idsParsed, traitsParsed) {
       warning = `${warning} Repeated numbers were kept once: ${repeated.join(', ')}.`;
     }
     for (const slot of idsParsed.slots) {
-      if (slot.valid && !usedSlots.has(slot)) idsWithNoTraits.push(slot.id);
+      if (slot.valid && !usedSlots.has(slot)) noteMissing(slot);
     }
   } else {
     idsParsed.slots.forEach((slot, i) => {
       const row = traitsParsed.rows[i];
       if (!row) {
-        if (slot.valid) idsWithNoTraits.push(slot.id);
+        if (slot.valid) noteMissing(slot);
         return;
       }
       if (!slot.valid) {
@@ -570,6 +643,7 @@ function join(idsParsed, traitsParsed) {
     namesFromNumber,
     warning,
     mode: traitsParsed.mode,
+    includeIdsWithoutTraits,
   };
   report.needsReview = Boolean(
     report.idsWithNoTraits.length ||
@@ -590,9 +664,18 @@ export function collectionOutputs(items) {
   };
 }
 
+export function unpairedLines(report) {
+  return (report.unpaired || []).map((row) => row.message);
+}
+
 export function reviewNote(report) {
   const n = report.matched;
   const noun = n === 1 ? 'item' : 'items';
+  const extra = report.idsWithNoTraits?.length || 0;
+  if (report.includeIdsWithoutTraits && extra) {
+    const idNoun = extra === 1 ? 'id' : 'ids';
+    return `Downloads include the ${n} paired ${noun} and ${extra} ${idNoun} with no traits. Review the report first.`;
+  }
   return `Downloads include only the ${n} paired ${noun}; review the report first.`;
 }
 
@@ -607,7 +690,7 @@ export function displaySummary(report, validation) {
 export function formatReport(report) {
   const lines = [];
   if (report.warning) lines.push(`Warning: ${report.warning}`);
-  for (const row of report.unpaired || []) lines.push(row.message);
+  lines.push(...unpairedLines(report));
   lines.push(`Matched: ${report.matched}.`);
   lines.push(`Ids with no traits: ${report.idsWithNoTraits.length}.`);
   lines.push(`Traits with no id: ${report.traitsWithNoId.length}.`);
@@ -622,7 +705,7 @@ function failed(error) {
   return { ok: false, error, items: [], report: null, outputs: null, validation: null };
 }
 
-export function mergeIdsAndTraits(idsText, traitsText) {
+export function mergeIdsAndTraits(idsText, traitsText, options = {}) {
   const idsParsed = parseIdsFile(idsText);
   const traitsParsed = parseTraitsFile(traitsText);
   if (!idsParsed.ok || !traitsParsed.ok) {
@@ -631,7 +714,7 @@ export function mergeIdsAndTraits(idsText, traitsText) {
     if (!traitsParsed.ok) parts.push(traitsParsed.error);
     return failed(parts.join(' '));
   }
-  const { items, report } = join(idsParsed, traitsParsed);
+  const { items, report } = join(idsParsed, traitsParsed, options);
   const outputs = collectionOutputs(items);
   const validation = MetadataValidator.validateComplete(JSON.stringify(outputs.magicEden));
   return { ok: true, error: null, items, report, outputs, validation };

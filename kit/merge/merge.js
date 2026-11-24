@@ -1,4 +1,4 @@
-import { NAME_FALLBACK_NOTE, displaySummary, mergeIdsAndTraits, reviewNote } from '../mergeIds.js';
+import { NAME_FALLBACK_NOTE, displaySummary, mergeIdsAndTraits, reviewNote, unpairedLines } from '../mergeIds.js';
 
 const $ = (sel) => document.querySelector(sel);
 const downloadButtons = ['#toInscriptions', '#toJson', '#toIds', '#toMeta'];
@@ -87,7 +87,7 @@ function render(result) {
   ].join('\n');
   const warnLines = [];
   if (report.warning) warnLines.push(`Warning: ${report.warning}`);
-  for (const row of report.unpaired) warnLines.push(row.message);
+  for (const line of unpairedLines(report)) warnLines.push(line);
   if (report.namesFromNumber.length) warnLines.push(NAME_FALLBACK_NOTE);
   if (report.needsReview) warnLines.push(reviewNote(report));
   const warning = warnLines.length
@@ -96,7 +96,6 @@ function render(result) {
   const lists = [
     listBlock('Ids with no traits', report.idsWithNoTraits),
     listBlock('Traits with no id', report.traitsWithNoId.map(gapLabel)),
-    listBlock('Unpaired', report.unpaired.map((row) => row.message)),
     listBlock('Duplicate ids', report.duplicateIds.map((row) => `${row.id} (${row.source} file, ${row.count})`)),
     listBlock('Malformed inscription ids', report.malformedIds.map((row) => `${row.source} file, row ${row.index}: ${row.value || '(empty)'}`)),
   ].join('');
@@ -111,7 +110,9 @@ $('#merge').addEventListener('click', async () => {
   try {
     const ids = await textFrom($('#ids-file'), $('#ids-raw'));
     const traits = await textFrom($('#traits-file'), $('#traits-raw'));
-    render(mergeIdsAndTraits(ids, traits));
+    render(mergeIdsAndTraits(ids, traits, {
+      includeIdsWithoutTraits: $('#include-empty').checked,
+    }));
   } catch (err) {
     current = null;
     setDownloads(false);

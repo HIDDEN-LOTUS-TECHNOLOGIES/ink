@@ -7,3 +7,5 @@
 #report ul{margin:.2rem 0 .4rem;padding-left:1.1rem}
 #report li{overflow-wrap:anywhere}
 #summary{max-width:42rem}
+.merge .check{display:flex;align-items:center;gap:.55rem;max-width:42rem;margin:.8rem 0 .2rem;color:var(--txt);font-size:.95rem}
+.merge .check input{width:1rem;height:1rem;max-width:none;accent-color:var(--acc);flex:none;padding:0}

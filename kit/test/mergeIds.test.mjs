@@ -16,6 +16,8 @@ import {
   mergeIdsAndTraits,
   parseCsvRecords,
   parseIdsFile,
+  reviewNote,
+  unpairedLines,
 } from '../mergeIds.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -354,6 +356,63 @@ test('ids with no trait row are reported and left out of the download', () => {
   assert.doesNotMatch(displaySummary(result.report, result.validation), /All validation checks passed/);
 });
 
+test('an ids header uses the same id column names as a traits CSV', () => {
+  const headers = ['id', 'ID', 'Id', 'inscription_id', 'inscription', 'Inscription ID', '"id"', 'id,'];
+  for (const header of headers) {
+    const result = merged(`${header}\n${A}\n${B}\n`, 'name,Hat\nOne,cap\nTwo,brim\n');
+    assert.deepEqual(result.items.map((item) => [item.id, item.name, item.t.Hat]), [
+      [A, 'One', 'cap'],
+      [B, 'Two', 'brim'],
+    ], header);
+    assert.equal(result.report.malformedIds.length, 0, header);
+    assert.equal(result.report.unpaired.length, 0, header);
+  }
+  const traits = merged(`${A}\n${B}\n`, `Inscription ID,name,Hat\n${A},One,cap\n${B},Two,brim\n`);
+  assert.equal(traits.report.mode, 'id');
+  assert.equal(traits.items[0].name, 'One');
+  assert.equal(traits.items[1].t.Hat, 'brim');
+});
+
+test('include ids without traits puts them in the download when asked', () => {
+  const ids = `${A}\n${B}\n`;
+  const traits = `id,name,Hat\n${A},One,cap\n`;
+  const leftOut = merged(ids, traits);
+  assert.deepEqual(leftOut.items.map((item) => item.id), [A]);
+  assert.deepEqual(leftOut.report.idsWithNoTraits, [B]);
+  assert.match(reviewNote(leftOut.report), /Downloads include only the 1 paired item/);
+  const included = mergeIdsAndTraits(ids, traits, { includeIdsWithoutTraits: true });
+  assert.equal(included.ok, true, included.error);
+  assert.deepEqual(included.items.map((item) => item.id), [A, B]);
+  assert.deepEqual(included.items[1].t, {});
+  assert.equal(included.outputs.idsTxt, `${A}\n${B}\n`);
+  assert.match(reviewNote(included.report), /Downloads include the 1 paired item and 1 id with no traits/);
+  assert.equal(included.report.needsReview, true);
+  assert.doesNotMatch(displaySummary(included.report, included.validation), /All validation checks passed/);
+});
+
+test('a plain-text or semicolon traits file warns that it looks headerless', () => {
+  const plain = merged(`${A}\n${B}\n`, 'cap,blue\nnone,red\n');
+  assert.match(plain.report.warning, new RegExp(escapeRegExp(HEADERLESS_WARNING)));
+  const semi = merged(`${A}\n${B}\n`, 'cap;blue\nnone;red\n');
+  assert.match(semi.report.warning, new RegExp(escapeRegExp(HEADERLESS_WARNING)));
+  const titled = merged(`${A}\n${B}\n`, 'name;Hat\nOne;cap\nTwo;brim\n');
+  assert.equal(titled.report.warning, ORDER_WARNING);
+  assert.equal(titled.items[0].name, 'One');
+  assert.equal(titled.items[0].t.Hat, 'cap');
+  assert.equal(titled.items[1].name, 'Two');
+  assert.equal(titled.items[1].t.Hat, 'brim');
+});
+
+test('an unpaired row is named once in the report', () => {
+  const result = merged(`${A}\nnot-an-id\n${B}\n`, 'name,Hat\nOne,cap\nTwo,brim\nThree,ribbon\n');
+  const message = 'ids row 2 not-an-id: trait row 2 Two left unpaired';
+  assert.deepEqual(unpairedLines(result.report), [message]);
+  assert.equal(formatReport(result.report).split(message).length - 1, 1);
+  const script = read('kit/merge/merge.js');
+  assert.equal((script.match(/unpairedLines\(/g) || []).length, 1);
+  assert.doesNotMatch(script, /listBlock\('Unpaired'/);
+});
+
 test('unreadable files return an error and no outputs', () => {
   const both = mergeIdsAndTraits('', '');
   assert.equal(both.ok, false);
@@ -402,8 +461,12 @@ test('merge page is noindex, self-only, and does not fetch or sign', () => {
   assert.match(script, /inscriptions\.json/);
   assert.match(script, /meta\.json/);
   assert.match(html, /Download Magic Eden JSON/);
+  assert.match(html, /for="include-empty"/);
+  assert.match(html, /Ids with no traits stay in the report/);
   assert.match(script, /displaySummary/);
+  assert.match(script, /includeIdsWithoutTraits/);
   assert.doesNotMatch(html, />Download JSON</);
+  assert.doesNotMatch(script, /listBlock\('Unpaired'/);
   assert.match(kit, /href="\/kit\/merge\/"/);
   assert.match(kit, /Merge IDs \+ traits/);
   assert.doesNotMatch(home, /\/kit\/merge\//);
