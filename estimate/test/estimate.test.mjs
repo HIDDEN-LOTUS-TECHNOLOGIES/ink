@@ -225,6 +225,14 @@ test('the page is indexable, talks only to mempool.space, and does not sign', ()
   const js = readFileSync(new URL('../estimate.js', import.meta.url), 'utf8');
   const size = readFileSync(new URL('../size.js', import.meta.url), 'utf8');
   assert.match(html, /Estimate only\. Nothing is signed or broadcast\./);
+  assert.match(html, /value="10000"/);
+  assert.match(html, /commit vbytes = ceil\(10\.5 \+ 57\.5 \+ 43 \+ 43\) = 154/);
+  assert.match(html, /154 vbytes approximates that input shape/);
+  assert.match(html, /The commit transaction changes with the inputs the wallet selects/);
+  assert.match(html, /The reveal figures are the envelope and the postage output/);
+  assert.match(html, /reveal vbytes = ceil\(reveal weight \/ 4\)/);
+  assert.match(html, /Bitcoin Core's dust minimum for a taproot output is 330 sats/);
+  assert.match(html, /P2WPKH change is 294 sats/);
   assert.match(html, /connect-src https:\/\/mempool\.space/);
   assert.match(html, /href="\/"/);
   assert.doesNotMatch(html, /noindex/i);

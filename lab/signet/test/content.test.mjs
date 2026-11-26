@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { assertBody, buildEnvelope, contentTypeForFile, createKey, POSTAGE, preparePlan, textBody } from '../src/inscribe.js';
 
@@ -55,6 +56,13 @@ test('assertBody rejects an empty body and the reveal probe rejects an overweigh
     }),
     /400,000/,
   );
+});
+
+test('wallet notes omit the shut-down Magic Eden wallet', () => {
+  const doc = readFileSync(new URL('../WALLETS.md', import.meta.url), 'utf8');
+  assert.match(doc, /Magic Eden wallet shut down on 1 May 2026/);
+  assert.match(doc, /## Leather, OKX, Phantom/);
+  assert.doesNotMatch(doc, /### Magic Eden|window\.magicEden|docs-wallet\.magiceden\.io/);
 });
 
 test('lab postage defaults to 10,000 sats and 546 is not that default', () => {

@@ -37,6 +37,8 @@ export const REVEAL_BASE_WEIGHT = 378;
 // Non-witness 137 bytes * 4 = 548, plus marker/flag 2 and a 66-byte key-path witness = 616.
 // vbytes = ceil(616 / 4) = 154.
 // The same figure is 10.5 + 57.5 + 43 + 43.
+// ord 0.29.1 src/wallet/batch/plan.rs builds the commit with TransactionBuilder,
+// which selects wallet inputs. 154 vbytes is that one-input shape, an approximation.
 export const COMMIT_VBYTES = 154;
 
 const ORD = new Uint8Array([0x6f, 0x72, 0x64]);

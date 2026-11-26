@@ -1,10 +1,28 @@
 // Ported from packz-framework src/services/MetadataValidator.ts (8e01e71).
-// File-size policy: no hard cap unless one is passed in. Warn past 400 KB.
+// File-size policy: no hard cap unless one is passed in. Warn past 409,600 bytes
+// (400 * 1024). That note is the JSON file. A reveal transaction is limited to
+// 400,000 weight units (bitcoin::policy::MAX_STANDARD_TX_WEIGHT).
+// docs/src/guides/wallet.md says 390,000 weight units should be safe.
 // Trait hygiene warnings are reported only. Values are not rewritten.
 
 import { hasOffChainImageUrl, isGammaOnChainItem } from './convert.js';
 import { isValidInscriptionId, parseCanonicalInscriptionId } from './inscriptionId.js';
 const OFFCHAIN_IMAGE_NOTE = 'These are off-chain image URLs, not on-chain metadata.';
+
+function imageFieldValues(item) {
+  const values = [];
+  if (typeof item?.image === 'string') values.push(item.image);
+  const meta = item?.meta;
+  if (meta && typeof meta === 'object' && !Array.isArray(meta) && typeof meta.image === 'string') values.push(meta.image);
+  return values;
+}
+
+// https:// and data:image/ point off-chain. Recursive inscription content is
+// /content/<inscription id> (docs/src/inscriptions/recursion.md).
+function isOffChainImageValue(value) {
+  const text = String(value).trim();
+  return /^https?:\/\//i.test(text) || /^data:image\//i.test(text);
+}
 
 function attributesOf(item) {
   if (Array.isArray(item?.meta?.attributes)) return item.meta.attributes;
@@ -96,6 +114,15 @@ export class MetadataValidator {
         message: `${gammaRows} ${gammaRows === 1 ? 'row has' : 'rows have'} no inscription id yet. id-based exports are disabled for those rows.`,
       });
     }
+    const offChainImages = data.filter((item) => (
+      isGammaOnChainItem(item) && imageFieldValues(item).some(isOffChainImageValue)
+    )).length;
+    if (offChainImages > 0) {
+      warnings.push({
+        field: 'image',
+        message: `${offChainImages} on-chain ${offChainImages === 1 ? 'row uses' : 'rows use'} an off-chain image (https:// or data:image/). The inscribed file is the image. A recursive image is /content/<inscription id>.`,
+      });
+    }
     warnings.push(...this.traitHygiene(data));
 
     const totalTraits = data.reduce((sum, item) => sum + ((attributesOf(item) || []).length), 0);
@@ -185,27 +212,27 @@ export class MetadataValidator {
     const errors = [];
     const warnings = [];
     const sizeInBytes = byteSize(jsonString);
-    const sizeInKB = sizeInBytes / 1024;
     const maxBytes = settings.maxBytes == null ? null : settings.maxBytes;
     const warnBytes = settings.warnBytes == null ? this.WARN_FILE_SIZE : settings.warnBytes;
+    const bytes = sizeInBytes.toLocaleString('en-US');
     if (maxBytes != null && sizeInBytes > maxBytes) {
       errors.push({
         field: 'fileSize',
-        message: `Metadata file too large: ${sizeInKB.toFixed(2)} KB (max ${maxBytes / 1024} KB)`,
+        message: `Metadata file is ${bytes} bytes, over the ${maxBytes.toLocaleString('en-US')} byte cap.`,
         severity: 'critical',
       });
     } else if (maxBytes != null && sizeInBytes > maxBytes * 0.8) {
       warnings.push({
         field: 'fileSize',
-        message: `Metadata file is large: ${sizeInKB.toFixed(2)} KB`,
-        recommendation: 'Consider reducing metadata size to stay well under limit',
+        message: `Metadata file is ${bytes} bytes.`,
+        recommendation: 'Consider reducing the file to stay under the byte cap set for this check.',
       });
     }
     if (sizeInBytes > warnBytes) {
       warnings.push({
         field: 'fileSize',
-        message: `Metadata file is large: ${sizeInKB.toFixed(2)} KB`,
-        recommendation: 'Files past 400 KB still load. Trim traits if a tool you use has a smaller cap.',
+        message: `JSON file is ${bytes} bytes. One reveal transaction is limited to 400,000 weight units. 390,000 weight units should be safe.`,
+        recommendation: 'Trim traits if a tool you use has a smaller file cap.',
       });
     }
     return this.buildResult(errors.length === 0, errors, warnings);
