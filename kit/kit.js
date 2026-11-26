@@ -4,6 +4,7 @@ import { csvToItems, itemsToCsv, parseMetadataCSV } from './metadataCsv.js';
 import { MetadataValidator } from './metadataValidator.js';
 import { isGammaOnChain, isInkItem, itemLabel, normalizeCollection, partitionByInscriptionId, sameItems, toIdList, toMagicEden, toUnisatInscriptions, toUnisatMeta } from './convert.js';
 import { decodeParentTag3Hex, isValidInscriptionId, parentTag3Hex, parseInscriptionId } from './parentInscription.js';
+import { appendStatus } from './statusLines.js';
 
 const $ = (s) => document.querySelector(s);
 let items = [];
@@ -25,7 +26,7 @@ function download(name, text, type) {
 }
 
 function setStatus(msg) {
-  $('#status').textContent = msg;
+  appendStatus($('#status'), (tag) => document.createElement(tag), msg);
 }
 
 function shownName(item) {

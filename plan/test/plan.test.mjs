@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { estimateInscription, feeFor, MAX_STANDARD_TX_WEIGHT, measureBatch, revealBaseWeight, totalCost } from '../../estimate/size.js';
-import { batchCost, planBatch, postageOutputLabel } from '../batch.js';
+import { batchCost, planBatch, planNarrative, postageOutputLabel } from '../batch.js';
 
 // "hi" as text/plain;charset=utf-8 and a 100 KB image/png share one commit and one reveal.
 // Combined reveal script is the tapscript prefix once plus both envelopes.
@@ -126,6 +126,30 @@ test('a batch over 400,000 weight units is split, and the fee is one ceil per re
   const high = planBatch([hiFile(), pngFile()], { postage: 1000 });
   assert.equal(batchCost(high.batches, 3).total - batchCost(low.batches, 3).total, 454 * 2);
   assert.equal(low.totals.revealVbytes, high.totals.revealVbytes);
+});
+
+test('postage defaults to 10,000 and 546 is a custom amount', () => {
+  assert.equal(planBatch([hiFile()]).accepted[0].postage, 10_000);
+  const custom = planBatch([hiFile()], { postage: 546 });
+  assert.equal(custom.accepted[0].postage, 546);
+  assert.notEqual(custom.accepted[0].postage, 10_000);
+});
+
+test('a split suggestion names each batch you would run separately', () => {
+  const heavy = {
+    name: 'heavy.bin',
+    type: 'application/octet-stream',
+    bytes: new Uint8Array(300_000),
+  };
+  const planned = planBatch([heavy, { ...heavy, name: 'heavy-2.bin' }]);
+  const text = planNarrative(planned);
+  assert.match(text, /INK suggests splitting it into 2 batches you run separately/);
+  assert.match(text, /Batch 1 is one commit of 154 vbytes and one reveal/);
+  assert.match(text, /heavy\.bin/);
+  assert.match(text, /Batch 2 is one commit of 154 vbytes and one reveal/);
+  assert.match(text, /heavy-2\.bin/);
+  assert.match(text, /1 postage output/);
+  assert.doesNotMatch(text, /postage outputs/);
 });
 
 test('postage outputs are pluralized and a multi-file reveal adds an output', () => {

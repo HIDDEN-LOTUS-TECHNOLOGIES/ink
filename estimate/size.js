@@ -145,6 +145,28 @@ export function weightClass(weight) {
   return 'ok';
 }
 
+export function revealWeightNotice(weight, klass = weightClass(weight)) {
+  const formatted = Number(weight).toLocaleString('en-US');
+  if (klass === 'over') {
+    return `Reveal weight is ${formatted}. That is over Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.`;
+  }
+  if (klass === 'warn') {
+    return `Reveal weight is ${formatted}. 390,000 weight units should be safe.`;
+  }
+  return '';
+}
+
+export function propertiesWeightLine(label, byteLength, options = {}) {
+  if (byteLength == null) return `${label}: no figure.`;
+  const reveal = propertiesReveal(byteLength, options);
+  const mark = reveal.weightClass === 'over'
+    ? `over Bitcoin Core's ${MAX_STANDARD_TX_WEIGHT.toLocaleString('en-US')} weight-unit standardness cap`
+    : reveal.weightClass === 'warn'
+      ? `over the ${SAFE_TX_WEIGHT.toLocaleString('en-US')} weight-unit line that should be safe`
+      : `within the ${SAFE_TX_WEIGHT.toLocaleString('en-US')} weight-unit line that should be safe`;
+  return `${label}: reveal weight ${reveal.revealWeight.toLocaleString('en-US')} (${reveal.revealVbytes.toLocaleString('en-US')} vbytes), ${mark}.`;
+}
+
 // Tag 17 is a 1-byte push (2 script bytes) plus the data push, repeated every 520 bytes.
 // ord 0.29.1 src/inscriptions/tag.rs Tag::append for Properties.
 export function propertiesFieldBytes(byteLength) {
@@ -159,8 +181,13 @@ export function propertiesFieldBytes(byteLength) {
 // Key, CHECKSIG, OP_FALSE OP_IF "ord" … OP_ENDIF, with no content type and no body.
 const PROPERTIES_FRAME = TAPSCRIPT_PREFIX + 1 + 1 + pushHeader(3) + 3 + 1;
 
-export function propertiesReveal(byteLength) {
-  const scriptBytes = PROPERTIES_FRAME + propertiesFieldBytes(byteLength);
+// Tag 19 property encoding "br": a 1-byte tag push (2 script bytes) plus the
+// 2-byte value push (3 script bytes). Witness bytes are 1 weight unit each.
+export const PROPERTY_ENCODING_BR_BYTES = 5;
+
+export function propertiesReveal(byteLength, { encoding } = {}) {
+  let scriptBytes = PROPERTIES_FRAME + propertiesFieldBytes(byteLength);
+  if (encoding === 'br') scriptBytes += PROPERTY_ENCODING_BR_BYTES;
   const revealWeight = revealWeightFor(scriptBytes, 1);
   return {
     scriptBytes,

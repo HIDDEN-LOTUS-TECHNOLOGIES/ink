@@ -1,16 +1,11 @@
 // Inscription ids follow kit/inscriptionId.js. This parser stays quiet and also
 // accepts an ordinals.com URL, because that is what people paste from the address bar.
-// Hex and the "i" separator are case-insensitive. The index still cannot have a leading zero.
+// Hex and the "i" separator are case-insensitive. A URL id has to be one whole
+// path segment: the shared rules reject a leading zero and an index past u32.
 
 import { isValidInscriptionId, parseCanonicalInscriptionId } from '../kit/inscriptionId.js';
 
 export { isValidInscriptionId };
-
-const ID_RE = /([0-9a-fA-F]{64})[iI](0|[1-9][0-9]*)/;
-
-function fromMatch(match) {
-  return parseCanonicalInscriptionId(`${match[1]}i${match[2]}`);
-}
 
 function fromUrl(text) {
   let url;
@@ -22,9 +17,12 @@ function fromUrl(text) {
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
   const host = url.hostname.toLowerCase().replace(/\.$/, '');
   if (host !== 'ordinals.com' && host !== 'www.ordinals.com') return null;
-  const matches = [...url.pathname.matchAll(new RegExp(ID_RE.source, 'g'))];
-  if (!matches.length) return null;
-  return fromMatch(matches[matches.length - 1]);
+  const segments = url.pathname.split('/').filter(Boolean);
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const parsed = parseCanonicalInscriptionId(segments[i]);
+    if (parsed) return parsed;
+  }
+  return null;
 }
 
 export function parseInscriptionId(input) {
@@ -38,4 +36,3 @@ export function parseInscriptionId(input) {
   if (/^ordinals\.com\//i.test(text)) return fromUrl(`https://${text}`);
   return fromUrl(text);
 }
-
