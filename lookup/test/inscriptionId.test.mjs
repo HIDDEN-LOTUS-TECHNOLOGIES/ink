@@ -21,6 +21,8 @@ test('accepts an ordinals.com url and nothing else', () => {
   assert.equal(parseInscriptionId(`https://www.ordinals.com/r/inscription/${id}?sat=1`).id, id);
   assert.equal(parseInscriptionId(`ordinals.com/inscription/${id}`).id, id);
   assert.equal(parseInscriptionId(`https://ordinals.com/r/metadata/${txid}i2/extra`).id, `${txid}i2`);
+  assert.equal(parseInscriptionId(`https://ordinals.com/inscription/${txid}i01`), null);
+  assert.equal(parseInscriptionId(`https://ordinals.com/inscription/${txid}i1extra`), null);
   assert.equal(parseInscriptionId(`https://example.com/inscription/${id}`), null);
   assert.equal(parseInscriptionId(`https://ordinals.com.evil/inscription/${id}`), null);
   assert.equal(parseInscriptionId(`https://evilordinals.com/inscription/${id}`), null);

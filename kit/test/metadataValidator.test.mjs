@@ -214,17 +214,23 @@ test('validator and id exporters agree, including uppercase and a leading zero',
   const data = [
     { id: id('c'), name: 'Good' },
     { id: upper, name: 'Upper' },
+    { id: id('c'), name: 'Dup' },
     { id: lead, name: 'Lead' },
     { id: 'nope', name: 'Nope' },
   ];
   const result = MetadataValidator.validateJSONMetadata(data);
   assert.equal(result.stats.badIds, 2);
+  assert.equal(result.stats.duplicateIds, 1);
   assert.equal(result.stats.missingIds, 0);
   assert.ok(result.errors.some((row) => row.field === 'id' && String(row.message).includes(lead)));
-  assert.ok(!result.errors.some((row) => row.field === 'id' && /invalid/i.test(row.message) && String(row.message).includes(upper)));
+  assert.ok(result.errors.some((row) => row.field === 'id' && /duplicate/i.test(row.message)));
   const { kept, dropped } = partitionByInscriptionId(normalizeCollection(data));
   assert.deepEqual(kept.map((item) => item.id), [id('c'), id('a')]);
-  assert.equal(dropped.length, result.stats.badIds);
-  assert.deepEqual(dropped.map((row) => row.reason), ['index has a leading zero', 'not an inscription id']);
+  assert.equal(dropped.length, result.stats.badIds + result.stats.duplicateIds);
+  assert.deepEqual(dropped.map((row) => row.reason), [
+    'duplicate inscription id',
+    'index has a leading zero',
+    'not an inscription id',
+  ]);
   assert.ok(dropped.every((row) => row.reason && row.id));
 });

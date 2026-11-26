@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertBody, buildEnvelope, contentTypeForFile, createKey, preparePlan, textBody } from '../src/inscribe.js';
+import { assertBody, buildEnvelope, contentTypeForFile, createKey, POSTAGE, preparePlan, textBody } from '../src/inscribe.js';
 
 test('contentTypeForFile prefers a browser type when one is present', () => {
   assert.equal(contentTypeForFile('file.svg', 'image/svg+xml'), 'image/svg+xml');
@@ -55,6 +55,11 @@ test('assertBody rejects an empty body and the reveal probe rejects an overweigh
     }),
     /400,000/,
   );
+});
+
+test('lab postage defaults to 10,000 sats and 546 is not that default', () => {
+  assert.equal(POSTAGE, 10_000n);
+  assert.notEqual(POSTAGE, 546n);
 });
 
 test('buildEnvelope accepts the widened content types', () => {

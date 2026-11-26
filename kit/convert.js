@@ -125,6 +125,7 @@ export function toUnisatMeta() {
 export function partitionByInscriptionId(items) {
   const kept = [];
   const dropped = [];
+  const seen = new Set();
   items.forEach((item, index) => {
     const reason = inscriptionIdProblem(item?.id);
     if (reason) {
@@ -132,6 +133,11 @@ export function partitionByInscriptionId(items) {
       return;
     }
     const parsed = parseCanonicalInscriptionId(item.id);
+    if (seen.has(parsed.id)) {
+      dropped.push({ index, id: String(item.id), reason: 'duplicate inscription id' });
+      return;
+    }
+    seen.add(parsed.id);
     kept.push({ ...item, id: parsed.id });
   });
   return { kept, dropped };

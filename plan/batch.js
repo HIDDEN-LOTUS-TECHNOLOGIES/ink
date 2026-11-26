@@ -143,4 +143,16 @@ export function postageOutputLabel(count) {
   return count === 1 ? 'postage output' : 'postage outputs';
 }
 
+export function planNarrative(planned, formatNum = (n) => Number(n).toLocaleString('en-US')) {
+  const combined = planned.combined;
+  if (planned.batches.length > 1) {
+    const parts = planned.batches.map((batch, index) => {
+      const names = batch.files.map((file) => file.filename).join(', ');
+      return `Batch ${index + 1} is one commit of ${formatNum(batch.commitVbytes)} vbytes and one reveal of ${formatNum(batch.revealWeight)} weight units (${formatNum(batch.revealVbytes)} vbytes), ${formatNum(batch.count)} ${postageOutputLabel(batch.count)}: ${names}.`;
+    });
+    return `ord would refuse one reveal for every file, because that reveal is ${formatNum(combined.revealWeight)} weight units. INK suggests splitting it into ${formatNum(planned.batches.length)} batches you run separately. ${parts.join(' ')} The cost below adds those batches.`;
+  }
+  return `One commit of ${formatNum(combined.commitVbytes)} vbytes and one reveal of ${formatNum(combined.revealWeight)} weight units (${formatNum(combined.revealVbytes)} vbytes), ${formatNum(combined.count)} ${postageOutputLabel(combined.count)}.`;
+}
+
 export { COMMIT_VBYTES };

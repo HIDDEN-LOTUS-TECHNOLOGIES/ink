@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { propertiesReveal, SAFE_TX_WEIGHT } from '../../estimate/size.js';
+import { propertiesReveal, propertiesWeightLine, SAFE_TX_WEIGHT } from '../../estimate/size.js';
+import { preflightLines } from '../lines.js';
 import { choosePropertiesBytes, encodeProperties, estimateGallery, ORD_VERSION } from '../galleryProperties.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -139,18 +140,24 @@ test('properties weight uses a 2-byte tag push and a 3-byte header per 520-byte 
   const estimate = estimateGallery([{ id, name: 'a', t: {} }], { compress: null });
   const reveal = propertiesReveal(estimate.selected.rawBytes);
   assert.equal(reveal.revealVbytes, Math.ceil(reveal.revealWeight / 4));
-  const script = read('preflight/preflight.js');
-  assert.match(script, /2-byte tag push/);
-  assert.match(script, /3-byte push header/);
-  assert.match(script, /--no-limit/);
-  assert.match(script, /400,000 weight units/);
-  assert.match(script, /390,000 weight units should be safe/);
-  assert.match(script, /weightLine\('Brotli estimate'/);
-  assert.match(script, /weightLine\('Titles dropped'/);
-  assert.match(script, /weightLine\('Titles dropped brotli estimate'/);
-  assert.match(script, /weightLine\('Traits dropped'/);
-  assert.match(script, /weightLine\('Traits dropped brotli estimate'/);
-  assert.doesNotMatch(script + read('preflight/galleryProperties.js'), /409,?600|399,?360|400 KB standard tx limit|STANDARD_TX_BYTES|PAYLOAD_CEILING/);
+  const lines = preflightLines(estimate);
+  const text = lines.join('\n');
+  assert.match(text, /2-byte tag push/);
+  assert.match(text, /3-byte push header/);
+  assert.match(text, /Tag 19 "br"/);
+  assert.match(text, /30:1/);
+  assert.match(text, /4,000,000/);
+  assert.match(text, /--no-limit/);
+  assert.match(text, /400,000 weight units/);
+  assert.match(text, /390,000 weight units should be safe/);
+  assert.ok(lines.some((line) => line.startsWith('Raw properties: reveal weight')));
+  assert.ok(lines.some((line) => line.startsWith('Titles dropped: reveal weight')));
+  assert.ok(lines.some((line) => line.startsWith('Traits dropped: reveal weight')));
+  const within = propertiesWeightLine('Sample', 100);
+  assert.match(within, /within the 390,000 weight-unit line that should be safe/);
+  const over = propertiesWeightLine('Sample', 400_000);
+  assert.match(over, /over Bitcoin Core's 400,000 weight-unit standardness cap/);
+  assert.doesNotMatch(text, /409,?600|399,?360|400 KB standard tx limit/);
 });
 
 test('OPIUM brotli figure stays the labeled conservative sample', () => {
@@ -159,13 +166,13 @@ test('OPIUM brotli figure stays the labeled conservative sample', () => {
   assert.equal(estimate.itemCount, 777);
   assert.equal(estimate.selected.compressedBytes, 39_618);
   assert.equal(estimate.titlesDropped.compressedBytes, 37_037);
-  const script = read('preflight/preflight.js');
-  const bias = 'can run up to ~15% high (about 12% on the OPIUM sample)';
-  assert.equal(script.split(bias).length - 1, 4);
-  assert.equal(read('preflight/brotli.js').includes(bias), true);
-  assert.doesNotMatch(script + read('preflight/brotli.js'), /about 10% high/);
-  assert.match(script, /39,618 bytes against ord's 35,258/);
-  assert.match(script, /37,037 against 33,309 with titles dropped/);
+  const text = preflightLines(estimate).join('\n');
+  assert.match(text, /can run up to ~15% high \(about 12% on the OPIUM sample\)/);
+  assert.match(text, /39,618 bytes against ord's 35,258/);
+  assert.match(text, /37,037 against 33,309 with titles dropped/);
+  assert.match(text, /Brotli estimate: reveal weight/);
+  assert.match(text, /Titles dropped brotli estimate: reveal weight/);
+  assert.doesNotMatch(text, /about 10% high/);
 });
 
 test('brotli encode.js loads on the first estimate', () => {
@@ -192,6 +199,9 @@ test('a repeated title compresses and trips the 30:1 cap', () => {
   assert.ok(estimate.selected.rawBytes > 10000);
   assert.ok(estimate.titlesDropped.rawBytes < estimate.selected.rawBytes);
   assert.equal(estimate.titlesDropped.compressError, null);
+  const text = preflightLines(estimate).join('\n');
+  assert.match(text, /Warning: this brotli estimate is over ord's 30:1 cap/);
+  assert.match(text, /4,000,000/);
 });
 
 test('preflight page is unlinked, noindex, and does not fetch or loosen CSP', () => {
