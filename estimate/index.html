@@ -44,11 +44,13 @@
   <p id="status" role="status"></p>
   <div id="out" aria-live="polite"></div>
 
+  <p>The commit figure of 154 vbytes is one P2TR key-path input and two P2TR outputs. The commit transaction changes with the inputs the wallet selects. The reveal figures are the envelope and the postage output.</p>
+
   <details class="formula">
   <summary>Formula</summary>
   <p>The commit estimate is one P2TR key-path input and two P2TR outputs, the commit output and a change output.</p>
   <p><code>commit vbytes = ceil(10.5 + 57.5 + 43 + 43) = 154</code></p>
-  <p>10.5 is the version, the locktime, the input and output counts, and the segwit marker and flag (2 witness bytes / 4). 57.5 is one P2TR key-path input: 41 non-witness bytes plus a 66-byte witness. 43 is one P2TR output, counted twice.</p>
+  <p>10.5 is the version, the locktime, the input and output counts, and the segwit marker and flag (2 witness bytes / 4). 57.5 is one P2TR key-path input: 41 non-witness bytes plus a 66-byte witness. 43 is one P2TR output, counted twice. 154 vbytes approximates that input shape.</p>
   <p>The reveal estimate is one P2TR script-path input and one P2TR output paying the postage. Postage defaults to 10,000 sats, ord's <code>TARGET_POSTAGE</code>. Bitcoin Core's dust minimum for a taproot output is 330 sats. P2WPKH change is 294 sats. Changing postage changes the sats you lock in the inscription output. It does not change the virtual size.</p>
   <p><code>witness bytes = 1 + 65 + compact_size(script) + script + 34</code></p>
   <p><code>reveal weight = 378 + witness bytes</code></p>

@@ -181,6 +181,11 @@ test('warn and fail copy follows the 390,000 and 400,000 weight lines', () => {
   const page = readFileSync(new URL('../../plan/index.html', import.meta.url), 'utf8');
   const plan = readFileSync(new URL('../../plan/plan.js', import.meta.url), 'utf8');
   assert.match(html, /value="10000"/);
+  assert.match(html, /commit vbytes = ceil\(10\.5 \+ 57\.5 \+ 43 \+ 43\) = 154/);
+  assert.match(html, /154 vbytes approximates that input shape/);
+  assert.match(html, /The commit transaction changes with the inputs the wallet selects/);
+  assert.match(html, /The reveal figures are the envelope and the postage output/);
+  assert.match(html, /reveal vbytes = ceil\(reveal weight \/ 4\)/);
   assert.match(html, /Bitcoin Core's dust minimum for a taproot output is 330 sats/);
   assert.match(html, /P2WPKH change is 294 sats/);
   assert.match(js, /weight units should be safe/);

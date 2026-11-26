@@ -90,16 +90,50 @@ test('CBOR metadata checks', () => {
   assert.equal(MetadataValidator.validateCBORMetadata({ name: 'Test', attributes: [{ trait_type: '', value: 'Bad' }, { trait_type: 'Missing', value: null }] }).valid, false);
 });
 
-test('file size default has no hard cap and warns past 400 KB', () => {
+test('file size default has no hard cap and the byte note names the reveal weight limit', () => {
   assert.equal(MetadataValidator.validateFileSize(JSON.stringify({ test: 'data' })).valid, true);
   const under = MetadataValidator.validateFileSize(JSON.stringify({ data: 'x'.repeat(85 * 1024) }));
   assert.equal(under.warnings.length, 0);
   const over = MetadataValidator.validateFileSize(JSON.stringify({ data: 'x'.repeat(401 * 1024) }));
   assert.equal(over.valid, true);
-  assert.ok(over.warnings.some((w) => w.field === 'fileSize'));
+  const note = over.warnings.find((w) => w.field === 'fileSize');
+  assert.match(note.message, /JSON file is [\d,]+ bytes/);
+  assert.match(note.message, /400,000 weight units/);
+  assert.match(note.message, /390,000 weight units should be safe/);
+  assert.doesNotMatch(`${note.message} ${note.recommendation}`, /400 KB|kilobyte/i);
   const capped = MetadataValidator.validateFileSize(JSON.stringify({ data: 'x'.repeat(105 * 1024) }), { maxBytes: 100 * 1024, warnBytes: 1024 * 1024 });
   assert.equal(capped.valid, false);
-  assert.ok(capped.errors.some((e) => e.field === 'fileSize'));
+  assert.ok(capped.errors.some((e) => e.field === 'fileSize' && /bytes/.test(e.message)));
+  assert.doesNotMatch(capped.errors.map((e) => e.message).join(' '), /\bKB\b/);
+});
+
+test('an on-chain collection warns when an image is https or a data URI', () => {
+  const content = `/content/${id('d')}`;
+  const clean = MetadataValidator.validateJSONMetadata([
+    { file: '1.png', meta: { name: 'One', image: content, attributes: [{ trait_type: 'Hat', value: 'cap' }] } },
+  ]);
+  assert.equal(clean.warnings.some((w) => /off-chain image/.test(w.message)), false);
+
+  const mixed = MetadataValidator.validateJSONMetadata([
+    { file: '1.png', meta: { name: 'One', image: 'https://cdn.example/1.png', attributes: [{ trait_type: 'Hat', value: 'cap' }] } },
+    { file: '2.png', meta: { name: 'Two', image: 'data:image/png;base64,aaaa', attributes: [{ trait_type: 'Hat', value: 'cap' }] } },
+    { file: '3.png', meta: { name: 'Three', attributes: [{ trait_type: 'Hat', value: 'cap' }] } },
+  ]);
+  const imageWarns = mixed.warnings.filter((w) => /off-chain image/.test(w.message));
+  assert.equal(imageWarns.length, 1);
+  assert.equal(imageWarns[0].field, 'image');
+  assert.match(imageWarns[0].message, /2 on-chain rows use an off-chain image \(https:\/\/ or data:image\/\)/);
+  assert.match(imageWarns[0].message, /\/content\/<inscription id>/);
+
+  const httpTop = MetadataValidator.validateJSONMetadata([
+    { file: '1.png', image: ' HTTP://cdn.example/1.png ', meta: { name: 'One', attributes: [{ trait_type: 'Hat', value: 'cap' }] } },
+  ]);
+  assert.match(httpTop.warnings.find((w) => /off-chain image/.test(w.message)).message, /1 on-chain row uses/);
+
+  const marketplace = MetadataValidator.validateJSONMetadata([
+    { id: id('a'), name: 'One', image: 'https://cdn.example/1.png', attributes: [{ trait_type: 'Hat', value: 'cap' }] },
+  ]);
+  assert.equal(marketplace.warnings.some((w) => /off-chain image \(https/.test(w.message)), false);
 });
 
 const OFFCHAIN_IMAGE_NOTE = 'These are off-chain image URLs, not on-chain metadata.';

@@ -36,9 +36,11 @@ UniSat exposes one account address. This page uses it for both payment and ordin
 
 Fordefi is a default adapter and uses the same `wallet_connect` / `signPsbt` path as Xverse. There is no extra fallback in this page.
 
-## Leather, OKX, Magic Eden, Phantom
+## Leather, OKX, Phantom
 
-None of these four are default adapters in 0.19.0. If one of them has pushed an entry into `window.btc_providers`, the picker lists it and connect tries Sats Connect `wallet_connect` on `window[<id>]`. That only works when the object at that id speaks Sats Connect. The fallbacks below are what their docs say to call instead. This page does not call them.
+Magic Eden wallet shut down on 1 May 2026, so it is not listed here.
+
+None of these three are default adapters in 0.19.0. If one of them has pushed an entry into `window.btc_providers`, the picker lists it and connect tries Sats Connect `wallet_connect` on `window[<id>]`. That only works when the object at that id speaks Sats Connect. The fallbacks below are what their docs say to call instead. This page does not call them.
 
 ### Leather
 
@@ -51,12 +53,6 @@ Fallback, from [signPsbt](https://leather.gitbook.io/developers/bitcoin-methods/
 The OKX provider docs do not mention `window.btc_providers`. They inject `window.okxwallet.bitcoin`, `window.okxwallet.bitcoinTestnet`, and `window.okxwallet.bitcoinSignet`.
 
 Fallback, from [Provider API (Signet)](https://web3.okx.com/onchainos/dev-docs/wallet/dapp-connect/chains/bitcoin/provider-signet) (extension 2.82.32 or newer): `okxwallet.bitcoinSignet.connect()`, then `okxwallet.bitcoinSignet.signPsbt(psbtHex, { autoFinalized: false, toSignInputs })`. `connect()` returns one `address` and one `publicKey`. The sample response on that page is a `bc1` address, so a caller still has to refuse mainnet. The mainnet object is documented at [Provider API](https://web3.okx.com/onchainos/dev-docs/wallet/dapp-connect/chains/bitcoin/provider). Using `okxwallet.bitcoin` on this page would be a mainnet signer, so the signet object is the one that matches.
-
-### Magic Eden
-
-[Detecting the Provider](https://docs-wallet.magiceden.io/bitcoin/detecting-the-provider) says the wallet injects `window.magicEden.bitcoin` (check `isMagicEden`) and also tries `window.BitcoinProvider`. Those pages do not mention `window.btc_providers`. The provider does speak Sats Connect methods if the app passes that object in itself: [Provider API Methods](https://docs-wallet.magiceden.io/bitcoin/provider-api-methods) and [Connecting to the Wallet](https://docs-wallet.magiceden.io/bitcoin/connecting-to-the-wallet).
-
-Fallback: call `window.magicEden.bitcoin.request` with Sats Connect `wallet_connect` (`network: 'Signet'`) and `signPsbt` (`broadcast: false`). Their examples pass `BitcoinNetworkType.Mainnet`. This page would still refuse a mainnet address.
 
 ### Phantom
 

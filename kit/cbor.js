@@ -110,17 +110,35 @@ export function toHex(bytes) {
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Witness-discount estimate for carrying these metadata bytes as Tag 5. */
-export function estimateAddedVbytes(byteLength) {
-  let pushes = 0;
-  let left = byteLength;
-  if (left === 0) pushes = 1;
+// Tag 5 metadata is chunked the same way as Tag 17 properties.
+// ord 0.29.1 src/inscriptions/tag.rs Tag::append pushes the 1-byte tag
+// before every 520-byte chunk (MAX_SCRIPT_ELEMENT_SIZE). That tag push is
+// 2 script bytes. propertiesFieldBytes in estimate/size.js uses the same
+// count. Witness bytes are 1 weight unit, so added vbytes are ceil(script / 4).
+const CHUNK = 520;
+
+function dataPushHeader(length) {
+  if (length < 76) return 1;
+  if (length <= 255) return 2;
+  return 3;
+}
+
+export function chunkedTagScriptBytes(byteLength) {
+  if (!Number.isFinite(byteLength) || byteLength <= 0) return 0;
+  const length = Math.floor(byteLength);
+  let script = 0;
+  let left = length;
   while (left > 0) {
-    const n = Math.min(520, left);
-    pushes += n < 76 ? 1 : n < 256 ? 2 : 3;
+    const n = Math.min(CHUNK, left);
+    script += 2 + dataPushHeader(n) + n;
     left -= n;
   }
-  return Math.ceil((byteLength + pushes + 1) / 4);
+  return script;
+}
+
+/** Witness-discount estimate for carrying these metadata bytes as Tag 5. */
+export function estimateAddedVbytes(byteLength) {
+  return Math.ceil(chunkedTagScriptBytes(byteLength) / 4);
 }
 
 export class CBORGenerator {
@@ -132,7 +150,6 @@ export class CBORGenerator {
     const metadata = { name: `${this.config.collectionName} #${tokenId}`, attributes: traits };
     if (options.description || this.config.collectionDescription) metadata.description = options.description || this.config.collectionDescription;
     if (options.image) metadata.image = options.image;
-    else if (this.config.useRecursiveImages) metadata.image = 'recursive://collection-layers';
     if (options.animationUrl) metadata.animation_url = options.animationUrl;
     if (this.config.websiteUrl) metadata.external_url = this.config.websiteUrl;
     if (options.backgroundColor) metadata.background_color = options.backgroundColor;
@@ -169,8 +186,5 @@ export const cborUtils = {
   },
   metadataBytes(metadata) {
     return encodeCbor(JSON.parse(JSON.stringify(metadata)));
-  },
-  createAttribute(traitType, value, rarity) {
-    return { trait_type: traitType, value: String(value), rarity, display_type: typeof value === 'number' ? 'number' : 'string' };
   },
 };

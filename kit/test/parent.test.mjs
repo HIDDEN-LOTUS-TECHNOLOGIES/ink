@@ -17,6 +17,20 @@ test('parses and validates inscription ids', () => {
   assert.throws(() => encodeParentTag3(`${id.slice(0, -1)}4294967296`), /Invalid parent inscription ID/);
 });
 
+test('Tag 3 rejects an index above 4294967295 and a leading zero', () => {
+  const txid = id.slice(0, 64);
+  assert.equal(parseInscriptionId(`${txid}i01`), null);
+  assert.equal(isValidInscriptionId(`${txid}i01`), false);
+  assert.equal(isValidInscriptionId(`${txid}i0`), true);
+  assert.equal(parseInscriptionId(`${txid}i4294967295`).index, 4294967295);
+  assert.equal(isValidInscriptionId(`${txid}i4294967296`), false);
+  assert.throws(() => encodeParentTag3(`${txid}i01`), /Invalid parent inscription ID/);
+  assert.throws(() => encodeParentTag3(`${txid}i4294967296`), /Invalid parent inscription ID/);
+  const encoded = encodeParentTag3(`${txid}i4294967295`);
+  assert.equal(encoded.length, 36);
+  assert.equal(decodeParentTag3(encoded), `${txid}i4294967295`);
+});
+
 test('encodes Tag 3 and decodes it back', () => {
   const hex = parentTag3Hex(id);
   assert.equal(hex, '1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100');

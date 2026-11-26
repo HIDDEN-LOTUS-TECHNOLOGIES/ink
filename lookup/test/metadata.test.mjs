@@ -41,7 +41,7 @@ test('decodes metadata hex into attribute traits', () => {
   const meta = {
     name: 'Puppet',
     description: 'A puppet',
-    image: 'recursive://collection-layers',
+    image: `/content/${'a'.repeat(64)}i0`,
     attributes: [
       { trait_type: 'Hat', value: 'cap' },
       { trait_type: 'Count', value: 2 },
