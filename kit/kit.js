@@ -2,8 +2,9 @@ import { rankByScore, standardScores, tierCounts, tierFor } from '../assets/rari
 import { CBORGenerator, estimateAddedVbytes, toHex } from './cbor.js';
 import { csvToItems, itemsToCsv, parseMetadataCSV } from './metadataCsv.js';
 import { MetadataValidator } from './metadataValidator.js';
-import { isGammaOnChain, isInkItem, itemLabel, normalizeCollection, sameItems, toIdList, toMagicEden, toUnisatInscriptions, toUnisatMeta } from './convert.js';
+import { isGammaOnChain, isInkItem, itemLabel, normalizeCollection, partitionByInscriptionId, sameItems, toIdList, toMagicEden, toUnisatInscriptions, toUnisatMeta } from './convert.js';
 import { decodeParentTag3Hex, isValidInscriptionId, parentTag3Hex, parseInscriptionId } from './parentInscription.js';
+import { appendStatus } from './statusLines.js';
 
 const $ = (s) => document.querySelector(s);
 let items = [];
@@ -25,7 +26,7 @@ function download(name, text, type) {
 }
 
 function setStatus(msg) {
-  $('#status').textContent = msg;
+  appendStatus($('#status'), (tag) => document.createElement(tag), msg);
 }
 
 function shownName(item) {
@@ -44,16 +45,11 @@ function syncExports() {
   $('#toMeta').disabled = items.length === 0;
 }
 
-function skippedIdRows() {
-  return items.filter((item) => !isValidInscriptionId(item.id)).length;
-}
-
 function leftOutStatus(file) {
-  const skipped = skippedIdRows();
-  if (!skipped) return;
-  const row = skipped === 1 ? '1 row has' : `${skipped} rows have`;
-  const those = skipped === 1 ? 'That row was' : 'Those rows were';
-  setStatus(`${row} no inscription id yet. ${those} left out of ${file}.`);
+  const dropped = partitionByInscriptionId(items).dropped;
+  if (!dropped.length) return;
+  const lines = dropped.map((row) => `#${row.index} ${row.id || '(blank)'}: ${row.reason}`);
+  setStatus(`Left out of ${file}:\n${lines.join('\n')}`);
 }
 
 function rankedRows() {

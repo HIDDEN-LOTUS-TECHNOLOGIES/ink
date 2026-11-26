@@ -3,8 +3,7 @@
 // Trait hygiene warnings are reported only. Values are not rewritten.
 
 import { hasOffChainImageUrl, isGammaOnChainItem } from './convert.js';
-
-const INSCRIPTION_ID_PATTERN = /^[a-f0-9]{64}i\d+$/i;
+import { isValidInscriptionId, parseCanonicalInscriptionId } from './inscriptionId.js';
 const OFFCHAIN_IMAGE_NOTE = 'These are off-chain image URLs, not on-chain metadata.';
 
 function attributesOf(item) {
@@ -54,12 +53,13 @@ export class MetadataValidator {
 
     data.forEach((item, index) => {
       const itemErrors = this.validateMetadataItem(item, index);
+      const canonical = item && item.id != null && item.id !== '' ? parseCanonicalInscriptionId(item.id) : null;
       if (!item || item.id == null || item.id === '') missingIds += 1;
-      else if (!INSCRIPTION_ID_PATTERN.test(String(item.id))) badIds += 1;
-      else if (seenIds.has(item.id)) {
+      else if (!canonical) badIds += 1;
+      else if (seenIds.has(canonical.id)) {
         duplicateIds += 1;
-        itemErrors.push({ field: 'id', message: `Duplicate inscription ID: ${item.id}`, severity: 'error', index });
-      } else seenIds.set(item.id, index);
+        itemErrors.push({ field: 'id', message: `Duplicate inscription ID: ${canonical.id}`, severity: 'error', index });
+      } else seenIds.set(canonical.id, index);
       errors.push(...itemErrors);
       if (itemErrors.length === 0) validItems += 1;
       const attributes = attributesOf(item) || [];
@@ -118,7 +118,7 @@ export class MetadataValidator {
     const gamma = isGammaOnChainItem(item);
     if (!item || !item.id) {
       if (!gamma) errors.push({ field: 'id', message: 'Missing inscription ID', severity: 'critical', index });
-    } else if (!INSCRIPTION_ID_PATTERN.test(String(item.id))) {
+    } else if (!isValidInscriptionId(item.id)) {
       errors.push({ field: 'id', message: `Invalid inscription ID format: ${item.id}`, severity: 'error', index });
     }
     const name = item?.meta?.name || item?.name || (gamma ? item.file : '');
@@ -170,7 +170,7 @@ export class MetadataValidator {
     const errors = [];
     if (imagePath.startsWith('/content/')) {
       const inscriptionId = imagePath.replace('/content/', '');
-      if (!INSCRIPTION_ID_PATTERN.test(inscriptionId)) {
+      if (!isValidInscriptionId(inscriptionId)) {
         errors.push({ field: 'image', message: 'Invalid inscription ID in image path', severity: 'error' });
       }
     } else if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {

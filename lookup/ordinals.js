@@ -40,6 +40,10 @@ export function contentUrl(id) {
   return ordinalsUrl(`/content/${canonicalId(id)}`);
 }
 
+export function previewUrl(id) {
+  return ordinalsUrl(`/preview/${canonicalId(id)}`);
+}
+
 export function childrenUrl(id, page = 0) {
   const canonical = canonicalId(id);
   const n = pageIndex(page);
@@ -115,7 +119,7 @@ export function previewPlan(record) {
   if (contentType.startsWith('video/')) return { kind: 'video', url, contentType };
   if (contentType === 'text/html' || contentType === 'application/xhtml+xml') {
     if (length != null && length > HTML_PREVIEW_LIMIT) return { kind: 'link', url, contentType };
-    return { kind: 'html', url, contentType };
+    return { kind: 'html', url, frame: previewUrl(record.id), contentType };
   }
   const textual = contentType.startsWith('text/')
     || contentType === 'application/json'

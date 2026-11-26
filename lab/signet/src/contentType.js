@@ -1,6 +1,5 @@
 // Shared with the public /estimate/ page. No network, no keys, no npm imports.
-
-export const MAX_BODY = 390 * 1024;
+// The reveal limit is weight, not a fixed body size. See estimate/size.js.
 
 const EXT_MIME = {
   txt: 'text/plain',
@@ -34,6 +33,5 @@ export function contentTypeForFile(filename, browserType) {
 export function assertBody(body) {
   if (!(body instanceof Uint8Array)) throw new Error('Content must be bytes.');
   if (!body.length) throw new Error('Content is empty.');
-  if (body.length > MAX_BODY) throw new Error(`Content is ${body.length} bytes. The limit is ${MAX_BODY} bytes.`);
   return body;
 }

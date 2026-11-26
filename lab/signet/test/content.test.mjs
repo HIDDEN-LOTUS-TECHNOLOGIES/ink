@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MAX_BODY, assertBody, buildEnvelope, contentTypeForFile, createKey, textBody } from '../src/inscribe.js';
+import { assertBody, buildEnvelope, contentTypeForFile, createKey, POSTAGE, preparePlan, textBody } from '../src/inscribe.js';
 
 test('contentTypeForFile prefers a browser type when one is present', () => {
   assert.equal(contentTypeForFile('file.svg', 'image/svg+xml'), 'image/svg+xml');
@@ -41,15 +41,25 @@ test('contentTypeForFile falls back when the extension is unknown', () => {
   assert.equal(contentTypeForFile('', ''), 'application/octet-stream');
 });
 
-test('MAX_BODY is 390 KB and assertBody enforces it', () => {
-  assert.equal(MAX_BODY, 390 * 1024);
+test('assertBody rejects an empty body and the reveal probe rejects an overweight body', () => {
   assert.equal(assertBody(new Uint8Array(50 * 1024 + 1)).length, 50 * 1024 + 1);
-  assert.equal(assertBody(new Uint8Array(MAX_BODY)).length, MAX_BODY);
-  assert.throws(
-    () => assertBody(new Uint8Array(MAX_BODY + 1)),
-    { message: `Content is ${MAX_BODY + 1} bytes. The limit is ${MAX_BODY} bytes.` },
-  );
   assert.throws(() => assertBody(new Uint8Array(0)), /empty/);
+  const reveal = createKey();
+  assert.throws(
+    () => preparePlan({
+      body: new Uint8Array(397_172),
+      contentType: 'image/png',
+      revealPriv: reveal.priv,
+      dest: 'tb1pearq2jvuq9kzfdmrt59drxzxh0mtmz60wt26kndm6aw39zcdvjuq8xhjpd',
+      feeRate: 1,
+    }),
+    /400,000/,
+  );
+});
+
+test('lab postage defaults to 10,000 sats and 546 is not that default', () => {
+  assert.equal(POSTAGE, 10_000n);
+  assert.notEqual(POSTAGE, 546n);
 });
 
 test('buildEnvelope accepts the widened content types', () => {

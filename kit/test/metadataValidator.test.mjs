@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { TIER_CUT, standardScores } from '../../assets/rarity.js';
-import { normalizeCollection } from '../convert.js';
+import { normalizeCollection, partitionByInscriptionId } from '../convert.js';
 import { MetadataValidator } from '../metadataValidator.js';
 
 const id = (ch, n = 0) => `${ch.repeat(64)}i${n}`;
@@ -206,4 +206,31 @@ test('validateComplete', () => {
   assert.ok(huge.errors.some((e) => e.severity === 'critical'));
   const bad = MetadataValidator.validateComplete('{ invalid json }');
   assert.ok(bad.errors.some((e) => e.field === 'json'));
+});
+
+test('validator and id exporters agree, including uppercase and a leading zero', () => {
+  const upper = id('a').toUpperCase();
+  const lead = `${'b'.repeat(64)}i01`;
+  const data = [
+    { id: id('c'), name: 'Good' },
+    { id: upper, name: 'Upper' },
+    { id: id('c'), name: 'Dup' },
+    { id: lead, name: 'Lead' },
+    { id: 'nope', name: 'Nope' },
+  ];
+  const result = MetadataValidator.validateJSONMetadata(data);
+  assert.equal(result.stats.badIds, 2);
+  assert.equal(result.stats.duplicateIds, 1);
+  assert.equal(result.stats.missingIds, 0);
+  assert.ok(result.errors.some((row) => row.field === 'id' && String(row.message).includes(lead)));
+  assert.ok(result.errors.some((row) => row.field === 'id' && /duplicate/i.test(row.message)));
+  const { kept, dropped } = partitionByInscriptionId(normalizeCollection(data));
+  assert.deepEqual(kept.map((item) => item.id), [id('c'), id('a')]);
+  assert.equal(dropped.length, result.stats.badIds + result.stats.duplicateIds);
+  assert.deepEqual(dropped.map((row) => row.reason), [
+    'duplicate inscription id',
+    'index has a leading zero',
+    'not an inscription id',
+  ]);
+  assert.ok(dropped.every((row) => row.reason && row.id));
 });

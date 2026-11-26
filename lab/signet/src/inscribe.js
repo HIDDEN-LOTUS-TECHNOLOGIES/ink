@@ -3,14 +3,17 @@ import * as btc from '@scure/btc-signer';
 import { pubECDSA, pubSchnorr, randomPrivateKeyBytes } from '@scure/btc-signer/utils.js';
 import * as ordinals from 'micro-ordinals';
 import { hex, utf8 } from '@scure/base';
-import { assertBody, contentTypeForFile, MAX_BODY } from './contentType.js';
+import { assertBody, contentTypeForFile } from './contentType.js';
 
-export { assertBody, contentTypeForFile, MAX_BODY };
+export { assertBody, contentTypeForFile };
+
+// Same standardness cap as estimate/size.js. The probe is the reveal this page would sign.
+export const MAX_STANDARD_TX_WEIGHT = 400_000;
 
 export const NETWORK_NAME = 'signet';
 export const NET = btc.TEST_NETWORK;
 export const SIGNET_API_ORIGIN = 'https://mempool.space';
-export const POSTAGE = 546n;
+export const POSTAGE = 10_000n;
 export const FAUCETS = [
   'https://signetfaucet.com/',
   'https://alt.signetfaucet.com/',
@@ -133,6 +136,9 @@ export function preparePlan({ body, contentType, revealPriv, dest, feeRate }) {
     dest: destination,
     postage: POSTAGE,
   });
+  if (probe.weight > MAX_STANDARD_TX_WEIGHT) {
+    throw new Error(`Reveal weight is ${probe.weight}. That is over Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.`);
+  }
   const revealFee = feeFor(probe.vsize, rate);
   const commitValue = POSTAGE + revealFee;
   return {
@@ -222,7 +228,7 @@ function finishCommit(tx, plan, inputSum, change) {
 }
 
 export function buildReveal({ plan, commitTxid, commitVout = 0, commitValue }) {
-  if (commitValue <= plan.postage) throw new Error('Commit output cannot cover the 546 sat postage.');
+  if (commitValue <= plan.postage) throw new Error(`Commit output cannot cover the ${plan.postage} sat postage.`);
   const tx = buildRevealTx({
     payment: plan.payment,
     revealPriv: plan.revealPriv,

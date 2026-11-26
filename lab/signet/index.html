@@ -41,7 +41,7 @@
   </div>
 
   <h2>2. Content</h2>
-  <label for="file">Any file, up to 390 KB</label>
+  <label for="file">Any file that fits in one reveal</label>
   <input id="file" type="file" accept="text/plain,text/html,text/css,image/png,image/jpeg,image/gif,image/webp,image/svg+xml,application/json,application/pdf,audio/mpeg,audio/wav,audio/ogg,audio/webm,video/mp4,video/webm,video/ogg,.txt,.html,.htm,.css,.svg,.json,.png,.jpg,.jpeg,.gif,.webp,.pdf,.mp3,.wav,.ogg,.mp4,.webm">
   <label for="text">Or type text</label>
   <textarea id="text" placeholder="Hello from signet"></textarea>
@@ -87,6 +87,7 @@
 
   <h2>Recover stuck reveal</h2>
   <p>Load a recovery file. The page finds the commit UTXO, rebuilds the reveal, and can broadcast it again. It does not build a new commit.</p>
+  <label for="recoverFile">Recovery file</label>
   <input id="recoverFile" type="file" accept="application/json,.json">
   <div id="recoverBox" hidden>
     <p id="recoverMeta"></p>

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { choosePropertiesBytes, encodeProperties, estimateGallery, ORD_VERSION, STANDARD_TX_BYTES } from '../galleryProperties.js';
+import { propertiesReveal, propertiesWeightLine, SAFE_TX_WEIGHT } from '../../estimate/size.js';
+import { preflightLines } from '../lines.js';
+import { choosePropertiesBytes, encodeProperties, estimateGallery, ORD_VERSION } from '../galleryProperties.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -120,7 +122,6 @@ test('titles and traits change the size, and bad or duplicate ids are reported',
   ];
   const estimate = estimateGallery(data, { compress: null });
   assert.equal(estimate.ordVersion, ORD_VERSION);
-  assert.equal(estimate.limit, STANDARD_TX_BYTES);
   assert.equal(estimate.itemCount, 3);
   assert.equal(estimate.leftOut, 1);
   assert.ok(estimate.idIssues.some((row) => /duplicate/i.test(row.message)));
@@ -129,7 +130,65 @@ test('titles and traits change the size, and bad or duplicate ids are reported',
   assert.equal(estimate.traitNotes[0].name, 'Weird');
   assert.ok(estimate.titlesDropped.rawBytes < estimate.selected.rawBytes);
   assert.ok(estimate.traitsDropped.rawBytes < estimate.selected.rawBytes);
-  assert.ok(estimate.selected.rawBytes < STANDARD_TX_BYTES);
+  const reveal = propertiesReveal(estimate.selected.rawBytes);
+  assert.equal(reveal.weightClass, 'ok');
+  assert.ok(reveal.revealWeight <= SAFE_TX_WEIGHT);
+});
+
+test('properties weight uses a 2-byte tag push and a 3-byte header per 520-byte chunk', () => {
+  const id = `${'ab'.repeat(32)}i0`;
+  const estimate = estimateGallery([{ id, name: 'a', t: {} }], { compress: null });
+  const reveal = propertiesReveal(estimate.selected.rawBytes);
+  assert.equal(reveal.revealVbytes, Math.ceil(reveal.revealWeight / 4));
+  const lines = preflightLines(estimate);
+  const text = lines.join('\n');
+  assert.match(text, /2-byte tag push/);
+  assert.match(text, /3-byte push header/);
+  assert.match(text, /Tag 19 "br"/);
+  assert.match(text, /30:1/);
+  assert.match(text, /4,000,000/);
+  assert.match(text, /--no-limit/);
+  assert.match(text, /400,000 weight units/);
+  assert.match(text, /390,000 weight units should be safe/);
+  assert.ok(lines.some((line) => line.startsWith('Raw properties: reveal weight')));
+  assert.ok(lines.some((line) => line.startsWith('Titles dropped: reveal weight')));
+  assert.ok(lines.some((line) => line.startsWith('Traits dropped: reveal weight')));
+  const within = propertiesWeightLine('Sample', 100);
+  assert.match(within, /within the 390,000 weight-unit line that should be safe/);
+  const over = propertiesWeightLine('Sample', 400_000);
+  assert.match(over, /over Bitcoin Core's 400,000 weight-unit standardness cap/);
+  assert.doesNotMatch(text, /409,?600|399,?360|400 KB standard tx limit/);
+});
+
+test('OPIUM brotli figure stays the labeled conservative sample', () => {
+  const data = JSON.parse(read('data/opium.json'));
+  const estimate = estimateGallery(data);
+  assert.equal(estimate.itemCount, 777);
+  assert.equal(estimate.selected.compressedBytes, 39_618);
+  assert.equal(estimate.titlesDropped.compressedBytes, 37_037);
+  const text = preflightLines(estimate).join('\n');
+  assert.match(text, /can run up to ~15% high \(about 12% on the OPIUM sample\)/);
+  assert.match(text, /39,618 bytes against ord's 35,258/);
+  assert.match(text, /37,037 against 33,309 with titles dropped/);
+  assert.match(text, /Brotli estimate: reveal weight/);
+  assert.match(text, /Titles dropped brotli estimate: reveal weight/);
+  assert.doesNotMatch(text, /about 10% high/);
+});
+
+test('brotli encode.js loads on the first estimate', () => {
+  const script = read('preflight/preflight.js');
+  const html = read('preflight/index.html');
+  const staticImports = [...script.matchAll(/^\s*import\s+[^;]*from\s+['"]([^'"]+)['"]/gm)].map((match) => match[1]);
+  assert.deepEqual(staticImports.filter((spec) => /brotli|galleryProperties|encode\.js/.test(spec)), []);
+  assert.match(script, /function loadGallery\(\)/);
+  const loadGallery = script.slice(script.indexOf('function loadGallery'));
+  assert.match(loadGallery, /import\(\s*['"]\.\/galleryProperties\.js['"]\s*\)/);
+  assert.doesNotMatch(script.slice(0, script.indexOf('function loadGallery')), /import\(/);
+  assert.match(script, /Loading estimator/);
+  assert.match(html, /script type="module" src="\.\/preflight\.js"/);
+  assert.doesNotMatch(html, /brotli-lib\/encode\.js/);
+  assert.match(read('preflight/galleryProperties.js'), /from '\.\/brotli\.js'/);
+  assert.match(read('preflight/brotli.js'), /from '\.\/vendor\/brotli-lib\/encode\.js'/);
 });
 
 test('a repeated title compresses and trips the 30:1 cap', () => {
@@ -140,6 +199,9 @@ test('a repeated title compresses and trips the 30:1 cap', () => {
   assert.ok(estimate.selected.rawBytes > 10000);
   assert.ok(estimate.titlesDropped.rawBytes < estimate.selected.rawBytes);
   assert.equal(estimate.titlesDropped.compressError, null);
+  const text = preflightLines(estimate).join('\n');
+  assert.match(text, /Warning: this brotli estimate is over ord's 30:1 cap/);
+  assert.match(text, /4,000,000/);
 });
 
 test('preflight page is unlinked, noindex, and does not fetch or loosen CSP', () => {

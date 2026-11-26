@@ -6,10 +6,26 @@
 
 import { assertBody } from '../lab/signet/src/contentType.js';
 
-export const POSTAGE_DEFAULT = 546;
+// ord 0.29.1 src/lib.rs TARGET_POSTAGE. Dust is not one number.
+// Bitcoin Core src/policy/policy.cpp GetDustThreshold, default dust relay fee 3 sat/vB:
+// a P2PKH output is 182 bytes at that rate (546 sats), a P2WPKH output is 98 bytes (294),
+// and a P2TR output is 43 + 67 = 110 bytes (330). Inscriptions live on taproot outputs.
+export const POSTAGE_DEFAULT = 10_000;
+export const TAPROOT_DUST = 330;
+export const P2WPKH_DUST = 294;
+export const P2PKH_DUST = 546;
 export const CHUNK = 520;
 export const SIG_BYTES = 64;
 export const CONTROL_BYTES = 33;
+
+// bitcoin::policy::MAX_STANDARD_TX_WEIGHT. ord refuses a heavier reveal unless --no-limit.
+// docs/src/guides/wallet.md: "390,000 weight units should be safe."
+export const MAX_STANDARD_TX_WEIGHT = 400_000;
+export const SAFE_TX_WEIGHT = 390_000;
+
+// <32-byte key> push plus OP_CHECKSIG. One per reveal, shared by every envelope in a batch.
+export const TAPSCRIPT_PREFIX = 34;
+export const P2TR_OUTPUT_WEIGHT = 172;
 
 // Weight of a 1-input 1-output reveal before the witness stack:
 // version 16 + locktime 16 + input count 4 + output count 4
@@ -106,6 +122,101 @@ export function witnessBytes(scriptLength) {
     + compactSize(CONTROL_BYTES) + CONTROL_BYTES;
 }
 
+// Non-witness weight of one reveal input and `outputs` P2TR outputs, plus the segwit marker.
+export function revealBaseWeight(outputs = 1) {
+  const count = outputs < 1 ? 1 : outputs;
+  return 16 + 16
+    + compactSize(1) * 4
+    + compactSize(count) * 4
+    + 160 + 4
+    + count * P2TR_OUTPUT_WEIGHT
+    + 2;
+}
+
+export function revealWeightFor(scriptLength, outputs = 1) {
+  return revealBaseWeight(outputs) + witnessBytes(scriptLength);
+}
+
+export function weightClass(weight) {
+  if (weight > MAX_STANDARD_TX_WEIGHT) return 'over';
+  if (weight > SAFE_TX_WEIGHT) return 'warn';
+  return 'ok';
+}
+
+export function revealWeightNotice(weight, klass = weightClass(weight)) {
+  const formatted = Number(weight).toLocaleString('en-US');
+  if (klass === 'over') {
+    return `Reveal weight is ${formatted}. That is over Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.`;
+  }
+  if (klass === 'warn') {
+    return `Reveal weight is ${formatted}. 390,000 weight units should be safe.`;
+  }
+  return '';
+}
+
+export function propertiesWeightLine(label, byteLength, options = {}) {
+  if (byteLength == null) return `${label}: no figure.`;
+  const reveal = propertiesReveal(byteLength, options);
+  const mark = reveal.weightClass === 'over'
+    ? `over Bitcoin Core's ${MAX_STANDARD_TX_WEIGHT.toLocaleString('en-US')} weight-unit standardness cap`
+    : reveal.weightClass === 'warn'
+      ? `over the ${SAFE_TX_WEIGHT.toLocaleString('en-US')} weight-unit line that should be safe`
+      : `within the ${SAFE_TX_WEIGHT.toLocaleString('en-US')} weight-unit line that should be safe`;
+  return `${label}: reveal weight ${reveal.revealWeight.toLocaleString('en-US')} (${reveal.revealVbytes.toLocaleString('en-US')} vbytes), ${mark}.`;
+}
+
+// Tag 17 is a 1-byte push (2 script bytes) plus the data push, repeated every 520 bytes.
+// ord 0.29.1 src/inscriptions/tag.rs Tag::append for Properties.
+export function propertiesFieldBytes(byteLength) {
+  let total = 0;
+  for (let offset = 0; offset < byteLength; offset += CHUNK) {
+    const chunk = Math.min(CHUNK, byteLength - offset);
+    total += 2 + pushHeader(chunk) + chunk;
+  }
+  return total;
+}
+
+// Key, CHECKSIG, OP_FALSE OP_IF "ord" … OP_ENDIF, with no content type and no body.
+const PROPERTIES_FRAME = TAPSCRIPT_PREFIX + 1 + 1 + pushHeader(3) + 3 + 1;
+
+// Tag 19 property encoding "br": a 1-byte tag push (2 script bytes) plus the
+// 2-byte value push (3 script bytes). Witness bytes are 1 weight unit each.
+export const PROPERTY_ENCODING_BR_BYTES = 5;
+
+export function propertiesReveal(byteLength, { encoding } = {}) {
+  let scriptBytes = PROPERTIES_FRAME + propertiesFieldBytes(byteLength);
+  if (encoding === 'br') scriptBytes += PROPERTY_ENCODING_BR_BYTES;
+  const revealWeight = revealWeightFor(scriptBytes, 1);
+  return {
+    scriptBytes,
+    witnessBytes: witnessBytes(scriptBytes),
+    revealWeight,
+    revealVbytes: Math.ceil(revealWeight / 4),
+    weightClass: weightClass(revealWeight),
+  };
+}
+
+export function batchScriptLength(envelopeLengths) {
+  return TAPSCRIPT_PREFIX + envelopeLengths.reduce((sum, n) => sum + n, 0);
+}
+
+export function measureBatch(rows) {
+  const count = rows.length;
+  const scriptBytes = batchScriptLength(rows.map((row) => row.envelopeBytes));
+  const revealWeight = count ? revealWeightFor(scriptBytes, count) : 0;
+  return {
+    count,
+    bodyBytes: rows.reduce((sum, row) => sum + row.bodyBytes, 0),
+    scriptBytes,
+    witnessBytes: count ? witnessBytes(scriptBytes) : 0,
+    revealWeight,
+    revealVbytes: count ? Math.ceil(revealWeight / 4) : 0,
+    commitVbytes: count ? COMMIT_VBYTES : 0,
+    postage: rows.reduce((sum, row) => sum + row.postage, 0),
+    weightClass: count ? weightClass(revealWeight) : 'ok',
+  };
+}
+
 export function parsePostage(value) {
   const raw = typeof value === 'number' ? String(value) : String(value ?? '').trim();
   if (!/^(0|[1-9]\d*)$/.test(raw)) throw new Error('Postage must be a whole number of sats from 0 to 100000000.');
@@ -131,13 +242,14 @@ export function estimateInscription({ body, contentType, postage = POSTAGE_DEFAU
   const type = normalizeContentType(contentType);
   const script = buildEnvelopeScript(checked, type);
   const witness = witnessBytes(script.length);
-  const revealWeight = REVEAL_BASE_WEIGHT + witness;
+  const revealWeight = revealWeightFor(script.length, 1);
   const revealVbytes = Math.ceil(revealWeight / 4);
   const postageSats = parsePostage(postage);
   return {
     contentType: type,
     bodyBytes: checked.length,
     scriptBytes: script.length,
+    envelopeBytes: script.length - TAPSCRIPT_PREFIX,
     witnessBytes: witness,
     revealBaseWeight: REVEAL_BASE_WEIGHT,
     revealWeight,
@@ -145,6 +257,7 @@ export function estimateInscription({ body, contentType, postage = POSTAGE_DEFAU
     commitVbytes: COMMIT_VBYTES,
     totalVbytes: COMMIT_VBYTES + revealVbytes,
     postage: postageSats,
+    weightClass: weightClass(revealWeight),
   };
 }
 

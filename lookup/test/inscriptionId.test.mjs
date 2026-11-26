@@ -10,8 +10,9 @@ test('parses a canonical inscription id', () => {
   assert.equal(isValidInscriptionId(id), true);
   assert.equal(parseInscriptionId(`  ${id.toUpperCase()}  `).id, id);
   assert.equal(parseInscriptionId(`"${id}"`).id, id);
-  assert.equal(parseInscriptionId(`${txid}i00`).id, id);
+  assert.equal(isValidInscriptionId(id.toUpperCase()), true);
   assert.equal(parseInscriptionId(`${txid}i12`).index, 12);
+  assert.equal(parseInscriptionId(`${txid}i4294967295`).index, 4294967295);
 });
 
 test('accepts an ordinals.com url and nothing else', () => {
@@ -20,6 +21,8 @@ test('accepts an ordinals.com url and nothing else', () => {
   assert.equal(parseInscriptionId(`https://www.ordinals.com/r/inscription/${id}?sat=1`).id, id);
   assert.equal(parseInscriptionId(`ordinals.com/inscription/${id}`).id, id);
   assert.equal(parseInscriptionId(`https://ordinals.com/r/metadata/${txid}i2/extra`).id, `${txid}i2`);
+  assert.equal(parseInscriptionId(`https://ordinals.com/inscription/${txid}i01`), null);
+  assert.equal(parseInscriptionId(`https://ordinals.com/inscription/${txid}i1extra`), null);
   assert.equal(parseInscriptionId(`https://example.com/inscription/${id}`), null);
   assert.equal(parseInscriptionId(`https://ordinals.com.evil/inscription/${id}`), null);
   assert.equal(parseInscriptionId(`https://evilordinals.com/inscription/${id}`), null);
@@ -27,7 +30,7 @@ test('accepts an ordinals.com url and nothing else', () => {
 });
 
 test('rejects ids that are not txid i index', () => {
-  for (const bad of ['', 'nope', txid, `${txid}i`, `${id}extra`, `${txid}i-1`, 'i0', `${'g'.repeat(64)}i0`, `${txid}i${0x100000000}`]) {
+  for (const bad of ['', 'nope', txid, `${txid}i`, `${id}extra`, `${txid}i-1`, 'i0', `${'g'.repeat(64)}i0`, `${txid}i${0x100000000}`, `${txid}i00`, `${txid}i01`]) {
     assert.equal(parseInscriptionId(bad), null, bad);
     assert.equal(isValidInscriptionId(bad), false);
   }

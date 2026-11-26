@@ -92,7 +92,10 @@ test('parses an inscription record and chooses a content preview', () => {
 
   assert.equal(previewPlan(parseInscription(record({ content_type: 'image/png', content_length: 80 }))).kind, 'image');
   assert.equal(previewPlan(parseInscription(record({ content_type: 'image/svg+xml', content_length: 80 }))).kind, 'image');
-  assert.equal(previewPlan(parseInscription(record({ content_type: 'text/html', content_length: 80 }))).kind, 'html');
+  const htmlPreview = previewPlan(parseInscription(record({ content_type: 'text/html', content_length: 80 })));
+  assert.equal(htmlPreview.kind, 'html');
+  assert.equal(htmlPreview.frame, `https://ordinals.com/preview/${id}`);
+  assert.equal(htmlPreview.url, `https://ordinals.com/content/${id}`);
   assert.equal(previewPlan(parseInscription(record({ content_type: 'text/html', content_length: 2_000_001 }))).kind, 'link');
   assert.equal(previewPlan(parseInscription(record({ content_type: 'audio/mpeg', content_length: 80 }))).kind, 'audio');
   assert.equal(previewPlan(parseInscription(record({ content_type: 'model/gltf-binary', content_length: 3726620 }))).kind, 'link');

@@ -135,9 +135,9 @@ function previewNode(result) {
   else if (kind === 'video') box.append(h('video', { controls: 'controls', src: url }));
   else if (kind === 'html') {
     box.append(h('iframe', {
-      sandbox: 'allow-scripts allow-same-origin',
+      sandbox: 'allow-scripts',
       title: 'Inscription content',
-      src: url,
+      src: result.preview.frame || url,
     }));
   } else if (kind === 'text') box.append(h('pre', { id: 'previewText' }, 'Loading content…'));
   else if (kind === 'empty') box.append(h('p', null, 'No content body.'));
@@ -285,7 +285,7 @@ async function loadFromQuery() {
   $('#inscriptionId').value = parsed ? parsed.id : raw;
   if (!parsed) {
     $('#out').replaceChildren();
-    setStatus('That is not an inscription id. Use 64 hex characters, i, and the index.', true);
+    setStatus('That is not an inscription id. Use 64 hex characters, i, and an index with no leading zeros. Hex is case-insensitive.', true);
     document.title = 'INK inscription lookup';
     return;
   }
@@ -326,7 +326,7 @@ $('#form').addEventListener('submit', (ev) => {
   ev.preventDefault();
   const parsed = parseInscriptionId($('#inscriptionId').value);
   if (!parsed) {
-    setStatus('That is not an inscription id. Use 64 hex characters, i, and the index.', true);
+    setStatus('That is not an inscription id. Use 64 hex characters, i, and an index with no leading zeros. Hex is case-insensitive.', true);
     return;
   }
   visit(parsed.id, 0, 0);

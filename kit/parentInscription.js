@@ -1,23 +1,19 @@
 // Ported from packz-framework src/lib/ordinals/parentInscription.ts (8e01e71).
-// Tag 3 encode/decode and inscription id checks only. The server createParentInscription
-// call is not ported.
+// Tag 3 encode/decode only. Inscription id checks live in inscriptionId.js.
+// The server createParentInscription call is not ported.
 
-const ID_RE = /^([a-fA-F0-9]{64})i(\d+)$/;
+import { isValidInscriptionId, parseCanonicalInscriptionId } from './inscriptionId.js';
+
+export { isValidInscriptionId };
 
 export function parseInscriptionId(inscriptionId) {
-  const match = String(inscriptionId || '').match(ID_RE);
-  if (!match) {
-    console.error('Invalid inscription ID format', inscriptionId);
-    return null;
-  }
-  return { txid: match[1].toLowerCase(), index: Number(match[2]) };
-}
-
-export function isValidInscriptionId(id) {
-  return ID_RE.test(String(id || ''));
+  return parseCanonicalInscriptionId(inscriptionId);
 }
 
 function encodeIndexLittleEndian(index) {
+  if (!Number.isSafeInteger(index) || index < 0 || index > 0xffffffff) {
+    throw new Error(`Inscription index does not fit in u32: ${index}`);
+  }
   if (index === 0) return new Uint8Array(0);
   const buffer = new Uint8Array(4);
   new DataView(buffer.buffer).setUint32(0, index, true);

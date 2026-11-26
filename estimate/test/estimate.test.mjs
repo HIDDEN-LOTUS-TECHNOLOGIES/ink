@@ -7,8 +7,15 @@ import { feesUrl, loadMarket, mempoolUrl, parseRecommendedFees, parseUsdPrice, p
 import {
   buildEnvelopeScript,
   COMMIT_VBYTES,
+  P2PKH_DUST,
+  P2WPKH_DUST,
+  TAPROOT_DUST,
   estimateInscription,
+  MAX_STANDARD_TX_WEIGHT,
   POSTAGE_DEFAULT,
+  propertiesFieldBytes,
+  propertiesReveal,
+  revealWeightNotice,
   totalCost,
 } from '../size.js';
 
@@ -56,7 +63,8 @@ test('small text inscription vbytes, hand-checked', () => {
   assert.equal(measured.commitVbytes, 154);
   assert.equal(COMMIT_VBYTES, 154);
   assert.equal(measured.totalVbytes, 292);
-  assert.equal(measured.postage, 546);
+  assert.equal(measured.postage, 10_000);
+  assert.equal(measured.weightClass, 'ok');
   assert.equal(measured.revealVbytes, revealVsize(body, contentType));
   sameEnvelopeTail(body, contentType);
   assert.deepEqual(body, textBody('hi'));
@@ -65,7 +73,7 @@ test('small text inscription vbytes, hand-checked', () => {
   assert.equal(cost.commitFee, 170);
   assert.equal(cost.revealFee, 152);
   assert.equal(cost.fee, 322);
-  assert.equal(cost.total, 868);
+  assert.equal(cost.total, 10_322);
 });
 
 test('100 KB image-sized body vbytes, hand-checked', () => {
@@ -92,14 +100,17 @@ test('100 KB image-sized body vbytes, hand-checked', () => {
   assert.equal(cost.commitFee, 308);
   assert.equal(cost.revealFee, 51764);
   assert.equal(cost.fee, 52072);
-  assert.equal(cost.total, 52618);
+  assert.equal(cost.total, 62_072);
 });
 
 test('postage changes sats and not virtual size', () => {
   const body = new TextEncoder().encode('hi');
   const low = estimateInscription({ body, contentType: 'text/plain;charset=utf-8', postage: 546 });
   const high = estimateInscription({ body, contentType: 'text/plain;charset=utf-8', postage: 1000 });
-  assert.equal(POSTAGE_DEFAULT, 546);
+  assert.equal(POSTAGE_DEFAULT, 10_000);
+  assert.equal(TAPROOT_DUST, 330);
+  assert.equal(P2WPKH_DUST, 294);
+  assert.equal(P2PKH_DUST, 546);
   assert.equal(low.revealVbytes, high.revealVbytes);
   assert.equal(low.totalVbytes, high.totalVbytes);
   assert.equal(totalCost(low, 3).total + 454, totalCost(high, 3).total);
@@ -152,15 +163,33 @@ test('content type push headers match the builder', () => {
   sameEnvelopeTail(new TextEncoder().encode('héllo'), 'text/plain;charset=utf-8');
 });
 
-test('refuses an empty body, a body past 390 KB, and a long content type', () => {
+test('a plain image/png tops out at 397,171 bytes under 400,000 weight units', () => {
   assert.throws(() => contentFromText(''), /Choose a file or type some text/);
   assert.throws(() => estimateInscription({ body: new Uint8Array(0), contentType: 'text/plain' }), /empty/);
-  const tooBig = 390 * 1024 + 1;
-  assert.throws(
-    () => contentFromFile({ name: 'a.bin', type: '', bytes: new Uint8Array(tooBig), size: tooBig }),
-    { message: `File is ${tooBig} bytes. The limit is ${tooBig - 1} bytes.` },
-  );
+  const fit = estimateInscription({ body: new Uint8Array(397_171), contentType: 'image/png' });
+  assert.equal(fit.revealWeight, MAX_STANDARD_TX_WEIGHT);
+  assert.equal(fit.weightClass, 'warn');
+  const over = estimateInscription({ body: new Uint8Array(397_172), contentType: 'image/png' });
+  assert.equal(over.revealWeight, MAX_STANDARD_TX_WEIGHT + 1);
+  assert.equal(over.weightClass, 'over');
+  assert.equal(propertiesFieldBytes(520), 2 + 3 + 520);
+  assert.equal(propertiesFieldBytes(521), 2 + 3 + 520 + 2 + 1 + 1);
+  const plain = propertiesReveal(46_262);
+  const encoded = propertiesReveal(46_262, { encoding: 'br' });
+  assert.equal(plain.revealWeight, 47_229);
+  assert.equal(encoded.revealWeight, 47_234);
+  assert.equal(encoded.revealWeight - plain.revealWeight, 5);
   assert.throws(() => estimateInscription({ body: new Uint8Array([1]), contentType: 'a'.repeat(129) }), /too long/);
+});
+
+test('warn and fail notices follow the 390,000 and 400,000 weight lines', () => {
+  const warn = estimateInscription({ body: new Uint8Array(390_000), contentType: 'image/png' });
+  const over = estimateInscription({ body: new Uint8Array(397_172), contentType: 'image/png' });
+  assert.equal(warn.weightClass, 'warn');
+  assert.match(revealWeightNotice(warn.revealWeight, warn.weightClass), /390,000 weight units should be safe/);
+  assert.equal(over.weightClass, 'over');
+  assert.match(revealWeightNotice(over.revealWeight, over.weightClass), /400,000 weight-unit standardness cap/);
+  assert.match(revealWeightNotice(over.revealWeight, over.weightClass), /--no-limit/);
 });
 
 test('market reads stay on the two mempool.space GET paths', () => {

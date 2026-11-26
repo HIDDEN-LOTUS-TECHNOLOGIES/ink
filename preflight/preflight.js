@@ -1,37 +1,30 @@
 import { csvToItems, parseMetadataCSV } from '../kit/metadataCsv.js';
 import { isGammaOnChain, normalizeCollection, toMagicEden } from '../kit/convert.js';
-import { estimateGallery, ORD_VERSION, STANDARD_TX_BYTES } from './galleryProperties.js';
-import { BROTLI_ESTIMATE } from './brotli.js';
+import { preflightLines } from './lines.js';
 
 const $ = (sel) => document.querySelector(sel);
 let data = null;
 let bytes = null;
 let generation = 0;
+let galleryModule = null;
+let galleryPromise = null;
+
+// encode.js is about 121 KB. Load it with the estimator, on the first estimate.
+function loadGallery() {
+  if (!galleryPromise) {
+    galleryPromise = import('./galleryProperties.js').then((mod) => {
+      galleryModule = mod;
+      return mod;
+    }).catch((err) => {
+      galleryPromise = null;
+      throw err;
+    });
+  }
+  return galleryPromise;
+}
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function formatBytes(n) {
-  return `${n.toLocaleString('en-US')} bytes`;
-}
-
-function fits(n) {
-  if (n == null) return 'no compressed figure';
-  if (n <= STANDARD_TX_BYTES) return `fits in ${formatBytes(STANDARD_TX_BYTES)}`;
-  return `over by ${formatBytes(n - STANDARD_TX_BYTES)}`;
-}
-
-function variantLine(label, size) {
-  if (!size || !size.rawBytes) return `${label}: nothing to encode.`;
-  const brotli = size.compressError === 'ratio'
-    ? 'brotli estimate over the 30:1 cap'
-    : size.compressError === 'over-4mb'
-      ? 'over the 4,000,000 byte properties cap'
-      : size.compressedBytes == null
-        ? 'brotli did not shrink it'
-        : `brotli estimate ${formatBytes(size.compressedBytes)}`;
-  return `${label}: raw ${formatBytes(size.rawBytes)} (${size.encoding}), ${brotli}.`;
 }
 
 function render(estimate) {
@@ -45,34 +38,10 @@ function render(estimate) {
   }
   bytes = estimate.selected.bytes;
   $('#download').disabled = !bytes;
-  const lines = [
-    `Estimate against ord ${ORD_VERSION}.`,
-    'Estimate only. Nothing is signed, broadcast or submitted.',
-    '',
-    `${estimate.itemCount} ${estimate.itemCount === 1 ? 'item' : 'items'} encoded. ${estimate.leftOut} left out.`,
-    `Selected options: ${$('#dropTitles').checked ? 'titles dropped' : 'titles kept'}, ${$('#dropTraits').checked ? 'traits dropped' : 'traits kept'}.`,
-  ];
-  if (!estimate.itemCount) {
-    lines.push('No valid inscription id to encode.');
-  } else {
-    const size = estimate.selected;
-    lines.push(`Raw CBOR properties: ${formatBytes(size.rawBytes)} (${size.encoding}).`);
-    if (size.compressError === 'ratio') {
-      lines.push(`Brotli estimate is over ord's 30:1 cap (uncompressed divided by compressed, rounded down). ord ${ORD_VERSION} would reject --compress. The cap check uses this estimate, and ${BROTLI_ESTIMATE.library} ${BROTLI_ESTIMATE.version} is not byte-identical to ord's Rust encoder. The uncompressed size still stands.`);
-    } else if (size.compressError === 'over-4mb') {
-      lines.push(`The raw properties are over ${MAX_SAFE(4000000)} bytes. ord ${ORD_VERSION} rejects --compress above 4,000,000 bytes.`);
-    } else if (size.brotliLimited && size.compressedBytes == null) {
-      lines.push(`Brotli estimate: not smaller. This payload is under 64 bytes, and ${BROTLI_ESTIMATE.library} ${BROTLI_ESTIMATE.version} leaves that on an uncompressed frame. ord's Rust encoder might still shrink it. Showing the uncompressed size only.`);
-    } else if (size.compressedBytes == null) {
-      lines.push(`Brotli estimate: not smaller than the raw CBOR, so ord would keep the ${formatBytes(size.rawBytes)} uncompressed properties. Encoder: ${BROTLI_ESTIMATE.library} ${BROTLI_ESTIMATE.version}, quality ${BROTLI_ESTIMATE.quality}, ${BROTLI_ESTIMATE.lgwin}-bit window. Not byte-identical to ord's Rust encoder.`);
-    } else {
-      lines.push(`Brotli estimate: ${formatBytes(size.compressedBytes)}. ${BROTLI_ESTIMATE.library} ${BROTLI_ESTIMATE.version}, quality ${BROTLI_ESTIMATE.quality}, ${BROTLI_ESTIMATE.lgwin}-bit window, generic mode. Not byte-identical to the Rust brotli crate ord ${ORD_VERSION} uses.`);
-    }
-    lines.push(`400 KB standard tx limit used here: ${formatBytes(STANDARD_TX_BYTES)}. Raw ${fits(size.rawBytes)}. ${size.compressedBytes == null ? 'No smaller brotli figure.' : `Brotli estimate ${fits(size.compressedBytes)}.`}`);
-    lines.push('These are the Tag 17 bytes only. A reveal transaction also carries an input, an output, and the ord envelope. ord refuses a reveal over Bitcoin Core\'s 400,000 weight-unit standardness cap.');
-    lines.push(variantLine('Titles dropped', estimate.titlesDropped));
-    lines.push(variantLine('Traits dropped', estimate.traitsDropped));
-  }
+  const lines = preflightLines(estimate, {
+    dropTitles: $('#dropTitles').checked,
+    dropTraits: $('#dropTraits').checked,
+  });
   $('#out').textContent = lines.join('\n');
   const rows = [];
   for (const row of estimate.idIssues) {
@@ -85,21 +54,30 @@ function render(estimate) {
   $('#issues').innerHTML = rows.join('');
 }
 
-function MAX_SAFE(n) {
-  return n.toLocaleString('en-US');
-}
-
-function showEstimate() {
+async function showEstimate() {
   if (!data) return;
   const token = ++generation;
-  $('#out').textContent = 'Estimating…';
   const options = {
     dropTitles: $('#dropTitles').checked,
     dropTraits: $('#dropTraits').checked,
   };
+  if (!galleryModule) $('#out').textContent = 'Loading estimator…';
+  let gallery;
+  try {
+    gallery = await loadGallery();
+  } catch (err) {
+    if (token !== generation) return;
+    bytes = null;
+    $('#download').disabled = true;
+    $('#out').textContent = '';
+    $('#status').textContent = err instanceof Error ? err.message : 'Could not load the estimator.';
+    return;
+  }
+  if (token !== generation) return;
+  $('#out').textContent = 'Estimating…';
   setTimeout(() => {
     if (token !== generation) return;
-    render(estimateGallery(data, options));
+    render(gallery.estimateGallery(data, options));
   }, 0);
 }
 

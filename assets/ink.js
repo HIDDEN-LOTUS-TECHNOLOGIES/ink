@@ -7,8 +7,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const j=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
 const img=id=>`<img loading="lazy" width="640" height="640" src="${O}/content/${esc(id)}" alt="" data-id="${esc(id)}">`;
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
-// allow-same-origin needed so canvas ordies can run body onload / start()
-const SB='allow-scripts allow-same-origin';
+// ord's explorer sandboxes inscription previews with allow-scripts only.
+const SB='allow-scripts';
 const mkFrame=id=>{const f=document.createElement('iframe');f.src=`${O}/preview/${id}`;f.loading='eager';f.sandbox=SB;f.title='Inscription preview';f.width='640';f.height='640';f.style.cssText='width:100%;height:100%;border:0;pointer-events:none';f.dataset.id=id;return f};
 const livePv=pv=>pv.querySelector('iframe[src*="preview/"]');
 const stopPv=pv=>{pv.querySelectorAll('iframe').forEach(f=>{f.src='about:blank';f.remove()})};

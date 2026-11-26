@@ -1,6 +1,7 @@
-import { contentFromFile, contentFromText, MAX_BODY } from './content.js';
+import { contentFromFile, contentFromText } from './content.js';
 import { loadMarket, RATE_ROWS } from './rates.js';
-import { estimateInscription, parseFeeRate, parsePostage, POSTAGE_DEFAULT, satsToUsd, totalCost } from './size.js';
+import { applyScrollRegion } from './scrollRegion.js';
+import { estimateInscription, MAX_STANDARD_TX_WEIGHT, parseFeeRate, parsePostage, POSTAGE_DEFAULT, revealWeightNotice, satsToUsd, totalCost } from './size.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -52,8 +53,9 @@ function addSection(parent, title) {
   parent.append(h('h2', null, title));
 }
 
-function scrollTable(table) {
+function scrollTable(table, label) {
   const wrap = h('div', { class: 'tablewrap' });
+  applyScrollRegion(wrap, label);
   wrap.append(table);
   return wrap;
 }
@@ -130,7 +132,8 @@ function render() {
     postage,
   });
   const source = fileChoice ? `Using ${content.label}.` : 'Using typed text.';
-  setStatus([source, marketNote].filter(Boolean).join(' '), false);
+  const weightNote = revealWeightNotice(measured.revealWeight, measured.weightClass);
+  setStatus([source, weightNote, marketNote].filter(Boolean).join(' '), measured.weightClass === 'over');
 
   addSection(out, 'Size');
   out.append(scrollTable(factTable([
@@ -138,11 +141,12 @@ function render() {
     ['Body', `${formatNum(measured.bodyBytes)} bytes`],
     ['Envelope script', `${formatNum(measured.scriptBytes)} bytes`],
     ['Witness', `${formatNum(measured.witnessBytes)} bytes`],
+    ['Reveal weight', `${formatNum(measured.revealWeight)} weight units`],
     ['Commit transaction', `${formatNum(measured.commitVbytes)} vbytes`],
     ['Reveal transaction', `${formatNum(measured.revealVbytes)} vbytes`],
     ['Total', `${formatNum(measured.totalVbytes)} vbytes`],
     ['Postage', `${formatNum(measured.postage)} sats`],
-  ])));
+  ]), 'Inscription size'));
   out.append(h('p', null, `Witness discount: the reveal witness is ${formatNum(measured.witnessBytes)} bytes and adds ${formatNum(measured.witnessBytes)} to the weight, not ${formatNum(measured.witnessBytes * 4)}. Weight is ${formatNum(measured.revealBaseWeight)} + ${formatNum(measured.witnessBytes)} = ${formatNum(measured.revealWeight)}. Reveal vbytes = ceil(${formatNum(measured.revealWeight)} / 4) = ${formatNum(measured.revealVbytes)}.`));
 
   addSection(out, 'Cost');
@@ -172,7 +176,7 @@ function render() {
     body.append(tr);
   }
   table.append(head, body);
-  out.append(scrollTable(table));
+  out.append(scrollTable(table, 'Inscription cost'));
   if (!market.fees && custom == null) {
     out.append(h('p', null, 'Recommended rates did not load. Enter a custom sat/vB to see a cost.'));
   }
@@ -190,11 +194,11 @@ async function onFile() {
     render();
     return;
   }
-  if (file.size > MAX_BODY) {
+  if (file.size > MAX_STANDARD_TX_WEIGHT) {
     clearOut();
     $('#file').value = '';
     syncClear();
-    setStatus(`File is ${file.size} bytes. The limit is ${MAX_BODY} bytes.`, true);
+    setStatus(`File is ${file.size} bytes. A reveal carrying that body is over Bitcoin Core's 400,000 weight-unit standardness cap. ord refuses that reveal unless --no-limit is used.`, true);
     return;
   }
   try {
